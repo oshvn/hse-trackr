@@ -14,13 +14,230 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      allowed_users_email: {
+        Row: {
+          email: string
+        }
+        Insert: {
+          email: string
+        }
+        Update: {
+          email?: string
+        }
+        Relationships: []
+      }
+      contractor_requirements: {
+        Row: {
+          contractor_id: string
+          doc_type_id: string
+          id: string
+          planned_due_date: string | null
+          required_count: number
+        }
+        Insert: {
+          contractor_id: string
+          doc_type_id: string
+          id?: string
+          planned_due_date?: string | null
+          required_count?: number
+        }
+        Update: {
+          contractor_id?: string
+          doc_type_id?: string
+          id?: string
+          planned_due_date?: string | null
+          required_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contractor_requirements_contractor_id_fkey"
+            columns: ["contractor_id"]
+            isOneToOne: false
+            referencedRelation: "contractors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contractor_requirements_contractor_id_fkey"
+            columns: ["contractor_id"]
+            isOneToOne: false
+            referencedRelation: "v_contractor_kpi"
+            referencedColumns: ["contractor_id"]
+          },
+          {
+            foreignKeyName: "contractor_requirements_contractor_id_fkey"
+            columns: ["contractor_id"]
+            isOneToOne: false
+            referencedRelation: "v_doc_progress"
+            referencedColumns: ["contractor_id"]
+          },
+          {
+            foreignKeyName: "contractor_requirements_doc_type_id_fkey"
+            columns: ["doc_type_id"]
+            isOneToOne: false
+            referencedRelation: "doc_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contractor_requirements_doc_type_id_fkey"
+            columns: ["doc_type_id"]
+            isOneToOne: false
+            referencedRelation: "v_doc_progress"
+            referencedColumns: ["doc_type_id"]
+          },
+        ]
+      }
+      contractors: {
+        Row: {
+          id: string
+          name: string
+        }
+        Insert: {
+          id?: string
+          name: string
+        }
+        Update: {
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      doc_types: {
+        Row: {
+          category: string
+          code: string | null
+          id: string
+          is_critical: boolean
+          name: string
+          weight: number
+        }
+        Insert: {
+          category: string
+          code?: string | null
+          id?: string
+          is_critical?: boolean
+          name: string
+          weight?: number
+        }
+        Update: {
+          category?: string
+          code?: string | null
+          id?: string
+          is_critical?: boolean
+          name?: string
+          weight?: number
+        }
+        Relationships: []
+      }
+      submissions: {
+        Row: {
+          approved_at: string | null
+          cnt: number
+          contractor_id: string
+          created_at: string
+          doc_type_id: string
+          id: string
+          note: string | null
+          status: string
+          submitted_at: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          cnt?: number
+          contractor_id: string
+          created_at?: string
+          doc_type_id: string
+          id?: string
+          note?: string | null
+          status: string
+          submitted_at?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          cnt?: number
+          contractor_id?: string
+          created_at?: string
+          doc_type_id?: string
+          id?: string
+          note?: string | null
+          status?: string
+          submitted_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "submissions_contractor_id_fkey"
+            columns: ["contractor_id"]
+            isOneToOne: false
+            referencedRelation: "contractors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "submissions_contractor_id_fkey"
+            columns: ["contractor_id"]
+            isOneToOne: false
+            referencedRelation: "v_contractor_kpi"
+            referencedColumns: ["contractor_id"]
+          },
+          {
+            foreignKeyName: "submissions_contractor_id_fkey"
+            columns: ["contractor_id"]
+            isOneToOne: false
+            referencedRelation: "v_doc_progress"
+            referencedColumns: ["contractor_id"]
+          },
+          {
+            foreignKeyName: "submissions_doc_type_id_fkey"
+            columns: ["doc_type_id"]
+            isOneToOne: false
+            referencedRelation: "doc_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "submissions_doc_type_id_fkey"
+            columns: ["doc_type_id"]
+            isOneToOne: false
+            referencedRelation: "v_doc_progress"
+            referencedColumns: ["doc_type_id"]
+          },
+        ]
+      }
     }
     Views: {
-      [_ in never]: never
+      v_contractor_kpi: {
+        Row: {
+          avg_approval_days: number | null
+          avg_prep_days: number | null
+          completion_ratio: number | null
+          contractor_id: string | null
+          contractor_name: string | null
+          must_have_ready_ratio: number | null
+          red_items: number | null
+        }
+        Relationships: []
+      }
+      v_doc_progress: {
+        Row: {
+          approved_count: number | null
+          category: string | null
+          contractor_id: string | null
+          contractor_name: string | null
+          doc_type_id: string | null
+          doc_type_name: string | null
+          first_approved_at: string | null
+          first_started_at: string | null
+          first_submitted_at: string | null
+          is_critical: boolean | null
+          planned_due_date: string | null
+          required_count: number | null
+          status_color: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      [_ in never]: never
+      is_allowed_email: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
