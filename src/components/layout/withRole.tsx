@@ -1,11 +1,9 @@
-import { ComponentType, useEffect, useState } from "react";
+import { ComponentType } from "react";
 import { Navigate } from "react-router-dom";
-import { User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
-
+import { useSessionRole } from "@/hooks/useSessionRole";
 
 interface WithRoleProps {
-  user?: User | null;
+  [key: string]: any;
 }
 
 export const withRole = <P extends object>(
@@ -13,27 +11,7 @@ export const withRole = <P extends object>(
   requiredRole: "admin" | "contractor"
 ) => {
   return (props: P & WithRoleProps) => {
-    const [user, setUser] = useState<User | null>(null);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-      const getUser = async () => {
-        const { data: { session } } = await supabase.auth.getSession();
-        setUser(session?.user ?? null);
-        setLoading(false);
-      };
-
-      getUser();
-
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        (event, session) => {
-          setUser(session?.user ?? null);
-          setLoading(false);
-        }
-      );
-
-      return () => subscription.unsubscribe();
-    }, []);
+    const { role, loading } = useSessionRole();
 
     if (loading) {
       return (
@@ -43,12 +21,10 @@ export const withRole = <P extends object>(
       );
     }
 
-    const userRole: "admin" | "contractor" = user?.user_metadata?.role === "admin" ? "admin" : "contractor";
-
-    if (requiredRole === "admin" && userRole !== "admin") {
-      return <Navigate to="/" replace />;
+    if (role === "guest" || role !== requiredRole) {
+      return <Navigate to="/auth" replace />;
     }
 
-    return <WrappedComponent {...props} user={user} />;
+    return <WrappedComponent {...props} />;
   };
 };
