@@ -13,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
-import { FileText, CheckSquare, Users, BarChart3 } from 'lucide-react';
+import { FileText, CheckSquare, Users } from 'lucide-react';
 import type { FilterState, KpiData, DocProgressData } from '@/lib/dashboardHelpers';
 import {
   calculateOverallCompletion,
@@ -206,7 +206,7 @@ const DashboardPage: React.FC = () => {
         </div>
 
         {/* Navigation Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <Link to="/submissions">
             <Card className="p-6 hover:shadow-md transition-shadow cursor-pointer">
               <div className="flex items-center gap-4">
@@ -238,20 +238,6 @@ const DashboardPage: React.FC = () => {
               </div>
             </Card>
           </Link>
-
-          <Card className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-lg bg-amber-100">
-                <BarChart3 className="h-6 w-6 text-amber-600" />
-              </div>
-              <div>
-                <h3 className="font-semibold">Analytics Dashboard</h3>
-                <p className="text-sm text-muted-foreground">
-                  View compliance metrics and progress
-                </p>
-              </div>
-            </div>
-          </Card>
         </div>
 
         {/* Filter Bar */}
