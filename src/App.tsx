@@ -10,6 +10,7 @@ import ContractorSubmissions from "./pages/ContractorSubmissions";
 import ApprovalsQueuePage from "./pages/ApprovalsQueuePage";
 import AdminSettings from "./pages/AdminSettings";
 import LoginPage from "./pages/LoginPage";
+import UpdatePasswordPage from "./pages/UpdatePasswordPage";
 import UsersRolesPage from "./pages/UsersRolesPage";
 import { withRole } from "./components/layout/withRole";
 
@@ -28,6 +29,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/auth" element={<LoginPage />} />
+          <Route path="/update-password" element={<UpdatePasswordPage />} />
           <Route path="/" element={<AppShell />}>
             <Route index element={<Index />} />
             <Route path="submissions" element={<ContractorSubmissions />} />
