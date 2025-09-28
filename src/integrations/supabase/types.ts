@@ -301,6 +301,10 @@ export type Database = {
       }
     }
     Functions: {
+      is_admin_user: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       is_allowed_email: {
         Args: Record<PropertyKey, never>
         Returns: boolean
