@@ -99,6 +99,12 @@ const LoginPage = () => {
           description: `Chào mừng trở lại!`,
         });
 
+        // Check if password change is required
+        if (data.user.user_metadata?.force_password_change === true) {
+          navigate("/update-password", { replace: true });
+          return;
+        }
+
         // Redirect based on role
         if (profileData.role === "admin") {
           navigate("/", { replace: true });
