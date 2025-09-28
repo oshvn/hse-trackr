@@ -10,10 +10,6 @@ import { RedCards } from '@/components/dashboard/RedCards';
 import { CompletionByContractorBar } from '@/components/dashboard/CompletionByContractorBar';
 import { DetailSidePanel } from '@/components/dashboard/DetailSidePanel';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Link } from 'react-router-dom';
-import { FileText, CheckSquare, Users } from 'lucide-react';
 import type { FilterState, KpiData, DocProgressData } from '@/lib/dashboardHelpers';
 import {
   calculateOverallCompletion,
@@ -182,62 +178,9 @@ const DashboardPage: React.FC = () => {
     <div className="min-h-screen bg-background p-6">
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-3xl font-bold">HSE Document Register</h1>
-            <p className="text-muted-foreground">Track contractor compliance and document status</p>
-          </div>
-          
-          {/* Quick Actions */}
-          <div className="flex gap-2">
-            <Link to="/submissions">
-              <Button variant="outline" className="flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                My Submissions
-              </Button>
-            </Link>
-            <Link to="/approvals">
-              <Button variant="outline" className="flex items-center gap-2">
-                <CheckSquare className="h-4 w-4" />
-                Approvals Queue
-              </Button>
-            </Link>
-          </div>
-        </div>
-
-        {/* Navigation Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <Link to="/submissions">
-            <Card className="p-6 hover:shadow-md transition-shadow cursor-pointer">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-lg bg-blue-100">
-                  <FileText className="h-6 w-6 text-blue-600" />
-                </div>
-                <div>
-                  <h3 className="font-semibold">Contractor Submissions</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Upload and track your document submissions
-                  </p>
-                </div>
-              </div>
-            </Card>
-          </Link>
-
-          <Link to="/approvals">
-            <Card className="p-6 hover:shadow-md transition-shadow cursor-pointer">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-lg bg-green-100">
-                  <CheckSquare className="h-6 w-6 text-green-600" />
-                </div>
-                <div>
-                  <h3 className="font-semibold">Admin Approvals</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Review and approve contractor submissions
-                  </p>
-                </div>
-              </div>
-            </Card>
-          </Link>
+        <div>
+          <h1 className="text-3xl font-bold">HSE Document Register</h1>
+          <p className="text-muted-foreground">Track contractor compliance and document status</p>
         </div>
 
         {/* Filter Bar */}
