@@ -50,10 +50,17 @@ const LoginPage = () => {
       });
 
       if (error) {
+        // Specific error handling
         if (error.message.includes("Invalid login credentials")) {
           toast({
             title: "Đăng nhập thất bại",
             description: "Email hoặc mật khẩu không chính xác.",
+            variant: "destructive",
+          });
+        } else if (error.message.includes("Email not confirmed")) {
+          toast({
+            title: "Email chưa xác nhận", 
+            description: "Vui lòng kiểm tra email để xác nhận tài khoản.",
             variant: "destructive",
           });
         } else {
@@ -67,49 +74,81 @@ const LoginPage = () => {
       }
 
       if (data.user) {
-        // Check if user has an active profile
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('role, status, contractor_id')
-          .eq('user_id', data.user.id)
-          .single();
-
-        if (!profileData) {
+        // Wait for profile resolution before redirect
+        const timeoutId = setTimeout(() => {
           toast({
-            title: "Tài khoản chưa được cấp quyền",
-            description: "Liên hệ quản trị viên để được cấp quyền truy cập.",
+            title: "Đăng nhập chậm",
+            description: "Đang kiểm tra quyền truy cập...",
+          });
+        }, 2000);
+
+        try {
+          const profilePromise = supabase
+            .from('profiles')
+            .select('role, status, contractor_id')
+            .eq('user_id', data.user.id)
+            .maybeSingle();
+            
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Profile timeout')), 10000)
+          );
+
+          const { data: profileData } = await Promise.race([profilePromise, timeoutPromise]) as any;
+
+          clearTimeout(timeoutId);
+
+          if (!profileData) {
+            toast({
+              title: "Tài khoản chưa được cấp quyền",
+              description: "Liên hệ quản trị viên để được cấp quyền truy cập.",
+              variant: "destructive",
+            });
+            await supabase.auth.signOut();
+            return;
+          }
+
+          if (profileData.status !== "active") {
+            toast({
+              title: "Tài khoản chưa được kích hoạt", 
+              description: "Liên hệ quản trị viên để kích hoạt tài khoản.",
+              variant: "destructive",
+            });
+            await supabase.auth.signOut();
+            return;
+          }
+
+          // Success - redirect based on role
+          toast({
+            title: "Đăng nhập thành công",
+            description: `Chào mừng trở lại!`,
+          });
+
+          if (data.user.user_metadata?.force_password_change === true) {
+            navigate("/update-password", { replace: true });
+            return;
+          }
+
+          // Role-based redirect
+          if (profileData.role === "admin") {
+            navigate("/", { replace: true }); // Dashboard
+          } else if (profileData.role === "contractor") {
+            navigate("/submissions", { replace: true });
+          } else {
+            toast({
+              title: "Vai trò không xác định",
+              description: "Liên hệ quản trị viên để được hỗ trợ.",
+              variant: "destructive",
+            });
+          }
+
+        } catch (profileError) {
+          clearTimeout(timeoutId);
+          console.error('Profile fetch error:', profileError);
+          toast({
+            title: "Lỗi kiểm tra quyền",
+            description: "Không thể xác định vai trò. Vui lòng thử lại.",
             variant: "destructive",
           });
-          await supabase.auth.signOut();
-          return;
-        }
-
-        if (profileData.status !== "active") {
-          toast({
-            title: "Tài khoản chưa được kích hoạt",
-            description: "Liên hệ quản trị viên để kích hoạt tài khoản.",
-            variant: "destructive",
-          });
-          await supabase.auth.signOut();
-          return;
-        }
-
-        toast({
-          title: "Đăng nhập thành công",
-          description: `Chào mừng trở lại!`,
-        });
-
-        // Check if password change is required
-        if (data.user.user_metadata?.force_password_change === true) {
-          navigate("/update-password", { replace: true });
-          return;
-        }
-
-        // Redirect based on role
-        if (profileData.role === "admin") {
-          navigate("/", { replace: true });
-        } else if (profileData.role === "contractor") {
-          navigate("/submissions", { replace: true });
         }
       }
     } catch (validationError) {

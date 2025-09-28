@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ensureSession } from '@/lib/autoGuest';
+import { useSessionRole } from '@/hooks/useSessionRole';
 import { FilterBar } from '@/components/dashboard/FilterBar';
 import { KpiCards } from '@/components/dashboard/KpiCards';
 import { Heatmap } from '@/components/dashboard/Heatmap';
@@ -10,6 +10,9 @@ import { RedCards } from '@/components/dashboard/RedCards';
 import { CompletionByContractorBar } from '@/components/dashboard/CompletionByContractorBar';
 import { DetailSidePanel } from '@/components/dashboard/DetailSidePanel';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { AlertCircle } from 'lucide-react';
 import type { FilterState, KpiData, DocProgressData } from '@/lib/dashboardHelpers';
 import {
   calculateOverallCompletion,
@@ -22,22 +25,15 @@ import {
 } from '@/lib/dashboardHelpers';
 
 const DashboardPage: React.FC = () => {
-  const [sessionReady, setSessionReady] = useState(false);
+  const { session, role, loading, error, retry } = useSessionRole();
   const [filters, setFilters] = useState<FilterState>({
     contractor: 'all',
     category: 'all'
   });
   const [selectedCell, setSelectedCell] = useState<{ contractorId: string; docTypeId: string } | null>(null);
 
-  // Ensure guest session before any queries
-  useEffect(() => {
-    ensureSession().then(() => {
-      setSessionReady(true);
-    });
-  }, []);
-
-  // Fetch contractors
-  const { data: contractors = [] } = useQuery({
+  // Fetch contractors - guest accessible
+  const { data: contractors = [], isLoading: contractorsLoading } = useQuery({
     queryKey: ["contractors"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -48,11 +44,13 @@ const DashboardPage: React.FC = () => {
       if (error) throw error;
       return data || [];
     },
-    enabled: sessionReady,
+    enabled: !loading, // Allow guest access
+    retry: 2,
+    retryDelay: 1000
   });
 
-  // Fetch document types for category filter
-  const { data: docTypes = [] } = useQuery({
+  // Fetch document types for category filter - guest accessible
+  const { data: docTypes = [], isLoading: docTypesLoading } = useQuery({
     queryKey: ["doc_types"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -64,11 +62,12 @@ const DashboardPage: React.FC = () => {
       if (error) throw error;
       return data || [];
     },
-    enabled: sessionReady,
+    enabled: !loading, // Allow guest access
+    retry: 2
   });
 
-  // Fetch KPI data
-  const { data: kpiData = [] }: { data: KpiData[] } = useQuery({
+  // Fetch KPI data - requires auth
+  const { data: kpiData = [], isLoading: kpiLoading }: { data: KpiData[], isLoading: boolean } = useQuery({
     queryKey: ["contractor_kpi"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -78,11 +77,12 @@ const DashboardPage: React.FC = () => {
       if (error) throw error;
       return data || [];
     },
-    enabled: sessionReady,
+    enabled: !!session && (role === "admin" || role === "contractor"),
+    retry: 1
   });
 
-  // Fetch progress data
-  const { data: progressData = [] }: { data: DocProgressData[] } = useQuery({
+  // Fetch progress data - requires auth
+  const { data: progressData = [], isLoading: progressLoading }: { data: DocProgressData[], isLoading: boolean } = useQuery({
     queryKey: ["doc_progress"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -94,7 +94,8 @@ const DashboardPage: React.FC = () => {
       if (error) throw error;
       return data || [];
     },
-    enabled: sessionReady,
+    enabled: !!session && (role === "admin" || role === "contractor"),
+    retry: 1
   });
 
   // Fetch requirements for planned vs actual
@@ -111,7 +112,7 @@ const DashboardPage: React.FC = () => {
       if (error) throw error;
       return data || [];
     },
-    enabled: sessionReady && filters.contractor !== 'all',
+    enabled: !!session && (role === "admin" || role === "contractor") && filters.contractor !== 'all',
   });
 
   // Fetch submissions for planned vs actual
@@ -129,7 +130,7 @@ const DashboardPage: React.FC = () => {
       if (error) throw error;
       return data || [];
     },
-    enabled: sessionReady && filters.contractor !== 'all',
+    enabled: !!session && (role === "admin" || role === "contractor") && filters.contractor !== 'all',
   });
 
   // Calculate KPIs based on current filters
@@ -159,7 +160,8 @@ const DashboardPage: React.FC = () => {
     setSelectedCell({ contractorId, docTypeId });
   };
 
-  if (!sessionReady) {
+  // Loading states
+  if (loading) {
     return (
       <div className="min-h-screen bg-background p-6">
         <div className="space-y-6">
@@ -174,13 +176,47 @@ const DashboardPage: React.FC = () => {
     );
   }
 
+  // Error with retry
+  if (error && !session) {
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <div className="max-w-md mx-auto text-center space-y-4 mt-20">
+          <h1 className="text-2xl font-bold">Lỗi tải dữ liệu</h1>
+          <p className="text-muted-foreground">{error}</p>
+          <div className="space-x-2">
+            <Button onClick={retry}>Thử lại</Button>
+            <Button variant="outline" onClick={() => window.location.href = "/auth"}>
+              Đăng nhập
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="space-y-6">
+        {/* Auth warning for guests */}
+        {error && session && (
+          <Alert className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              {error} 
+              <Button variant="link" size="sm" onClick={retry} className="ml-2">
+                Thử lại
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Header */}
         <div>
           <h1 className="text-3xl font-bold">HSE Document Register</h1>
-          <p className="text-muted-foreground">Track contractor compliance and document status</p>
+          <p className="text-muted-foreground">
+            Track contractor compliance and document status
+            {role === "guest" && " (Chế độ xem khách)"}
+          </p>
         </div>
 
         {/* Filter Bar */}
@@ -195,17 +231,17 @@ const DashboardPage: React.FC = () => {
 
         {/* KPI Cards */}
         <KpiCards
-          overallCompletion={overallCompletion}
-          mustHaveReady={mustHaveReady}
-          overdueMustHaves={overdueMustHaves}
-          avgPrepTime={avgPrepTime}
-          avgApprovalTime={avgApprovalTime}
+          overallCompletion={role !== "guest" ? overallCompletion : 0}
+          mustHaveReady={role !== "guest" ? mustHaveReady : 0}
+          overdueMustHaves={role !== "guest" ? overdueMustHaves : 0}
+          avgPrepTime={role !== "guest" ? avgPrepTime : 0}
+          avgApprovalTime={role !== "guest" ? avgApprovalTime : 0}
         />
 
         {/* Charts Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Heatmap
-            data={filteredProgressData}
+            data={role !== "guest" ? filteredProgressData : []}
             contractors={contractors}
             docTypes={docTypes}
             filters={filters}
@@ -220,12 +256,12 @@ const DashboardPage: React.FC = () => {
           />
           
           <RedCards
-            redCards={redCards}
+            redCards={role !== "guest" ? redCards : []}
             onCardClick={handleRedCardClick}
           />
           
           <CompletionByContractorBar
-            kpiData={kpiData}
+            kpiData={role !== "guest" ? kpiData : []}
           />
         </div>
 
