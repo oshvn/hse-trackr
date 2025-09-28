@@ -110,7 +110,7 @@ const LoginPage = () => {
       if (validationError instanceof z.ZodError) {
         toast({
           title: "Thông tin không hợp lệ",
-          description: validationError.errors[0].message,
+          description: validationError.issues[0].message,
           variant: "destructive",
         });
       }

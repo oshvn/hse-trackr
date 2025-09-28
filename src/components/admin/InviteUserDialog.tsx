@@ -18,7 +18,9 @@ import { z } from "zod";
 
 const inviteUserSchema = z.object({
   email: z.string().email("Email không hợp lệ"),
-  role: z.enum(["admin", "contractor"], { required_error: "Vui lòng chọn vai trò" }),
+  role: z.union([z.literal("admin"), z.literal("contractor")]).refine(val => val, {
+    message: "Vui lòng chọn vai trò"
+  }),
   contractor_id: z.string().optional(),
   note: z.string().optional(),
 }).refine((data) => {
@@ -125,7 +127,7 @@ export const InviteUserDialog = ({
       if (validationError instanceof z.ZodError) {
         toast({
           title: "Thông tin không hợp lệ",
-          description: validationError.errors[0].message,
+          description: validationError.issues[0].message,
           variant: "destructive",
         });
       } else {

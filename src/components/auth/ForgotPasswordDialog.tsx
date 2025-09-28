@@ -62,7 +62,7 @@ export const ForgotPasswordDialog = ({ open, onOpenChange }: ForgotPasswordDialo
       if (validationError instanceof z.ZodError) {
         toast({
           title: "Email không hợp lệ",
-          description: validationError.errors[0].message,
+          description: validationError.issues[0].message,
           variant: "destructive",
         });
       }
