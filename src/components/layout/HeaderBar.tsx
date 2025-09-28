@@ -1,5 +1,6 @@
 import { User } from "@supabase/supabase-js";
-import { LogOut, User as UserIcon } from "lucide-react";
+import { LogOut, User as UserIcon, LogIn } from "lucide-react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,12 +13,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { UserRole } from "./AppShell";
 import { useToast } from "@/hooks/use-toast";
 
 interface HeaderBarProps {
   user: User | null;
-  userRole: UserRole["role"];
+  userRole: "admin" | "contractor" | "guest";
 }
 
 export const HeaderBar = ({ user, userRole }: HeaderBarProps) => {
@@ -93,9 +93,11 @@ export const HeaderBar = ({ user, userRole }: HeaderBarProps) => {
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
-          <Button variant="outline">
-            <UserIcon className="mr-2 h-4 w-4" />
-            Guest User
+          <Button variant="outline" asChild>
+            <Link to="/auth">
+              <LogIn className="mr-2 h-4 w-4" />
+              Đăng nhập
+            </Link>
           </Button>
         )}
       </div>

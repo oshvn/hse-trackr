@@ -2,7 +2,7 @@ import { ComponentType, useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { UserRole } from "./AppShell";
+
 
 interface WithRoleProps {
   user?: User | null;
@@ -10,7 +10,7 @@ interface WithRoleProps {
 
 export const withRole = <P extends object>(
   WrappedComponent: ComponentType<P>,
-  requiredRole: UserRole["role"]
+  requiredRole: "admin" | "contractor"
 ) => {
   return (props: P & WithRoleProps) => {
     const [user, setUser] = useState<User | null>(null);
@@ -43,7 +43,7 @@ export const withRole = <P extends object>(
       );
     }
 
-    const userRole: UserRole["role"] = user?.user_metadata?.role === "admin" ? "admin" : "contractor";
+    const userRole: "admin" | "contractor" = user?.user_metadata?.role === "admin" ? "admin" : "contractor";
 
     if (requiredRole === "admin" && userRole !== "admin") {
       return <Navigate to="/" replace />;

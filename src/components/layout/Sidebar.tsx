@@ -1,6 +1,5 @@
-import { BarChart3, FileText, CheckSquare, Settings, Menu } from "lucide-react";
+import { BarChart3, FileText, CheckSquare, Settings, Users } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
-import { User } from "@supabase/supabase-js";
 import {
   Sidebar as SidebarPrimitive,
   SidebarContent,
@@ -14,18 +13,16 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { UserRole } from "./AppShell";
 
 interface SidebarProps {
-  user: User | null;
-  userRole: UserRole["role"];
+  userRole: "admin" | "contractor" | "guest";
 }
 
 interface NavItem {
   title: string;
   url: string;
   icon: typeof BarChart3;
-  roles: UserRole["role"][];
+  roles: ("admin" | "contractor" | "guest")[];
 }
 
 const navigationItems: NavItem[] = [
@@ -33,7 +30,7 @@ const navigationItems: NavItem[] = [
     title: "Dashboard",
     url: "/",
     icon: BarChart3,
-    roles: ["contractor", "admin"],
+    roles: ["contractor", "admin", "guest"],
   },
   {
     title: "My Submissions",
@@ -48,6 +45,12 @@ const navigationItems: NavItem[] = [
     roles: ["admin"],
   },
   {
+    title: "Users & Roles",
+    url: "/users",
+    icon: Users,
+    roles: ["admin"],
+  },
+  {
     title: "Admin Settings",
     url: "/settings",
     icon: Settings,
@@ -55,7 +58,7 @@ const navigationItems: NavItem[] = [
   },
 ];
 
-export const Sidebar = ({ user, userRole }: SidebarProps) => {
+export const Sidebar = ({ userRole }: SidebarProps) => {
   const { state } = useSidebar();
   const location = useLocation();
   const collapsed = state === "collapsed";

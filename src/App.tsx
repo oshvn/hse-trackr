@@ -9,6 +9,8 @@ import NotFound from "./pages/NotFound";
 import ContractorSubmissions from "./pages/ContractorSubmissions";
 import ApprovalsQueuePage from "./pages/ApprovalsQueuePage";
 import AdminSettings from "./pages/AdminSettings";
+import LoginPage from "./pages/LoginPage";
+import UsersRolesPage from "./pages/UsersRolesPage";
 import { withRole } from "./components/layout/withRole";
 
 const queryClient = new QueryClient();
@@ -16,6 +18,7 @@ const queryClient = new QueryClient();
 // Create role-protected components
 const ProtectedApprovalsPage = withRole(ApprovalsQueuePage, "admin");
 const ProtectedAdminSettings = withRole(AdminSettings, "admin");
+const ProtectedUsersPage = withRole(UsersRolesPage, "admin");
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -24,13 +27,14 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
+          <Route path="/auth" element={<LoginPage />} />
           <Route path="/" element={<AppShell />}>
             <Route index element={<Index />} />
             <Route path="submissions" element={<ContractorSubmissions />} />
             <Route path="approvals" element={<ProtectedApprovalsPage />} />
             <Route path="settings" element={<ProtectedAdminSettings />} />
+            <Route path="users" element={<ProtectedUsersPage />} />
           </Route>
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

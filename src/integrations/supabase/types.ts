@@ -128,6 +128,73 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          activated_at: string | null
+          contractor_id: string | null
+          created_at: string | null
+          email: string
+          id: string
+          invited_at: string | null
+          invited_by: string | null
+          note: string | null
+          role: string
+          status: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          activated_at?: string | null
+          contractor_id?: string | null
+          created_at?: string | null
+          email: string
+          id?: string
+          invited_at?: string | null
+          invited_by?: string | null
+          note?: string | null
+          role: string
+          status?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          activated_at?: string | null
+          contractor_id?: string | null
+          created_at?: string | null
+          email?: string
+          id?: string
+          invited_at?: string | null
+          invited_by?: string | null
+          note?: string | null
+          role?: string
+          status?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_contractor_id_fkey"
+            columns: ["contractor_id"]
+            isOneToOne: false
+            referencedRelation: "contractors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_contractor_id_fkey"
+            columns: ["contractor_id"]
+            isOneToOne: false
+            referencedRelation: "v_contractor_kpi"
+            referencedColumns: ["contractor_id"]
+          },
+          {
+            foreignKeyName: "profiles_contractor_id_fkey"
+            columns: ["contractor_id"]
+            isOneToOne: false
+            referencedRelation: "v_doc_progress"
+            referencedColumns: ["contractor_id"]
+          },
+        ]
+      }
       submissions: {
         Row: {
           approved_at: string | null
