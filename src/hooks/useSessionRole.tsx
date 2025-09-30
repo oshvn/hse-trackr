@@ -46,17 +46,28 @@ export const useSessionRole = () => {
 
         const user = session?.user ?? null;
 
-        setAuthState(prev => ({
-          ...prev,
-          session,
-          user,
-          loading: !!user,
-          profile: user ? prev.profile : null
-        }));
+        let shouldFetchProfile = false;
 
-        // Fetch profile if authenticated
+        setAuthState(prev => {
+          const shouldLoadProfile = !!user && (!prev.profile || prev.profile.user_id !== user.id);
+          if (shouldLoadProfile) {
+            shouldFetchProfile = true;
+          }
+
+          return {
+            ...prev,
+            session,
+            user,
+            loading: shouldLoadProfile,
+            profile: user ? prev.profile : null
+          };
+        });
+
+        // Fetch profile if authentication state requires it
         if (user) {
-          await fetchUserProfile(user);
+          if (shouldFetchProfile) {
+            await fetchUserProfile(user);
+          }
         } else {
           setAuthState(prev => ({
             ...prev,
@@ -85,14 +96,27 @@ export const useSessionRole = () => {
 
         const user = session?.user ?? null;
 
-        setAuthState(prev => ({
-          ...prev,
-          session,
-          user,
-          loading: event === 'SIGNED_IN' && !!user
-        }));
+        let shouldFetchProfile = false;
 
-        if (user && event === 'SIGNED_IN') {
+        setAuthState(prev => {
+          const shouldLoadProfile =
+            event === 'SIGNED_IN' &&
+            !!user &&
+            (!prev.profile || prev.profile.user_id !== user.id);
+
+          if (shouldLoadProfile) {
+            shouldFetchProfile = true;
+          }
+
+          return {
+            ...prev,
+            session,
+            user,
+            loading: shouldLoadProfile
+          };
+        });
+
+        if (user && event === 'SIGNED_IN' && shouldFetchProfile) {
           // Defer profile fetch to avoid callback blocking
           setTimeout(() => {
             if (isMounted) {
