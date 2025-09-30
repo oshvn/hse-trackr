@@ -15,7 +15,13 @@ import ForgotPasswordPage from "./pages/forgot-password";
 import NotFound from "./pages/NotFound";
 import { withRole } from "./components/layout/withRole";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 // Create role-protected components
 const ContractorOnlySubmissions = withRole(MySubmissions, ["contractor"]);

@@ -18,6 +18,7 @@ export interface DocProgressData {
   contractor_name: string;
   doc_type_id: string;
   doc_type_name: string;
+  doc_type_code?: string | null;
   category: string;
   is_critical: boolean;
   required_count: number;
@@ -32,6 +33,7 @@ export interface DocProgressData {
 export interface FilterState {
   contractor: string;
   category: string;
+  search?: string;
 }
 
 // Get current date in Bangkok timezone
@@ -59,6 +61,17 @@ export const filterData = <T extends { contractor_id: string; category?: string 
 
   if (filters.category !== "all") {
     filtered = filtered.filter(item => ("category" in item ? item.category === filters.category : true));
+  }
+
+  const searchTerm = filters.search?.trim().toLowerCase();
+  if (searchTerm) {
+    filtered = filtered.filter(item => {
+      const record: any = item;
+      const docName = typeof record.doc_type_name === "string" ? record.doc_type_name.toLowerCase() : "";
+      const docCode = typeof record.doc_type_code === "string" ? record.doc_type_code.toLowerCase() : "";
+      const contractorName = typeof record.contractor_name === "string" ? record.contractor_name.toLowerCase() : "";
+      return docName.includes(searchTerm) || docCode.includes(searchTerm) || contractorName.includes(searchTerm);
+    });
   }
 
   return filtered;
