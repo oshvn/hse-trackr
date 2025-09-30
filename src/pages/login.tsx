@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { Eye, EyeOff, LogIn } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useSessionRole } from "@/hooks/useSessionRole";
@@ -23,27 +23,32 @@ const LoginPage = () => {
   const [redirecting, setRedirecting] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, profile } = useSessionRole();
+
+  const getRedirectTarget = (role: "admin" | "contractor") => {
+    const state = location.state as { from?: { pathname?: string } } | null;
+    const fromPath = state?.from?.pathname;
+
+    if (fromPath && fromPath !== "/login") {
+      return fromPath;
+    }
+
+    return role === "contractor" ? "/my-submissions" : "/";
+  };
 
   useEffect(() => {
     if (user && profile?.status === "active") {
       setRedirecting(true);
-
-      if (profile.role === "admin") {
-        navigate("/", { replace: true });
-      } else if (profile.role === "contractor") {
-        navigate("/my-submissions", { replace: true });
-      }
+      const target = getRedirectTarget(profile.role);
+      navigate(target, { replace: true });
     }
-  }, [user, profile, navigate]);
+  }, [user, profile, navigate, location]);
 
   // Redirect if already logged in
   if (user && profile?.status === "active") {
-    if (profile.role === "admin") {
-      navigate("/", { replace: true });
-    } else if (profile.role === "contractor") {
-      navigate("/submissions", { replace: true });
-    }
+    const target = getRedirectTarget(profile.role);
+    navigate(target, { replace: true });
     return null;
   }
 
@@ -140,10 +145,9 @@ const LoginPage = () => {
           }
 
           // Role-based redirect
-          if (profileData.role === "admin") {
-            navigate("/", { replace: true }); // Dashboard
-          } else if (profileData.role === "contractor") {
-            navigate("/my-submissions", { replace: true });
+          if (profileData.role === "admin" || profileData.role === "contractor") {
+            const redirectPath = getRedirectTarget(profileData.role);
+            navigate(redirectPath, { replace: true });
           } else {
             toast({
               title: "Vai trò không xác định",
