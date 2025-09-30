@@ -203,9 +203,6 @@ export type Database = {
           created_at: string
           doc_type_id: string
           id: string
-          file_name: string | null
-          file_size: number | null
-          storage_path: string | null
           note: string | null
           status: string
           submitted_at: string | null
@@ -217,9 +214,6 @@ export type Database = {
           created_at?: string
           doc_type_id: string
           id?: string
-          file_name?: string | null
-          file_size?: number | null
-          storage_path?: string | null
           note?: string | null
           status: string
           submitted_at?: string | null
@@ -231,9 +225,6 @@ export type Database = {
           created_at?: string
           doc_type_id?: string
           id?: string
-          file_name?: string | null
-          file_size?: number | null
-          storage_path?: string | null
           note?: string | null
           status?: string
           submitted_at?: string | null
