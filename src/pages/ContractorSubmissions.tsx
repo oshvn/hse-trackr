@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { SubmissionsTabs } from '@/components/submissions/SubmissionsTabs';
 import { useToast } from '@/hooks/use-toast';
+import { useSessionRole } from '@/hooks/useSessionRole';
 
 export interface DocType {
   id: string;
@@ -54,8 +55,8 @@ const ContractorSubmissions: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  // TODO: Get actual contractor ID from auth context
-  const contractorId = 'current-contractor-id';
+  const { profile, role } = useSessionRole();
+  const contractorId = profile?.contractor_id;
 
   useEffect(() => {
     loadData();
@@ -64,6 +65,22 @@ const ContractorSubmissions: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
+
+      // Skip loading if no contractor ID (admin users don't have contractor_id)
+      if (role === 'admin') {
+        setLoading(false);
+        return;
+      }
+
+      if (!contractorId) {
+        toast({
+          title: "Error",
+          description: "Unable to load contractor data",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
 
       // Load categories from doc_types
       const { data: docTypesData, error: docTypesError } = await supabase

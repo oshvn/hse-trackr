@@ -164,8 +164,15 @@ export const useSessionRole = () => {
   }, []);
 
   const getUserRole = (): "admin" | "contractor" | "guest" => {
-    if (!authState.session || !authState.profile) return "guest";
-    if (authState.profile.status !== "active") return "guest"; 
+    if (!authState.session || !authState.profile) {
+      console.log('Role: guest (no session or profile)', { session: !!authState.session, profile: !!authState.profile });
+      return "guest";
+    }
+    if (authState.profile.status !== "active") {
+      console.log('Role: guest (inactive status)', { status: authState.profile.status });
+      return "guest";
+    }
+    console.log('Role resolved:', authState.profile.role, { email: authState.profile.email });
     return authState.profile.role;
   };
 
