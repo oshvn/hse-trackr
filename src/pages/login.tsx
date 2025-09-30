@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { Eye, EyeOff, LogIn } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -15,6 +15,33 @@ const loginSchema = z.object({
   password: z.string().min(6, "Mật khẩu phải có ít nhất 6 ký tự"),
 });
 
+
+
+const isSafeInternalPath = (path: string) => {
+  if (typeof path !== "string") {
+    return false;
+  }
+
+  if (!path.startsWith("/") || path.startsWith("//")) {
+    return false;
+  }
+
+  const disallowed = ["/login", "/forgot-password"];
+  return !disallowed.some(entry => path === entry || path.startsWith(`${entry}?`));
+};
+
+const isAllowedForRole = (role: "admin" | "contractor", path: string) => {
+  if (!isSafeInternalPath(path)) {
+    return false;
+  }
+
+  if (role === "contractor" && path.startsWith("/admin")) {
+    return false;
+  }
+
+  return true;
+};
+
 const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -26,15 +53,32 @@ const LoginPage = () => {
   const location = useLocation();
   const { user, profile } = useSessionRole();
 
-  const getRedirectTarget = (role: "admin" | "contractor") => {
-    const state = location.state as { from?: { pathname?: string } } | null;
-    const fromPath = state?.from?.pathname;
-
-    if (fromPath && fromPath !== "/login") {
-      return fromPath;
+  const safeReturnTo = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const candidate = params.get("returnTo");
+    if (!candidate) {
+      return null;
     }
 
-    return role === "contractor" ? "/my-submissions" : "/";
+    return isSafeInternalPath(candidate) ? candidate : null;
+  }, [location.search]);
+
+  const getRedirectTarget = (role: "admin" | "contractor") => {
+    const state = location.state as { from?: { pathname?: string; search?: string } } | null;
+    const fromLocation = state?.from;
+    const statePath = fromLocation?.pathname
+      ? `${fromLocation.pathname}${fromLocation.search ?? ""}`
+      : null;
+
+    if (safeReturnTo && isAllowedForRole(role, safeReturnTo)) {
+      return safeReturnTo;
+    }
+
+    if (statePath && isAllowedForRole(role, statePath)) {
+      return statePath;
+    }
+
+    return role === "contractor" ? "/my-submissions" : "/dashboard";
   };
 
   useEffect(() => {
@@ -43,7 +87,7 @@ const LoginPage = () => {
       const target = getRedirectTarget(profile.role);
       navigate(target, { replace: true });
     }
-  }, [user, profile, navigate, location]);
+  }, [user, profile, navigate, safeReturnTo, location]);
 
   // Redirect if already logged in
   if (user && profile?.status === "active") {

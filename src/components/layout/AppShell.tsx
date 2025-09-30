@@ -6,7 +6,7 @@ import { HeaderBar } from "./HeaderBar";
 import { useSessionRole } from "@/hooks/useSessionRole";
 
 export const AppShell = () => {
-  const { user, loading, role, error } = useSessionRole();
+  const { user, loading, role } = useSessionRole();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -21,12 +21,31 @@ export const AppShell = () => {
       return;
     }
 
-    // Redirect guests trying to access protected pages
-    const protectedPaths = ["/my-submissions", "/admin"];
-    if (role === "guest" && protectedPaths.some(path => location.pathname.startsWith(path))) {
-      navigate("/login", { replace: true });
+    const buildReturnTo = (path: string) => `?returnTo=${encodeURIComponent(path)}`;
+    const currentPath = `${location.pathname}${location.search}`;
+    const isAdminSection = location.pathname.startsWith("/admin");
+    const isContractorSection = location.pathname.startsWith("/my-submissions");
+
+    if (role === "guest") {
+      if (isAdminSection) {
+        navigate("/", { replace: true });
+        return;
+      }
+
+      if (isContractorSection) {
+        navigate({
+          pathname: "/login",
+          search: buildReturnTo(currentPath)
+        }, { replace: true });
+        return;
+      }
     }
-  }, [user, role, loading, location.pathname, navigate]);
+
+    if (role === "contractor" && isAdminSection) {
+      navigate("/my-submissions", { replace: true });
+      return;
+    }
+  }, [user, role, loading, location.pathname, location.search, navigate]);
 
   if (loading) {
     return (

@@ -29,6 +29,22 @@ const getGuestCredentials = () => {
 
 let inflight: Promise<Session | null> | null = null;
 
+
+const shouldAutoGuest = () => {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  const pathname = window.location?.pathname ?? "/";
+  const blockedPrefixes = ["/login", "/forgot-password", "/admin", "/my-submissions"];
+
+  if (blockedPrefixes.some(prefix => pathname.startsWith(prefix))) {
+    return false;
+  }
+
+  return pathname === "/" || pathname === "";
+};
+
 export const ensureSession = async () => {
   if (inflight) {
     return inflight;
@@ -38,6 +54,10 @@ export const ensureSession = async () => {
     const { data } = await supabase.auth.getSession();
     if (data.session) {
       return data.session;
+    }
+
+    if (!shouldAutoGuest()) {
+      return null;
     }
 
     const { email, password } = getGuestCredentials();
