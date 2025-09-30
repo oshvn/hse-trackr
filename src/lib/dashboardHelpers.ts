@@ -47,18 +47,18 @@ export const calculateDaysDifference = (startDate: string | Date, endDate: strin
 };
 
 // Filter data based on current filters
-export const filterData = <T extends { contractor_id: string; category?: string }>(
+export const filterData = <T extends { contractor_id: string; category?: string | null }>(
   data: T[],
   filters: FilterState
 ): T[] => {
   let filtered = data;
 
-  if (filters.contractor !== 'all') {
+  if (filters.contractor !== "all") {
     filtered = filtered.filter(item => item.contractor_id === filters.contractor);
   }
 
-  if (filters.category !== 'all' && 'category' in filtered[0]) {
-    filtered = filtered.filter(item => item.category === filters.category);
+  if (filters.category !== "all") {
+    filtered = filtered.filter(item => ("category" in item ? item.category === filters.category : true));
   }
 
   return filtered;
@@ -183,15 +183,14 @@ export const getRedCards = (
   filters: FilterState
 ): (DocProgressData & { overdueDays: number })[] => {
   const filtered = filterData(data, filters);
-  const redCards = filtered
-    .filter(item => item.is_critical && item.status_color === 'red')
+  return filtered
+    .filter(item => item.is_critical && item.status_color === "red")
     .map(item => ({
       ...item,
       overdueDays: calculateOverdueDays(item.planned_due_date)
     }))
+    .filter(item => item.overdueDays > 0)
     .sort((a, b) => b.overdueDays - a.overdueDays);
-
-  return redCards;
 };
 
 // Format percentage
@@ -222,38 +221,4 @@ export const getStatusColorClass = (statusColor: string): string => {
     default:
       return 'bg-gray-100 border-gray-200';
   }
-};
-
-// Generate suggested actions based on item data
-export const suggestActions = (item: DocProgressData & { overdueDays?: number }): string[] => {
-  const actions: string[] = [];
-  const today = getCurrentDateBangkok();
-
-  // Red and overdue items
-  if (item.status_color === 'red' && item.overdueDays && item.overdueDays > 0) {
-    actions.push(
-      `Schedule urgent meeting with ${item.contractor_name} regarding ${item.doc_type_name} (${item.overdueDays} days overdue)`
-    );
-    actions.push(
-      `Send warning email with document template and compliance requirements`
-    );
-    actions.push(
-      `Assign dedicated mentor to assist with document preparation and provide detailed checklist`
-    );
-  }
-
-  // Amber items with approaching due date
-  if (item.status_color === 'amber' && item.planned_due_date) {
-    const daysToDeadline = calculateDaysDifference(today, parseISO(item.planned_due_date));
-    if (daysToDeadline <= 3 && daysToDeadline >= 0) {
-      actions.push(
-        `Set up daily reminder system for ${item.doc_type_name} submission`
-      );
-      actions.push(
-        `Schedule internal review meeting 24-48 hours before due date`
-      );
-    }
-  }
-
-  return actions;
 };
