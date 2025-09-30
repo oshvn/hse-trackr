@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Clock, CheckCircle, XCircle, Upload, AlertTriangle } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, Upload, AlertTriangle, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { suggestActions, type DocProgressRow } from '@/helpers/suggestActions';
 import type { DocProgress, Submission } from '@/pages/my-submissions';
@@ -41,12 +41,17 @@ export const SubmissionHistorySheet: React.FC<SubmissionHistorySheetProps> = ({
   const suggestedActions = useMemo(() => {
     if (!currentDocProgress) return [];
     
+    const overdueDays = currentDocProgress.planned_due_date
+      ? Math.max(0, Math.ceil((Date.now() - new Date(currentDocProgress.planned_due_date).getTime()) / (1000 * 60 * 60 * 24)))
+      : undefined;
+
     const row: DocProgressRow = {
-      contractor_name: 'Current Contractor', // TODO: Get from auth context
+      contractor_name: currentDocProgress.contractor_name || 'Nhà thầu',
       doc_type_name: currentDocProgress.doc_type_name,
       status_color: currentDocProgress.status_color,
       planned_due_date: currentDocProgress.planned_due_date,
-      is_critical: currentDocProgress.is_critical
+      is_critical: currentDocProgress.is_critical,
+      overdue_days: overdueDays,
     };
 
     return currentDocProgress.status_color === 'amber' || currentDocProgress.status_color === 'red'
@@ -186,6 +191,33 @@ export const SubmissionHistorySheet: React.FC<SubmissionHistorySheetProps> = ({
                           {submission.note && (
                             <div className="text-sm mt-2 p-2 bg-muted rounded">
                               <strong>Note:</strong> {submission.note}
+                            </div>
+                          )}
+                          {submission.file_name && (
+                            <div className="text-sm mt-2 flex items-center justify-between gap-2">
+                              <div>
+                                <strong>File:</strong> {submission.file_name}
+                                {submission.file_size && (
+                                  <span className="ml-1 text-xs text-muted-foreground">
+                                    ({(submission.file_size / (1024 * 1024)).toFixed(2)} MB)
+                                  </span>
+                                )}
+                              </div>
+                              {submission.file_url ? (
+                                <Button asChild variant="outline" size="sm">
+                                  <a
+                                    href={submission.file_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-1"
+                                  >
+                                    <Download className="h-3 w-3" />
+                                    Download
+                                  </a>
+                                </Button>
+                              ) : (
+                                <Badge variant="secondary">File unavailable</Badge>
+                              )}
                             </div>
                           )}
                         </div>

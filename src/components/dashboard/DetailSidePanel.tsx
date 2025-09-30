@@ -7,10 +7,13 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/lib/supabase';
 import { SuggestedActionsList } from './SuggestedActionsList';
-import { Clock, CheckCircle, XCircle, Upload, RotateCcw } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, Upload, RotateCcw, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import type { DocProgressData } from '@/lib/dashboardHelpers';
-import { suggestActions, calculateOverdueDays } from '@/lib/dashboardHelpers';
+import { calculateOverdueDays } from '@/lib/dashboardHelpers';
+import { suggestActions, type DocProgressRow } from '@/helpers/suggestActions';
+
+const STORAGE_BUCKET = "hse-documents";
 
 interface DetailData extends DocProgressData {
   overdueDays?: number;
@@ -22,6 +25,10 @@ interface DetailData extends DocProgressData {
     approved_at: string | null;
     note: string | null;
     cnt: number;
+    file_name: string | null;
+    file_size: number | null;
+    storage_path: string | null;
+    file_url: string | null;
   }>;
 }
 
@@ -68,7 +75,7 @@ export const DetailSidePanel: React.FC<DetailSidePanelProps> = ({
       // Load submission history
       const { data: submissionHistory, error } = await supabase
         .from('submissions')
-        .select('id, status, created_at, submitted_at, approved_at, note, cnt')
+        .select('id, status, created_at, submitted_at, approved_at, note, cnt, file_name, file_size, storage_path')
         .eq('contractor_id', contractorId)
         .eq('doc_type_id', docTypeId)
         .order('created_at', { ascending: false });
@@ -77,10 +84,33 @@ export const DetailSidePanel: React.FC<DetailSidePanelProps> = ({
 
       const overdueDays = calculateOverdueDays(progressItem.planned_due_date);
 
+      const historyWithUrls = await Promise.all(
+        (submissionHistory || []).map(async (submission) => {
+          if (!submission.storage_path) {
+            return { ...submission, file_url: null };
+          }
+
+          try {
+            const { data: signed } = await supabase
+              .storage
+              .from(STORAGE_BUCKET)
+              .createSignedUrl(submission.storage_path, 60 * 60);
+
+            return {
+              ...submission,
+              file_url: signed?.signedUrl ?? null,
+            };
+          } catch (storageError) {
+            console.error('Failed to create signed URL', storageError);
+            return { ...submission, file_url: null };
+          }
+        })
+      );
+
       setDetailData({
         ...progressItem,
         overdueDays: overdueDays > 0 ? overdueDays : undefined,
-        submissionHistory: submissionHistory || []
+        submissionHistory: historyWithUrls
       });
 
     } catch (error) {
@@ -234,7 +264,14 @@ export const DetailSidePanel: React.FC<DetailSidePanelProps> = ({
             {/* Suggested Actions */}
             {(detailData.status_color === 'red' || detailData.status_color === 'amber') && (
               <SuggestedActionsList
-                actions={suggestActions(detailData)}
+                actions={suggestActions({
+                  contractor_name: detailData.contractor_name,
+                  doc_type_name: detailData.doc_type_name,
+                  status_color: detailData.status_color,
+                  planned_due_date: detailData.planned_due_date,
+                  is_critical: detailData.is_critical,
+                  overdue_days: detailData.overdueDays,
+                } as DocProgressRow)}
                 title="Suggested Actions"
               />
             )}
@@ -284,6 +321,33 @@ export const DetailSidePanel: React.FC<DetailSidePanelProps> = ({
                               {submission.note && (
                                 <div className="text-sm mt-2 p-2 bg-muted rounded">
                                   <strong>Note:</strong> {submission.note}
+                                </div>
+                              )}
+                              {submission.file_name && (
+                                <div className="text-sm mt-2 flex items-center justify-between gap-2">
+                                  <div>
+                                    <strong>File:</strong> {submission.file_name}
+                                    {submission.file_size && (
+                                      <span className="ml-1 text-xs text-muted-foreground">
+                                        ({(submission.file_size / (1024 * 1024)).toFixed(2)} MB)
+                                      </span>
+                                    )}
+                                  </div>
+                                  {submission.file_url ? (
+                                    <Button asChild variant="outline" size="sm">
+                                      <a
+                                        href={submission.file_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-1"
+                                      >
+                                        <Download className="h-3 w-3" />
+                                        Download
+                                      </a>
+                                    </Button>
+                                  ) : (
+                                    <Badge variant="secondary">File unavailable</Badge>
+                                  )}
                                 </div>
                               )}
                             </div>

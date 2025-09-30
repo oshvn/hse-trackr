@@ -4,13 +4,14 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Clock, CheckCircle, XCircle, Upload, RotateCcw, AlertTriangle } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, Upload, RotateCcw, AlertTriangle, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import { RowActions } from './RowActions';
 import type { ApprovalSubmission } from '@/pages/admin/approvals';
 
 interface SubmissionDetail extends ApprovalSubmission {
+  file_url: string | null;
   submission_history: Array<{
     id: string;
     status: string;
@@ -18,6 +19,10 @@ interface SubmissionDetail extends ApprovalSubmission {
     submitted_at: string | null;
     approved_at: string | null;
     note: string | null;
+    file_name: string | null;
+    file_size: number | null;
+    storage_path: string | null;
+    file_url: string | null;
   }>;
 }
 
@@ -40,6 +45,7 @@ export const SubmissionDetailSheet: React.FC<SubmissionDetailSheetProps> = ({
 }) => {
   const [submission, setSubmission] = useState<SubmissionDetail | null>(null);
   const [loading, setLoading] = useState(false);
+  const STORAGE_BUCKET = 'hse-documents';
 
   useEffect(() => {
     if (submissionId && open) {
@@ -77,7 +83,7 @@ export const SubmissionDetailSheet: React.FC<SubmissionDetailSheetProps> = ({
       // Load submission history for this contractor and doc type
       const { data: historyData, error: historyError } = await supabase
         .from('submissions')
-        .select('id, status, created_at, submitted_at, approved_at, note')
+        .select('id, status, created_at, submitted_at, approved_at, note, file_name, file_size, storage_path')
         .eq('contractor_id', submissionData.contractor_id)
         .eq('doc_type_id', submissionData.doc_type_id)
         .order('created_at', { ascending: false });
@@ -90,6 +96,38 @@ export const SubmissionDetailSheet: React.FC<SubmissionDetailSheetProps> = ({
       const overdueDays = plannedDueDate && !submissionData.approved_at
         ? Math.max(0, Math.ceil((today.getTime() - new Date(plannedDueDate).getTime()) / (1000 * 60 * 60 * 24)))
         : 0;
+
+      let fileUrl: string | null = null;
+      if (submissionData.storage_path) {
+        try {
+          const { data: signed } = await supabase
+            .storage
+            .from(STORAGE_BUCKET)
+            .createSignedUrl(submissionData.storage_path, 60 * 60);
+          fileUrl = signed?.signedUrl ?? null;
+        } catch (storageError) {
+          console.error('Failed to sign submission file', storageError);
+        }
+      }
+
+      const historyWithUrls = await Promise.all(
+        (historyData || []).map(async (item) => {
+          if (!item.storage_path) {
+            return { ...item, file_url: null };
+          }
+
+          try {
+            const { data: signed } = await supabase
+              .storage
+              .from(STORAGE_BUCKET)
+              .createSignedUrl(item.storage_path, 60 * 60);
+            return { ...item, file_url: signed?.signedUrl ?? null };
+          } catch (storageError) {
+            console.error('Failed to sign history file', storageError);
+            return { ...item, file_url: null };
+          }
+        })
+      );
 
       const detailedSubmission: SubmissionDetail = {
         id: submissionData.id,
@@ -106,7 +144,11 @@ export const SubmissionDetailSheet: React.FC<SubmissionDetailSheetProps> = ({
         is_critical: submissionData.doc_types.is_critical,
         planned_due_date: plannedDueDate,
         overdue_days: overdueDays > 0 ? overdueDays : undefined,
-        submission_history: historyData || []
+        file_name: submissionData.file_name,
+        file_size: submissionData.file_size,
+        storage_path: submissionData.storage_path,
+        file_url: fileUrl,
+        submission_history: historyWithUrls
       };
 
       setSubmission(detailedSubmission);
@@ -207,6 +249,27 @@ export const SubmissionDetailSheet: React.FC<SubmissionDetailSheetProps> = ({
                   </div>
                 </div>
               )}
+
+              {submission.file_name && (
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    File đính kèm: <span className="font-medium text-foreground">{submission.file_name}</span>
+                    {submission.file_size && (
+                      <span className="ml-1 text-xs">({(submission.file_size / (1024 * 1024)).toFixed(2)} MB)</span>
+                    )}
+                  </div>
+                  {submission.file_url ? (
+                    <Button asChild variant="outline" size="sm">
+                      <a href={submission.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1">
+                        <Download className="h-3 w-3" />
+                        Download
+                      </a>
+                    </Button>
+                  ) : (
+                    <Badge variant="secondary">File unavailable</Badge>
+                  )}
+                </div>
+              )}
             </div>
           </Card>
 
@@ -267,6 +330,33 @@ export const SubmissionDetailSheet: React.FC<SubmissionDetailSheetProps> = ({
                         {item.note && (
                           <div className="text-sm mt-2 p-2 bg-muted rounded">
                             <strong>Note:</strong> {item.note}
+                          </div>
+                        )}
+                        {item.file_name && (
+                          <div className="flex items-center justify-between gap-2 text-sm mt-2">
+                            <div>
+                              <strong>File:</strong> {item.file_name}
+                              {item.file_size && (
+                                <span className="ml-1 text-xs text-muted-foreground">
+                                  ({(item.file_size / (1024 * 1024)).toFixed(2)} MB)
+                                </span>
+                              )}
+                            </div>
+                            {item.file_url ? (
+                              <Button asChild variant="outline" size="sm">
+                                <a
+                                  href={item.file_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-1"
+                                >
+                                  <Download className="h-3 w-3" />
+                                  Download
+                                </a>
+                              </Button>
+                            ) : (
+                              <Badge variant="secondary">File unavailable</Badge>
+                            )}
                           </div>
                         )}
                       </div>
