@@ -20,6 +20,32 @@ interface AuthState {
   error: string | null;
 }
 
+const normalizeRole = (value: unknown): UserProfile["role"] | null => {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "admin" || normalized === "contractor") {
+    return normalized;
+  }
+
+  return null;
+};
+
+const normalizeStatus = (value: unknown): UserProfile["status"] | null => {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "invited" || normalized === "active" || normalized === "deactivated") {
+    return normalized;
+  }
+
+  return null;
+};
+
 export const useSessionRole = () => {
   const [authState, setAuthState] = useState<AuthState>({
     user: null,
@@ -157,14 +183,14 @@ export const useSessionRole = () => {
 
         if (!data) {
           // Fallback to user_metadata if profile missing
-          const role = user.user_metadata?.role;
-          if (role && (role === 'admin' || role === 'contractor')) {
+          const normalizedRole = normalizeRole(user.user_metadata?.role);
+          if (normalizedRole) {
             setAuthState(prev => ({
               ...prev,
               profile: {
                 id: user.id,
                 user_id: user.id,
-                role,
+                role: normalizedRole,
                 status: 'active',
                 email: user.email || ''
               } as UserProfile,
@@ -175,10 +201,23 @@ export const useSessionRole = () => {
             setAuthState(prev => ({
               ...prev,
               profile: null,
-              error: 'Tài khoản chưa được cấp quyền. Liên hệ quản trị viên.',
+              error: 'Tai khoan chua duoc cap quyen. Lien he quan tri vien.',
               loading: false
             }));
           }
+          return;
+        }
+
+        const normalizedRole = normalizeRole(data.role);
+        const normalizedStatus = normalizeStatus(data.status) ?? 'invited';
+
+        if (!normalizedRole) {
+          setAuthState(prev => ({
+            ...prev,
+            profile: null,
+            error: 'Tai khoan chua duoc cap quyen. Lien he quan tri vien.',
+            loading: false
+          }));
           return;
         }
 
@@ -188,9 +227,9 @@ export const useSessionRole = () => {
             id: data.id,
             user_id: data.user_id,
             email: data.email,
-            role: data.role as "admin" | "contractor",
+            role: normalizedRole,
             contractor_id: data.contractor_id,
-            status: data.status as "invited" | "active" | "deactivated",
+            status: normalizedStatus,
             contractor_name: data.contractor?.name
           },
           error: null,
@@ -202,7 +241,7 @@ export const useSessionRole = () => {
         // Don't crash - show guest dashboard with warning
         setAuthState(prev => ({
           ...prev,
-          error: 'Không thể tải thông tin tài khoản. Hiển thị chế độ khách.',
+          error: 'Khong the tai thong tin tai khoan. Hien thi che do khach.',
           loading: false
         }));
       }
@@ -221,12 +260,21 @@ export const useSessionRole = () => {
       console.log('Role: guest (no session or profile)', { session: !!authState.session, profile: !!authState.profile });
       return "guest";
     }
-    if (authState.profile.status !== "active") {
+
+    const profileStatus = normalizeStatus(authState.profile.status) ?? 'invited';
+    if (profileStatus !== "active") {
       console.log('Role: guest (inactive status)', { status: authState.profile.status });
       return "guest";
     }
-    console.log('Role resolved:', authState.profile.role, { email: authState.profile.email });
-    return authState.profile.role;
+
+    const resolvedRole = normalizeRole(authState.profile.role);
+    if (!resolvedRole) {
+      console.log('Role: guest (unrecognized role)', { role: authState.profile.role });
+      return "guest";
+    }
+
+    console.log('Role resolved:', resolvedRole, { email: authState.profile.email });
+    return resolvedRole;
   };
 
   const retry = () => {
@@ -245,15 +293,28 @@ export const useSessionRole = () => {
               .maybeSingle();
 
             if (!error && data) {
+              const normalizedRole = normalizeRole(data.role);
+              const normalizedStatus = normalizeStatus(data.status) ?? 'invited';
+
+              if (!normalizedRole) {
+                setAuthState(prev => ({
+                  ...prev,
+                  profile: null,
+                  error: 'Tai khoan chua duoc cap quyen. Lien he quan tri vien.',
+                  loading: false
+                }));
+                return;
+              }
+
               setAuthState(prev => ({
                 ...prev,
                 profile: {
                   id: data.id,
                   user_id: data.user_id,
                   email: data.email,
-                  role: data.role as "admin" | "contractor",
+                  role: normalizedRole,
                   contractor_id: data.contractor_id,
-                  status: data.status as "invited" | "active" | "deactivated",
+                  status: normalizedStatus,
                   contractor_name: data.contractor?.name
                 },
                 error: null,
