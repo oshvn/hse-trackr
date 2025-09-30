@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import type { DocProgress } from '@/pages/ContractorSubmissions';
+import type { DocProgress } from '@/pages/my-submissions';
 
 interface CategoryProgressProps {
   categories: string[];

@@ -1,47 +1,74 @@
+import { useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppShell } from "./components/layout/AppShell";
-import Index from "./pages/Index";
+import Dashboard from "./pages/dashboard";
+import MySubmissions from "./pages/my-submissions";
+import AdminApprovals from "./pages/admin/approvals";
+import AdminSettings from "./pages/admin/settings";
+import AdminUsers from "./pages/admin/users";
+import LoginPage from "./pages/login";
+import ForgotPasswordPage from "./pages/forgot-password";
 import NotFound from "./pages/NotFound";
-import ContractorSubmissions from "./pages/ContractorSubmissions";
-import ApprovalsQueuePage from "./pages/ApprovalsQueuePage";
-import AdminSettings from "./pages/AdminSettings";
-import LoginPage from "./pages/LoginPage";
-import UpdatePasswordPage from "./pages/UpdatePasswordPage";
-import UsersRolesPage from "./pages/UsersRolesPage";
 import { withRole } from "./components/layout/withRole";
+import { ensureSession } from "./lib/autoGuest";
 
 const queryClient = new QueryClient();
 
 // Create role-protected components
-const ProtectedApprovalsPage = withRole(ApprovalsQueuePage, "admin");
-const ProtectedAdminSettings = withRole(AdminSettings, "admin");
-const ProtectedUsersPage = withRole(UsersRolesPage, "admin");
+const ContractorOnlySubmissions = withRole(MySubmissions, ["contractor"]);
+const ProtectedApprovalsPage = withRole(AdminApprovals, ["admin"]);
+const ProtectedAdminSettings = withRole(AdminSettings, ["admin"]);
+const ProtectedUsersPage = withRole(AdminUsers, ["admin"]);
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/auth" element={<LoginPage />} />
-          <Route path="/update-password" element={<UpdatePasswordPage />} />
-          <Route path="/" element={<AppShell />}>
-            <Route index element={<Index />} />
-            <Route path="submissions" element={<ContractorSubmissions />} />
-            <Route path="approvals" element={<ProtectedApprovalsPage />} />
-            <Route path="settings" element={<ProtectedAdminSettings />} />
-            <Route path="users" element={<ProtectedUsersPage />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+const AppRoutes = () => (
+  <Routes>
+    <Route path="/login" element={<LoginPage />} />
+    <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+    <Route path="/" element={<AppShell />}>
+      <Route index element={<Dashboard />} />
+      <Route path="dashboard" element={<Dashboard />} />
+      <Route path="my-submissions" element={<ContractorOnlySubmissions />} />
+      <Route path="admin">
+        <Route path="approvals" element={<ProtectedApprovalsPage />} />
+        <Route path="settings" element={<ProtectedAdminSettings />} />
+        <Route path="users" element={<ProtectedUsersPage />} />
+      </Route>
+    </Route>
+    <Route path="*" element={<NotFound />} />
+  </Routes>
 );
+
+const App = () => {
+  const [bootstrapped, setBootstrapped] = useState(false);
+
+  useEffect(() => {
+    ensureSession().finally(() => setBootstrapped(true));
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          {bootstrapped ? (
+            <AppRoutes />
+          ) : (
+            <div className="flex min-h-screen items-center justify-center bg-background">
+              <div className="text-center space-y-3">
+                <div className="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
+                <p className="text-sm text-muted-foreground">Đang khởi tạo phiên khách…</p>
+              </div>
+            </div>
+          )}
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;

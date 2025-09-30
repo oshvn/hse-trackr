@@ -1,7 +1,8 @@
 import { User } from "@supabase/supabase-js";
 import { LogOut, User as UserIcon, LogIn } from "lucide-react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
+import { ensureSession } from "@/lib/autoGuest";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -32,6 +33,8 @@ export const HeaderBar = ({ user, userRole }: HeaderBarProps) => {
         title: "Logged out successfully",
         description: "You have been logged out of your account.",
       });
+
+      await ensureSession();
     } catch (error) {
       toast({
         title: "Error logging out",
@@ -47,7 +50,14 @@ export const HeaderBar = ({ user, userRole }: HeaderBarProps) => {
   };
 
   const getRoleLabel = () => {
-    return userRole === "admin" ? "Administrator" : "Contractor";
+    switch (userRole) {
+      case "admin":
+        return "Administrator";
+      case "contractor":
+        return "Contractor";
+      default:
+        return "Guest";
+    }
   };
 
   return (
@@ -94,7 +104,7 @@ export const HeaderBar = ({ user, userRole }: HeaderBarProps) => {
           </DropdownMenu>
         ) : (
           <Button variant="outline" asChild>
-            <Link to="/auth">
+            <Link to="/login">
               <LogIn className="mr-2 h-4 w-4" />
               Đăng nhập
             </Link>

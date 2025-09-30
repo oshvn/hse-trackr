@@ -5,12 +5,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { AlertTriangle, Clock } from 'lucide-react';
 import type { DocProgressData } from '@/lib/dashboardHelpers';
 
-interface RedCardsProps {
+interface RedCardListProps {
   redCards: Array<DocProgressData & { overdueDays: number }>;
   onCardClick: (contractorId: string, docTypeId: string) => void;
 }
 
-export const RedCards: React.FC<RedCardsProps> = ({
+export const RedCardList: React.FC<RedCardListProps> = ({
   redCards,
   onCardClick
 }) => {

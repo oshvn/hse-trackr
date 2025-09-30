@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { useSessionRole } from '@/hooks/useSessionRole';
 import { FilterBar } from '@/components/dashboard/FilterBar';
 import { KpiCards } from '@/components/dashboard/KpiCards';
-import { Heatmap } from '@/components/dashboard/Heatmap';
-import { PlannedVsActual } from '@/components/dashboard/PlannedVsActual';
-import { RedCards } from '@/components/dashboard/RedCards';
-import { CompletionByContractorBar } from '@/components/dashboard/CompletionByContractorBar';
+import { Heatmap } from '@/components/Heatmap';
+import { PlannedVsActual } from '@/components/Charts/PlannedVsActualChart';
+import { RedCardList } from '@/components/RedCardList';
+import { CompletionByContractorBar } from '@/components/Charts/CompletionByContractorChart';
 import { DetailSidePanel } from '@/components/dashboard/DetailSidePanel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -255,7 +255,7 @@ const DashboardPage: React.FC = () => {
             submissions={submissions}
           />
           
-          <RedCards
+          <RedCardList
             redCards={role !== "guest" ? redCards : []}
             onCardClick={handleRedCardClick}
           />
