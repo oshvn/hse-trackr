@@ -97,21 +97,30 @@ export const RowActions: React.FC<RowActionsProps> = ({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem
-            onClick={() => setShowApproveDialog(true)}
+            onClick={() => {
+              setNote('');
+              setShowApproveDialog(true);
+            }}
             className="text-green-600"
           >
             <CheckCircle className="h-4 w-4 mr-2" />
             Approve
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={() => setShowRevisionDialog(true)}
+            onClick={() => {
+              setNote('');
+              setShowRevisionDialog(true);
+            }}
             className="text-blue-600"
           >
             <RotateCcw className="h-4 w-4 mr-2" />
             Request Revision
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={() => setShowRejectDialog(true)}
+            onClick={() => {
+              setNote('');
+              setShowRejectDialog(true);
+            }}
             className="text-red-600"
           >
             <XCircle className="h-4 w-4 mr-2" />

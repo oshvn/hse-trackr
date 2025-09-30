@@ -12,7 +12,7 @@ interface SubmissionsTabsProps {
   requirements: ContractorRequirement[];
   docProgress: DocProgress[];
   submissions: Submission[];
-  onNewSubmission: (docTypeId: string, file: File) => Promise<void>;
+  onNewSubmission: (docTypeId: string, file: File, note: string) => Promise<void>;
   onRefresh: () => void;
 }
 

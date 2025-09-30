@@ -44,7 +44,7 @@ src/
     admin/                 # Admin routes (approvals, settings, users)
 ```
 
-Supabase migrations live under `supabase/migrations`. The consolidated refactor migration is `20251001090000_full_refactor.sql`.
+Supabase migrations live under `supabase/migrations`. The consolidated refactor migration is `20251015093000_hse_register_refactor.sql`.
 
 ## Prerequisites
 
@@ -87,34 +87,37 @@ The dev server runs on [http://localhost:5173](http://localhost:5173). The app a
 
    ```bash
    supabase db push
-   # or manually run supabase/migrations/20251001090000_full_refactor.sql
+   # or manually run supabase/migrations/20251015093000_hse_register_refactor.sql
    ```
 
 3. **Seed demo data** – the migration inserts:
-   - Contractors `CON-A`, `CON-B`, `CON-C`
-   - Document types with critical flags and weighting
-   - Contractor requirement matrix with staggered due dates
-   - Sample submissions demonstrating strong (A), medium (B), and weak (C) performance
-   - Email allow list entries for `guest@osh.vn` and `admin@osh.vn`
+   - Contractors `Aurora Engineering`, `Blue Horizon Services`, `Crimson Logistics`
+   - Document types across management, risk, operations, and emergency preparedness with critical flags
+   - Contractor requirement matrix with varied due dates and required counts
+   - Sample submissions demonstrating strong (Aurora), mixed (Blue Horizon), and weak (Crimson) compliance
+   - Email allow-list support via `allowed_users_email`
 
-4. **Create Auth users** (via Supabase dashboard or CLI):
+4. **Create storage bucket** – in Supabase Storage create a public bucket named `hse-documents`. This bucket stores uploaded HSE evidence files referenced by the app.
+
+5. **Create Auth users** (via Supabase dashboard or CLI):
    - Guest user (`guest@osh.vn`) with the password configured in `VITE_GUEST_PASSWORD`. Do **not** attach a profile record.
    - Admin user (`admin@osh.vn`) – invite/login once then update the `profiles` table to set `role = 'admin'`, `status = 'active'`.
    - Optional contractor users – assign `role = 'contractor'`, link `contractor_id`, and set `status = 'active'` in the `profiles` table.
 
-5. **Verify RLS** by running sample queries as each role (see checklist below).
+6. **Verify RLS** by running sample queries as each role (see checklist below).
 
 ## Testing & quality checklist
 
 - ✅ **Lint/build** – `npm run build`
 - ✅ **Auto guest login** – open the root URL in a new browser session and confirm you land on the dashboard as a guest with read-only data.
 - ✅ **Contractor authentication** – login with a contractor account, ensure redirect to *My Submissions*, upload a placeholder submission, and confirm the table refreshes.
+- ✅ **File uploads** – confirm the uploaded file appears in Supabase Storage (`hse-documents` bucket) and the download link works from the contractor history and admin approvals screens.
 - ✅ **Admin routes** – login as admin and verify access to Approvals Queue, Users & Roles, and Settings. Ensure non-admins are redirected away.
 - ✅ **Dashboard analytics** – check KPI cards, heatmap interaction, planned vs actual chart, contractor comparison chart, and red card list including suggested actions.
 - ✅ **RLS enforcement** – using Supabase SQL editor:
   - Run `select * from submissions` as a contractor and confirm only their contractor rows return.
   - Attempt to insert/update a submission for another contractor – operation should be rejected.
-  - Run `select * from contractor_requirements` as guest – query should be denied.
+  - Run `select * from submissions` as a guest account – no rows should be returned because the guest has no linked contractor profile.
 - ✅ **Password flows** – request forgot-password email, and as an authenticated user with `force_password_change = true`, verify the forced update experience.
 
 ## Role verification guide

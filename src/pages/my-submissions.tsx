@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { SubmissionsTabs } from '@/components/submissions/SubmissionsTabs';
 import { useToast } from '@/hooks/use-toast';
 import { useSessionRole } from '@/hooks/useSessionRole';
+
+const STORAGE_BUCKET = 'hse-documents';
 
 export interface DocType {
   id: string;
@@ -25,6 +27,7 @@ export interface DocProgress {
   doc_type_id: string;
   contractor_id: string;
   doc_type_name: string;
+  contractor_name?: string;
   category: string;
   is_critical: boolean;
   required_count: number;
@@ -45,6 +48,10 @@ export interface Submission {
   approved_at: string | null;
   note: string | null;
   cnt: number;
+  file_name: string | null;
+  file_size: number | null;
+  storage_path: string | null;
+  file_url: string | null;
 }
 
 const MySubmissionsPage: React.FC = () => {
@@ -58,11 +65,7 @@ const MySubmissionsPage: React.FC = () => {
   const { profile, role } = useSessionRole();
   const contractorId = profile?.contractor_id;
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -122,7 +125,30 @@ const MySubmissionsPage: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (submissionsError) throw submissionsError;
-      setSubmissions(submissionsData || []);
+      const submissionsWithUrls = await Promise.all(
+        (submissionsData || []).map(async (submission) => {
+          if (!submission.storage_path) {
+            return { ...submission, file_url: null };
+          }
+
+          try {
+            const { data: signed } = await supabase
+              .storage
+              .from(STORAGE_BUCKET)
+              .createSignedUrl(submission.storage_path, 60 * 60);
+
+            return {
+              ...submission,
+              file_url: signed?.signedUrl ?? null,
+            };
+          } catch (storageError) {
+            console.error('Failed to sign submission file', storageError);
+            return { ...submission, file_url: null };
+          }
+        })
+      );
+
+      setSubmissions(submissionsWithUrls as Submission[]);
 
     } catch (error) {
       console.error('Error loading data:', error);
@@ -134,26 +160,55 @@ const MySubmissionsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [role, contractorId, toast]);
 
-  const handleNewSubmission = async (docTypeId: string, file: File) => {
+  useEffect(() => {
+    if (contractorId || role === 'admin') {
+      loadData();
+    }
+  }, [loadData, contractorId, role]);
+
+  const handleNewSubmission = async (docTypeId: string, file: File, note: string) => {
     try {
-      // TODO: Implement file upload to Supabase Storage
-      // For now, create submission record with status=prepared
-      const { error } = await supabase
+      if (!contractorId) {
+        throw new Error('Missing contractor context');
+      }
+
+      const sanitizedName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+      const storagePath = `${contractorId}/${docTypeId}/${Date.now()}_${sanitizedName}`;
+
+      const { error: uploadError } = await supabase
+        .storage
+        .from(STORAGE_BUCKET)
+        .upload(storagePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: file.type,
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { error: insertError } = await supabase
         .from('submissions')
         .insert({
           contractor_id: contractorId,
           doc_type_id: docTypeId,
-          status: 'prepared',
-          cnt: 1
+          status: 'submitted',
+          submitted_at: new Date().toISOString(),
+          cnt: 1,
+          note: note ? note.trim() : null,
+          file_name: sanitizedName,
+          file_size: file.size,
+          storage_path: storagePath,
         });
 
-      if (error) throw error;
+      if (insertError) throw insertError;
 
       toast({
         title: "Success",
-        description: "Submission created successfully"
+        description: "Document submitted successfully"
       });
 
       // Reload data
@@ -162,7 +217,7 @@ const MySubmissionsPage: React.FC = () => {
       console.error('Error creating submission:', error);
       toast({
         title: "Error",
-        description: "Failed to create submission",
+        description: "Failed to submit document",
         variant: "destructive"
       });
     }
