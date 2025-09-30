@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 
@@ -46,7 +46,119 @@ const normalizeStatus = (value: unknown): UserProfile["status"] | null => {
   return null;
 };
 
+type RawProfile = {
+  id: string;
+  user_id: string;
+  email: string | null;
+  role: string | null;
+  status: string | null;
+  contractor_id?: string | null;
+  contractor?: { name?: string | null } | null;
+};
+
+const mapProfile = (data: RawProfile): UserProfile => {
+  const normalizedRole = normalizeRole(data.role) ?? "contractor";
+  const normalizedStatus = normalizeStatus(data.status) ?? "invited";
+
+  return {
+    id: data.id,
+    user_id: data.user_id,
+    email: data.email ?? "",
+    role: normalizedRole,
+    contractor_id: data.contractor_id ?? undefined,
+    status: normalizedStatus,
+    contractor_name: data.contractor?.name ?? undefined
+  };
+};
+
+const fetchProfileRecord = async (userId: string): Promise<RawProfile | null> => {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select(`
+      *,
+      contractor:contractors(name)
+    `)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+};
+
+const upsertProfileRecord = async (user: User, role: UserProfile["role"], status: UserProfile["status"]): Promise<RawProfile> => {
+  const { data, error } = await supabase
+    .from("profiles")
+    .upsert(
+      [{
+        user_id: user.id,
+        email: user.email ?? "",
+        role,
+        status,
+        contractor_id: null
+      }],
+      { onConflict: "user_id", ignoreDuplicates: false }
+    )
+    .select(`
+      *,
+      contractor:contractors(name)
+    `)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+};
+
+const ensureProfileForUser = async (user: User): Promise<UserProfile> => {
+  const metadataRole = normalizeRole(user.user_metadata?.role);
+  const derivedRole: UserProfile["role"] = metadataRole ?? "contractor";
+  const derivedStatus: UserProfile["status"] = derivedRole === "admin" ? "active" : "invited";
+
+  let profileRecord = await fetchProfileRecord(user.id);
+
+  if (!profileRecord) {
+    profileRecord = await upsertProfileRecord(user, derivedRole, derivedStatus);
+  } else if (metadataRole === "admin" && normalizeRole(profileRecord.role) !== "admin") {
+    const { data, error } = await supabase
+      .from("profiles")
+      .update({ role: "admin", status: "active" })
+      .eq("user_id", user.id)
+      .select(`
+        *,
+        contractor:contractors(name)
+      `)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    profileRecord = data ?? profileRecord;
+  }
+
+  return mapProfile(profileRecord);
+};
+
+const resolveRole = (state: AuthState): "admin" | "contractor" | "guest" => {
+  if (!state.session || !state.profile) {
+    return "guest";
+  }
+
+  if (state.profile.status !== "active") {
+    return "guest";
+  }
+
+  const normalized = normalizeRole(state.profile.role);
+  return normalized ?? "guest";
+};
+
 export const useSessionRole = () => {
+  const mountedRef = useRef(true);
   const [authState, setAuthState] = useState<AuthState>({
     user: null,
     session: null,
@@ -56,283 +168,120 @@ export const useSessionRole = () => {
   });
 
   useEffect(() => {
-    let isMounted = true;
-
-    // Session bootstrap with timeout
-    const initAuth = async () => {
-      try {
-        const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Session timeout')), 10000)
-        );
-
-        const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
-
-        if (!isMounted) return;
-
-        const user = session?.user ?? null;
-
-        let shouldFetchProfile = false;
-
-        setAuthState(prev => {
-          const shouldLoadProfile = !!user && (!prev.profile || prev.profile.user_id !== user.id);
-          if (shouldLoadProfile) {
-            shouldFetchProfile = true;
-          }
-
-          return {
-            ...prev,
-            session,
-            user,
-            loading: shouldLoadProfile,
-            profile: user ? prev.profile : null
-          };
-        });
-
-        // Fetch profile if authentication state requires it
-        if (user) {
-          if (shouldFetchProfile) {
-            await fetchUserProfile(user);
-          }
-        } else {
-          setAuthState(prev => ({
-            ...prev,
-            loading: false,
-            profile: null
-          }));
-        }
-      } catch (error) {
-        console.error('Session init failed:', error);
-        if (isMounted) {
-          setAuthState(prev => ({
-            ...prev,
-            loading: false,
-            error: error instanceof Error ? error.message : 'Session bootstrap failed'
-          }));
-        }
-      }
-    };
-
-    // Auth state listener - avoid async operations in callback
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (!isMounted) {
-          return;
-        }
-
-        const user = session?.user ?? null;
-
-        let shouldFetchProfile = false;
-
-        setAuthState(prev => {
-          const shouldLoadProfile =
-            event === 'SIGNED_IN' &&
-            !!user &&
-            (!prev.profile || prev.profile.user_id !== user.id);
-
-          if (shouldLoadProfile) {
-            shouldFetchProfile = true;
-          }
-
-          return {
-            ...prev,
-            session,
-            user,
-            loading: shouldLoadProfile
-          };
-        });
-
-        if (user && event === 'SIGNED_IN' && shouldFetchProfile) {
-          // Defer profile fetch to avoid callback blocking
-          setTimeout(() => {
-            if (isMounted) {
-              fetchUserProfile(user);
-            }
-          }, 0);
-        } else if (event === 'SIGNED_OUT') {
-          setAuthState(prev => ({
-            ...prev,
-            profile: null,
-            error: null,
-            loading: false
-          }));
-        }
-      }
-    );
-
-    const fetchUserProfile = async (user: User) => {
-      try {
-        const profilePromise = supabase
-          .from('profiles')
-          .select(`
-            *,
-            contractor:contractors(name)
-          `)
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
-        );
-
-        const { data, error } = await Promise.race([profilePromise, timeoutPromise]);
-
-        if (error && error.code !== 'PGRST116') { // Not found error
-          throw error;
-        }
-
-        if (!data) {
-          // Fallback to user_metadata if profile missing
-          const normalizedRole = normalizeRole(user.user_metadata?.role);
-          if (normalizedRole) {
-            setAuthState(prev => ({
-              ...prev,
-              profile: {
-                id: user.id,
-                user_id: user.id,
-                role: normalizedRole,
-                status: 'active',
-                email: user.email || ''
-              } as UserProfile,
-              error: null,
-              loading: false
-            }));
-          } else {
-            setAuthState(prev => ({
-              ...prev,
-              profile: null,
-              error: 'Tai khoan chua duoc cap quyen. Lien he quan tri vien.',
-              loading: false
-            }));
-          }
-          return;
-        }
-
-        const normalizedRole = normalizeRole(data.role);
-        const normalizedStatus = normalizeStatus(data.status) ?? 'invited';
-
-        if (!normalizedRole) {
-          setAuthState(prev => ({
-            ...prev,
-            profile: null,
-            error: 'Tai khoan chua duoc cap quyen. Lien he quan tri vien.',
-            loading: false
-          }));
-          return;
-        }
-
-        setAuthState(prev => ({
-          ...prev,
-          profile: {
-            id: data.id,
-            user_id: data.user_id,
-            email: data.email,
-            role: normalizedRole,
-            contractor_id: data.contractor_id,
-            status: normalizedStatus,
-            contractor_name: data.contractor?.name
-          },
-          error: null,
-          loading: false
-        }));
-
-      } catch (error) {
-        console.error('Profile fetch failed:', error);
-        // Don't crash - show guest dashboard with warning
-        setAuthState(prev => ({
-          ...prev,
-          error: 'Khong the tai thong tin tai khoan. Hien thi che do khach.',
-          loading: false
-        }));
-      }
-    };
-
-    initAuth();
-
     return () => {
-      subscription.unsubscribe();
-      isMounted = false;
+      mountedRef.current = false;
     };
   }, []);
 
-  const getUserRole = (): "admin" | "contractor" | "guest" => {
-    if (!authState.session || !authState.profile) {
-      console.log('Role: guest (no session or profile)', { session: !!authState.session, profile: !!authState.profile });
-      return "guest";
+  const loadProfileForUser = useCallback(async (user: User) => {
+    return ensureProfileForUser(user);
+  }, []);
+
+  const syncSession = useCallback(async (session: Session | null) => {
+    if (!mountedRef.current) {
+      return;
     }
 
-    const profileStatus = normalizeStatus(authState.profile.status) ?? 'invited';
-    if (profileStatus !== "active") {
-      console.log('Role: guest (inactive status)', { status: authState.profile.status });
-      return "guest";
+    const user = session?.user ?? null;
+
+    if (!user) {
+      setAuthState({
+        user: null,
+        session: null,
+        profile: null,
+        loading: false,
+        error: null
+      });
+      return;
     }
 
-    const resolvedRole = normalizeRole(authState.profile.role);
-    if (!resolvedRole) {
-      console.log('Role: guest (unrecognized role)', { role: authState.profile.role });
-      return "guest";
+    setAuthState(prev => ({
+      ...prev,
+      session,
+      user,
+      loading: true,
+      error: null
+    }));
+
+    try {
+      const profile = await loadProfileForUser(user);
+      if (!mountedRef.current) {
+        return;
+      }
+
+      setAuthState({
+        user,
+        session,
+        profile,
+        loading: false,
+        error: null
+      });
+    } catch (error) {
+      console.error('Profile fetch failed:', error);
+      if (!mountedRef.current) {
+        return;
+      }
+
+      setAuthState(prev => ({
+        ...prev,
+        session,
+        user,
+        loading: false,
+        error: error instanceof Error ? error.message : "Khong the tai thong tin tai khoan. Hien thi che do khach."
+      }));
+    }
+  }, [loadProfileForUser]);
+
+  const refreshSession = useCallback(async () => {
+    if (!mountedRef.current) {
+      return;
     }
 
-    console.log('Role resolved:', resolvedRole, { email: authState.profile.email });
-    return resolvedRole;
-  };
+    setAuthState(prev => ({
+      ...prev,
+      loading: true,
+      error: null
+    }));
 
-  const retry = () => {
-    if (authState.user) {
-      setAuthState(prev => ({ ...prev, error: null, loading: true }));
-      setTimeout(() => {
-        const fetchProfile = async () => {
-          try {
-            const { data, error } = await supabase
-              .from('profiles')
-              .select(`
-                *,
-                contractor:contractors(name)
-              `)
-              .eq('user_id', authState.user!.id)
-              .maybeSingle();
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        throw error;
+      }
+      await syncSession(data.session);
+    } catch (error) {
+      console.error('Session init failed:', error);
+      if (!mountedRef.current) {
+        return;
+      }
 
-            if (!error && data) {
-              const normalizedRole = normalizeRole(data.role);
-              const normalizedStatus = normalizeStatus(data.status) ?? 'invited';
-
-              if (!normalizedRole) {
-                setAuthState(prev => ({
-                  ...prev,
-                  profile: null,
-                  error: 'Tai khoan chua duoc cap quyen. Lien he quan tri vien.',
-                  loading: false
-                }));
-                return;
-              }
-
-              setAuthState(prev => ({
-                ...prev,
-                profile: {
-                  id: data.id,
-                  user_id: data.user_id,
-                  email: data.email,
-                  role: normalizedRole,
-                  contractor_id: data.contractor_id,
-                  status: normalizedStatus,
-                  contractor_name: data.contractor?.name
-                },
-                error: null,
-                loading: false
-              }));
-            }
-          } catch (error) {
-            console.error('Retry failed:', error);
-            setAuthState(prev => ({
-              ...prev,
-              loading: false
-            }));
-          }
-        };
-        fetchProfile();
-      }, 0);
+      setAuthState({
+        user: null,
+        session: null,
+        profile: null,
+        loading: false,
+        error: error instanceof Error ? error.message : "Session bootstrap failed"
+      });
     }
-  };
+  }, [syncSession]);
+
+  useEffect(() => {
+    refreshSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      syncSession(session);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [refreshSession, syncSession]);
+
+  const retry = useCallback(() => {
+    refreshSession();
+  }, [refreshSession]);
+
+  const role = resolveRole(authState);
 
   return {
     user: authState.user,
@@ -340,10 +289,10 @@ export const useSessionRole = () => {
     profile: authState.profile,
     loading: authState.loading,
     error: authState.error,
-    role: getUserRole(),
-    isAdmin: () => getUserRole() === "admin",
-    isContractor: () => getUserRole() === "contractor",
-    isGuest: () => getUserRole() === "guest",
+    role,
+    isAdmin: () => role === "admin",
+    isContractor: () => role === "contractor",
+    isGuest: () => role === "guest",
     retry
   };
 };

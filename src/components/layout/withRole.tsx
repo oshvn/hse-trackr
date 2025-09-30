@@ -30,8 +30,30 @@ export const withRole = <P extends object>(
       return <WrappedComponent {...props} />;
     }
 
-    const redirectPath = options.redirectTo || (role === "guest" ? "/login" : "/");
+    const defaultRedirect = (() => {
+      if (options.redirectTo) {
+        return options.redirectTo;
+      }
+      if (role === "contractor") {
+        return "/my-submissions";
+      }
+      if (role === "guest") {
+        return "/";
+      }
+      return "/dashboard";
+    })();
 
-    return <Navigate to={redirectPath} replace state={{ from: location }} />;
+    const shouldPassReturnTo = defaultRedirect.startsWith("/login");
+    const target = shouldPassReturnTo
+      ? {
+          pathname: "/login",
+          search: defaultRedirect.includes("?")
+            ? defaultRedirect.slice(defaultRedirect.indexOf("?"))
+            : `?returnTo=${encodeURIComponent(`${location.pathname}${location.search}`)}`
+        }
+      : defaultRedirect;
+
+    return <Navigate to={target} replace state={{ from: location }} />;
   };
 };
+
