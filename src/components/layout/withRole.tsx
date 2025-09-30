@@ -1,30 +1,37 @@
 import { ComponentType } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useSessionRole } from "@/hooks/useSessionRole";
 
-interface WithRoleProps {
-  [key: string]: any;
+type Role = "admin" | "contractor" | "guest";
+
+interface WithRoleOptions {
+  redirectTo?: string;
 }
 
 export const withRole = <P extends object>(
   WrappedComponent: ComponentType<P>,
-  requiredRole: "admin" | "contractor"
+  requiredRoles: Role[] | Role,
+  options: WithRoleOptions = {}
 ) => {
-  return (props: P & WithRoleProps) => {
+  return (props: P) => {
     const { role, loading } = useSessionRole();
+    const location = useLocation();
+    const allowedRoles = Array.isArray(requiredRoles) ? requiredRoles : [requiredRoles];
 
     if (loading) {
       return (
         <div className="flex h-screen items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
         </div>
       );
     }
 
-    if (role === "guest" || role !== requiredRole) {
-      return <Navigate to="/auth" replace />;
+    if (allowedRoles.includes(role)) {
+      return <WrappedComponent {...props} />;
     }
 
-    return <WrappedComponent {...props} />;
+    const redirectPath = options.redirectTo || (role === "guest" ? "/login" : "/");
+
+    return <Navigate to={redirectPath} replace state={{ from: location }} />;
   };
 };

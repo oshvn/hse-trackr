@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { ApprovalsFilters } from '@/components/approvals/ApprovalsFilters';
 import { ApprovalsTable } from '@/components/approvals/ApprovalsTable';
 import { SubmissionDetailSheet } from '@/components/approvals/SubmissionDetailSheet';
@@ -30,7 +30,7 @@ export interface FilterState {
   status: string;
 }
 
-const ApprovalsQueuePage: React.FC = () => {
+const AdminApprovalsPage: React.FC = () => {
   const [submissions, setSubmissions] = useState<ApprovalSubmission[]>([]);
   const [contractors, setContractors] = useState<Array<{id: string, name: string}>>([]);
   const [categories, setCategories] = useState<string[]>([]);
@@ -358,4 +358,4 @@ const ApprovalsQueuePage: React.FC = () => {
   );
 };
 
-export default ApprovalsQueuePage;
+export default AdminApprovalsPage;

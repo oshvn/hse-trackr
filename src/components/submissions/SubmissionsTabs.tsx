@@ -5,7 +5,7 @@ import { SummaryHeader } from './SummaryHeader';
 import { CategoryProgress } from './CategoryProgress';
 import { NewSubmissionDialog } from './NewSubmissionDialog';
 import { SubmissionHistorySheet } from './SubmissionHistorySheet';
-import type { ContractorRequirement, DocProgress, Submission } from '@/pages/ContractorSubmissions';
+import type { ContractorRequirement, DocProgress, Submission } from '@/pages/my-submissions';
 
 interface SubmissionsTabsProps {
   categories: string[];

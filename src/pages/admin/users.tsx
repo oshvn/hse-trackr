@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Users, Search, UserPlus, Filter } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -17,7 +17,7 @@ interface Contractor {
   name: string;
 }
 
-const UsersRolesPage = () => {
+const AdminUsersPage = () => {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -261,4 +261,4 @@ const UsersRolesPage = () => {
   );
 };
 
-export default UsersRolesPage;
+export default AdminUsersPage;
