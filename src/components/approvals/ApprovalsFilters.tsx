@@ -22,7 +22,7 @@ export const ApprovalsFilters: React.FC<ApprovalsFiltersProps> = ({
   const updateFilter = (key: keyof FilterState, value: string) => {
     onFiltersChange({
       ...filters,
-      [key]: value
+      [key]: value === 'all' ? '' : value
     });
   };
 
@@ -42,14 +42,14 @@ export const ApprovalsFilters: React.FC<ApprovalsFiltersProps> = ({
         <div className="space-y-2">
           <Label htmlFor="contractor-filter">Contractor</Label>
           <Select
-            value={filters.contractor}
+            value={filters.contractor || 'all'}
             onValueChange={(value) => updateFilter('contractor', value)}
           >
             <SelectTrigger className="w-48">
               <SelectValue placeholder="All contractors" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All contractors</SelectItem>
+              <SelectItem value="all">All contractors</SelectItem>
               {contractors.map(contractor => (
                 <SelectItem key={contractor.id} value={contractor.id}>
                   {contractor.name}
@@ -62,14 +62,14 @@ export const ApprovalsFilters: React.FC<ApprovalsFiltersProps> = ({
         <div className="space-y-2">
           <Label htmlFor="category-filter">Category</Label>
           <Select
-            value={filters.category}
+            value={filters.category || 'all'}
             onValueChange={(value) => updateFilter('category', value)}
           >
             <SelectTrigger className="w-48">
               <SelectValue placeholder="All categories" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All categories</SelectItem>
+              <SelectItem value="all">All categories</SelectItem>
               {categories.map(category => (
                 <SelectItem key={category} value={category}>
                   {category}
@@ -82,14 +82,14 @@ export const ApprovalsFilters: React.FC<ApprovalsFiltersProps> = ({
         <div className="space-y-2">
           <Label htmlFor="status-filter">Status</Label>
           <Select
-            value={filters.status}
+            value={filters.status || 'all'}
             onValueChange={(value) => updateFilter('status', value)}
           >
             <SelectTrigger className="w-48">
               <SelectValue placeholder="All statuses" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All statuses</SelectItem>
+              <SelectItem value="all">All statuses</SelectItem>
               <SelectItem value="submitted">Submitted</SelectItem>
               <SelectItem value="revision">Revision Requested</SelectItem>
             </SelectContent>
