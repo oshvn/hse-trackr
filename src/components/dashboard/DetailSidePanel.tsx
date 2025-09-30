@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { SuggestedActionsList } from './SuggestedActionsList';
 import { Clock, CheckCircle, XCircle, Upload, RotateCcw } from 'lucide-react';
 import { format } from 'date-fns';

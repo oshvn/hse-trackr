@@ -1,73 +1,138 @@
-# Welcome to your Lovable project
+# HSE Document Register
 
-## Project info
+A Lovable + Supabase reference implementation for managing Health, Safety & Environment (HSE) document registers across multiple contractors. The application provides an auto-guest dashboard, contractor submission workspace, and admin tooling for approvals, user/role management, and configuration of required document types.
 
-**URL**: https://lovable.dev/projects/c30bd664-82ea-48f9-8aad-384bd6584e8a
+## Features
 
-## How can I edit this code?
+- **Auto guest onboarding** – visitors are transparently signed in with a read-only guest account and dropped straight into the KPI dashboard.
+- **Role based routing** – dedicated experiences for guest, contractor, and admin roles with protected routes and contextual navigation.
+- **Document analytics** – responsive dashboard with KPI cards, completion heatmap, planned vs actual trends, critical red card list, and contractor comparison chart.
+- **Contractor workspace** – upload, track, and refresh submission status scoped to the contractor’s portfolio.
+- **Admin console** – approvals queue, user & role management, and document type configuration with support for critical must-have tracking.
+- **Supabase native** – schema, RLS policies, and seeds provided as idempotent SQL for quick bootstrap of local or hosted projects.
 
-There are several ways of editing your application.
+## Tech stack
 
-**Use Lovable**
+- React 18 + TypeScript using Vite
+- shadcn/ui & Tailwind CSS for styling
+- TanStack Query for data fetching and caching
+- Recharts for responsive data visualisations
+- Supabase (PostgreSQL + Auth + Storage)
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/c30bd664-82ea-48f9-8aad-384bd6584e8a) and start prompting.
+## Project structure
 
-Changes made via Lovable will be committed automatically to this repo.
+```
+src/
+  components/
+    Charts/                # Recharts visualisations
+    Heatmap.tsx            # KPI heatmap component
+    KpiCard.tsx            # KPI card primitive
+    RedCardList.tsx        # Overdue critical list with suggested actions
+    layout/                # App shell, sidebar, header
+  helpers/
+    suggestActions.ts      # Suggested actions helper logic
+  hooks/
+    useSessionRole.tsx     # Session/profile resolver with role helpers
+  lib/
+    autoGuest.ts           # Guest session bootstrapper
+    supabase.ts            # Supabase client bootstrap
+  pages/
+    dashboard.tsx          # Public & admin dashboard
+    login.tsx              # Contractor/admin login form
+    forgot-password.tsx    # Reset password + forced update flow
+    my-submissions.tsx     # Contractor workspace
+    admin/                 # Admin routes (approvals, settings, users)
+```
 
-**Use your preferred IDE**
+Supabase migrations live under `supabase/migrations`. The consolidated refactor migration is `20251001090000_full_refactor.sql`.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## Prerequisites
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+- Node.js 18+
+- npm 9+
+- [Supabase CLI](https://supabase.com/docs/guides/cli) (optional but recommended for running migrations locally)
 
-Follow these steps:
+## Environment variables
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+Create a `.env.local` file (or configure your hosting environment) with the following variables:
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+```
+VITE_SUPABASE_URL=<your-supabase-url>
+VITE_SUPABASE_ANON_KEY=<your-supabase-anon-key>
+VITE_GUEST_EMAIL=guest@osh.vn
+VITE_GUEST_PASSWORD=<guest-password>
+```
 
-# Step 3: Install the necessary dependencies.
-npm i
+For server-triggered migrations the service role key is also required:
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```
+SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
+```
+
+> **Note:** The guest account must exist in Supabase Auth and remain read-only. The provided migration seeds an email allow-list entry; create the actual auth user via the Supabase dashboard or CLI.
+
+## Getting started
+
+```bash
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The dev server runs on [http://localhost:5173](http://localhost:5173). The app automatically signs you in as the guest user unless an authenticated contractor/admin session already exists.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Database setup
 
-**Use GitHub Codespaces**
+1. **Create a Supabase project** and copy the project URL + anon key.
+2. **Apply migrations** (using Supabase CLI):
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+   ```bash
+   supabase db push
+   # or manually run supabase/migrations/20251001090000_full_refactor.sql
+   ```
 
-## What technologies are used for this project?
+3. **Seed demo data** – the migration inserts:
+   - Contractors `CON-A`, `CON-B`, `CON-C`
+   - Document types with critical flags and weighting
+   - Contractor requirement matrix with staggered due dates
+   - Sample submissions demonstrating strong (A), medium (B), and weak (C) performance
+   - Email allow list entries for `guest@osh.vn` and `admin@osh.vn`
 
-This project is built with:
+4. **Create Auth users** (via Supabase dashboard or CLI):
+   - Guest user (`guest@osh.vn`) with the password configured in `VITE_GUEST_PASSWORD`. Do **not** attach a profile record.
+   - Admin user (`admin@osh.vn`) – invite/login once then update the `profiles` table to set `role = 'admin'`, `status = 'active'`.
+   - Optional contractor users – assign `role = 'contractor'`, link `contractor_id`, and set `status = 'active'` in the `profiles` table.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+5. **Verify RLS** by running sample queries as each role (see checklist below).
 
-## How can I deploy this project?
+## Testing & quality checklist
 
-Simply open [Lovable](https://lovable.dev/projects/c30bd664-82ea-48f9-8aad-384bd6584e8a) and click on Share -> Publish.
+- ✅ **Lint/build** – `npm run build`
+- ✅ **Auto guest login** – open the root URL in a new browser session and confirm you land on the dashboard as a guest with read-only data.
+- ✅ **Contractor authentication** – login with a contractor account, ensure redirect to *My Submissions*, upload a placeholder submission, and confirm the table refreshes.
+- ✅ **Admin routes** – login as admin and verify access to Approvals Queue, Users & Roles, and Settings. Ensure non-admins are redirected away.
+- ✅ **Dashboard analytics** – check KPI cards, heatmap interaction, planned vs actual chart, contractor comparison chart, and red card list including suggested actions.
+- ✅ **RLS enforcement** – using Supabase SQL editor:
+  - Run `select * from submissions` as a contractor and confirm only their contractor rows return.
+  - Attempt to insert/update a submission for another contractor – operation should be rejected.
+  - Run `select * from contractor_requirements` as guest – query should be denied.
+- ✅ **Password flows** – request forgot-password email, and as an authenticated user with `force_password_change = true`, verify the forced update experience.
 
-## Can I connect a custom domain to my Lovable project?
+## Role verification guide
 
-Yes, you can!
+| Scenario | Expected behaviour |
+| --- | --- |
+| **Guest** visits `/` | Auto login via `VITE_GUEST_EMAIL`, dashboard visible, navigation limited to dashboard. Protected routes redirect to `/login`. |
+| **Contractor** signs in | Redirect to `/my-submissions`, can create submissions for assigned contractor, can view dashboard. Admin routes blocked. |
+| **Admin** signs in | Access to all admin routes plus dashboard. Approvals queue enables approve/reject/revision actions. |
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## Deployment notes
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- Ensure the guest account credentials are stored in the hosting provider’s environment variables (matching the `VITE_` names).
+- Run Supabase migrations in staging/production before deploying updated code.
+- When adding new contractors or document types in production, prefer the admin Settings UI which respects RLS and keeps analytics in sync.
+
+## Contributing
+
+- Follow the existing code style (ESLint, Prettier, shadcn conventions).
+- Keep migrations idempotent (`create table if not exists`, `insert ... on conflict do nothing`).
+- Document assumptions or environment requirements directly in pull requests or this README.

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { SubmissionsTabs } from '@/components/submissions/SubmissionsTabs';
 import { useToast } from '@/hooks/use-toast';
 import { useSessionRole } from '@/hooks/useSessionRole';
@@ -47,7 +47,7 @@ export interface Submission {
   cnt: number;
 }
 
-const ContractorSubmissions: React.FC = () => {
+const MySubmissionsPage: React.FC = () => {
   const [categories, setCategories] = useState<string[]>([]);
   const [requirements, setRequirements] = useState<ContractorRequirement[]>([]);
   const [docProgress, setDocProgress] = useState<DocProgress[]>([]);
@@ -197,4 +197,4 @@ const ContractorSubmissions: React.FC = () => {
   );
 };
 
-export default ContractorSubmissions;
+export default MySubmissionsPage;

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { User, Session } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import type { User, Session } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
 
 export interface UserProfile {
   id: string;
@@ -30,8 +30,8 @@ export const useSessionRole = () => {
   });
 
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-    
+    let isMounted = true;
+
     // Session bootstrap with timeout
     const initAuth = async () => {
       try {
@@ -39,53 +39,78 @@ export const useSessionRole = () => {
         const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('Session timeout')), 10000)
         );
-        
+
         const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
-        
-        setAuthState(prev => ({ 
-          ...prev, 
-          session, 
-          user: session?.user ?? null,
-          loading: false 
+
+        if (!isMounted) return;
+
+        const user = session?.user ?? null;
+
+        setAuthState(prev => ({
+          ...prev,
+          session,
+          user,
+          loading: !!user,
+          profile: user ? prev.profile : null
         }));
-        
+
         // Fetch profile if authenticated
-        if (session?.user) {
-          await fetchUserProfile(session.user.id);
+        if (user) {
+          await fetchUserProfile(user);
+        } else {
+          setAuthState(prev => ({
+            ...prev,
+            loading: false,
+            profile: null
+          }));
         }
       } catch (error) {
         console.error('Session init failed:', error);
-        setAuthState(prev => ({ 
-          ...prev, 
-          loading: false, 
-          error: error instanceof Error ? error.message : 'Session bootstrap failed'
-        }));
+        if (isMounted) {
+          setAuthState(prev => ({
+            ...prev,
+            loading: false,
+            error: error instanceof Error ? error.message : 'Session bootstrap failed'
+          }));
+        }
       }
     };
 
     // Auth state listener - avoid async operations in callback
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        setAuthState(prev => ({ 
-          ...prev, 
-          session, 
-          user: session?.user ?? null 
+        if (!isMounted) {
+          return;
+        }
+
+        const user = session?.user ?? null;
+
+        setAuthState(prev => ({
+          ...prev,
+          session,
+          user,
+          loading: event === 'SIGNED_IN' && !!user
         }));
-        
-        if (session?.user && event === 'SIGNED_IN') {
+
+        if (user && event === 'SIGNED_IN') {
           // Defer profile fetch to avoid callback blocking
-          setTimeout(() => fetchUserProfile(session.user.id), 0);
+          setTimeout(() => {
+            if (isMounted) {
+              fetchUserProfile(user);
+            }
+          }, 0);
         } else if (event === 'SIGNED_OUT') {
-          setAuthState(prev => ({ 
-            ...prev, 
-            profile: null, 
-            error: null 
+          setAuthState(prev => ({
+            ...prev,
+            profile: null,
+            error: null,
+            loading: false
           }));
         }
       }
     );
 
-    const fetchUserProfile = async (userId: string) => {
+    const fetchUserProfile = async (user: User) => {
       try {
         const profilePromise = supabase
           .from('profiles')
@@ -93,9 +118,9 @@ export const useSessionRole = () => {
             *,
             contractor:contractors(name)
           `)
-          .eq('user_id', userId)
+          .eq('user_id', user.id)
           .maybeSingle();
-          
+
         const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
         );
@@ -108,31 +133,33 @@ export const useSessionRole = () => {
 
         if (!data) {
           // Fallback to user_metadata if profile missing
-          const role = authState.user?.user_metadata?.role;
+          const role = user.user_metadata?.role;
           if (role && (role === 'admin' || role === 'contractor')) {
-            setAuthState(prev => ({ 
-              ...prev, 
+            setAuthState(prev => ({
+              ...prev,
               profile: {
-                id: userId,
-                user_id: userId,
+                id: user.id,
+                user_id: user.id,
                 role,
                 status: 'active',
-                email: authState.user?.email || ''
+                email: user.email || ''
               } as UserProfile,
-              error: null
+              error: null,
+              loading: false
             }));
           } else {
-            setAuthState(prev => ({ 
-              ...prev, 
+            setAuthState(prev => ({
+              ...prev,
               profile: null,
-              error: 'Tài khoản chưa được cấp quyền. Liên hệ quản trị viên.'
+              error: 'Tài khoản chưa được cấp quyền. Liên hệ quản trị viên.',
+              loading: false
             }));
           }
           return;
         }
 
-        setAuthState(prev => ({ 
-          ...prev, 
+        setAuthState(prev => ({
+          ...prev,
           profile: {
             id: data.id,
             user_id: data.user_id,
@@ -142,24 +169,26 @@ export const useSessionRole = () => {
             status: data.status as "invited" | "active" | "deactivated",
             contractor_name: data.contractor?.name
           },
-          error: null 
+          error: null,
+          loading: false
         }));
-        
+
       } catch (error) {
         console.error('Profile fetch failed:', error);
         // Don't crash - show guest dashboard with warning
-        setAuthState(prev => ({ 
-          ...prev, 
-          error: 'Không thể tải thông tin tài khoản. Hiển thị chế độ khách.' 
+        setAuthState(prev => ({
+          ...prev,
+          error: 'Không thể tải thông tin tài khoản. Hiển thị chế độ khách.',
+          loading: false
         }));
       }
     };
 
     initAuth();
-    
+
     return () => {
       subscription.unsubscribe();
-      if (timeoutId) clearTimeout(timeoutId);
+      isMounted = false;
     };
   }, []);
 
@@ -178,7 +207,7 @@ export const useSessionRole = () => {
 
   const retry = () => {
     if (authState.user) {
-      setAuthState(prev => ({ ...prev, error: null }));
+      setAuthState(prev => ({ ...prev, error: null, loading: true }));
       setTimeout(() => {
         const fetchProfile = async () => {
           try {
@@ -203,11 +232,16 @@ export const useSessionRole = () => {
                   status: data.status as "invited" | "active" | "deactivated",
                   contractor_name: data.contractor?.name
                 },
-                error: null
+                error: null,
+                loading: false
               }));
             }
           } catch (error) {
             console.error('Retry failed:', error);
+            setAuthState(prev => ({
+              ...prev,
+              loading: false
+            }));
           }
         };
         fetchProfile();
