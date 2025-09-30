@@ -157,15 +157,31 @@ const resolveRole = (state: AuthState): "admin" | "contractor" | "guest" => {
   return normalized ?? "guest";
 };
 
+const initialState: AuthState = {
+  user: null,
+  session: null,
+  profile: null,
+  loading: true,
+  error: null
+};
+
 export const useSessionRole = () => {
   const mountedRef = useRef(true);
-  const [authState, setAuthState] = useState<AuthState>({
-    user: null,
-    session: null,
-    profile: null,
-    loading: true,
-    error: null
-  });
+  const [authState, setAuthStateState] = useState<AuthState>(initialState);
+  const authStateRef = useRef<AuthState>(initialState);
+
+  const updateAuthState = useCallback((updater: (prev: AuthState) => AuthState) => {
+    setAuthStateState(prev => {
+      const next = updater(prev);
+      authStateRef.current = next;
+      return next;
+    });
+  }, []);
+
+  const overwriteAuthState = useCallback((next: AuthState) => {
+    authStateRef.current = next;
+    setAuthStateState(next);
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -185,7 +201,7 @@ export const useSessionRole = () => {
     const user = session?.user ?? null;
 
     if (!user) {
-      setAuthState({
+      overwriteAuthState({
         user: null,
         session: null,
         profile: null,
@@ -195,11 +211,14 @@ export const useSessionRole = () => {
       return;
     }
 
-    setAuthState(prev => ({
+    const current = authStateRef.current;
+    const hasProfile = !!current.profile && current.profile.user_id === user.id && !current.error;
+
+    updateAuthState(prev => ({
       ...prev,
       session,
       user,
-      loading: true,
+      loading: hasProfile ? false : true,
       error: null
     }));
 
@@ -209,7 +228,7 @@ export const useSessionRole = () => {
         return;
       }
 
-      setAuthState({
+      overwriteAuthState({
         user,
         session,
         profile,
@@ -222,26 +241,30 @@ export const useSessionRole = () => {
         return;
       }
 
-      setAuthState(prev => ({
+      const message = error instanceof Error ? error.message : 'Không thể tải thông tin tài khoản. Hiển thị chế độ khách.';
+
+      updateAuthState(prev => ({
         ...prev,
         session,
         user,
         loading: false,
-        error: error instanceof Error ? error.message : "Khong the tai thong tin tai khoan. Hien thi che do khach."
+        error: message
       }));
     }
-  }, [loadProfileForUser]);
+  }, [loadProfileForUser, overwriteAuthState, updateAuthState]);
 
   const refreshSession = useCallback(async () => {
     if (!mountedRef.current) {
       return;
     }
 
-    setAuthState(prev => ({
-      ...prev,
-      loading: true,
-      error: null
-    }));
+    if (!authStateRef.current.profile) {
+      updateAuthState(prev => ({
+        ...prev,
+        loading: true,
+        error: null
+      }));
+    }
 
     try {
       const { data, error } = await supabase.auth.getSession();
@@ -255,15 +278,16 @@ export const useSessionRole = () => {
         return;
       }
 
-      setAuthState({
+      const message = error instanceof Error ? error.message : 'Session bootstrap failed';
+      overwriteAuthState({
         user: null,
         session: null,
         profile: null,
         loading: false,
-        error: error instanceof Error ? error.message : "Session bootstrap failed"
+        error: message
       });
     }
-  }, [syncSession]);
+  }, [syncSession, updateAuthState, overwriteAuthState]);
 
   useEffect(() => {
     refreshSession();
@@ -281,7 +305,7 @@ export const useSessionRole = () => {
     refreshSession();
   }, [refreshSession]);
 
-  const role = resolveRole(authState);
+  const role = resolveRole(authStateRef.current);
 
   return {
     user: authState.user,
