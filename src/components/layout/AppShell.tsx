@@ -6,11 +6,15 @@ import { HeaderBar } from "./HeaderBar";
 import { useSessionRole } from "@/hooks/useSessionRole";
 
 export const AppShell = () => {
-  const { user, loading, role, error } = useSessionRole();
+  const { user, loading, role } = useSessionRole();
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
+    if (loading) {
+      return;
+    }
+
     // Check if user needs to change password
     if (user?.user_metadata?.force_password_change === true && location.pathname !== "/forgot-password") {
       navigate("/forgot-password", { replace: true });
@@ -22,7 +26,7 @@ export const AppShell = () => {
     if (role === "guest" && protectedPaths.some(path => location.pathname.startsWith(path))) {
       navigate("/login", { replace: true });
     }
-  }, [user, role, location.pathname, navigate]);
+  }, [user, role, loading, location.pathname, navigate]);
 
   if (loading) {
     return (
