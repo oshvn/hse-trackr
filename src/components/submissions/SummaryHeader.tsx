@@ -2,7 +2,7 @@ import React from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, CheckCircle, Clock } from 'lucide-react';
-import type { DocProgress } from '@/pages/ContractorSubmissions';
+import type { DocProgress } from '@/pages/my-submissions';
 
 interface SummaryHeaderProps {
   docProgress: DocProgress[];

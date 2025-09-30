@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Upload, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import type { ContractorRequirement } from '@/pages/ContractorSubmissions';
+import type { ContractorRequirement } from '@/pages/my-submissions';
 
 interface NewSubmissionDialogProps {
   open: boolean;

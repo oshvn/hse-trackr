@@ -9,7 +9,7 @@ import { Pagination, PaginationContent, PaginationItem, PaginationLink, Paginati
 import { RowActions } from './RowActions';
 import { Clock, AlertTriangle, CheckCircle, RotateCcw } from 'lucide-react';
 import { format } from 'date-fns';
-import type { ApprovalSubmission } from '@/pages/ApprovalsQueuePage';
+import type { ApprovalSubmission } from '@/pages/admin/approvals';
 
 interface ApprovalsTableProps {
   submissions: ApprovalSubmission[];

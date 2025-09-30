@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Clock, CheckCircle, XCircle, Upload, RotateCcw, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { RowActions } from './RowActions';
-import type { ApprovalSubmission } from '@/pages/ApprovalsQueuePage';
+import type { ApprovalSubmission } from '@/pages/admin/approvals';
 
 interface SubmissionDetail extends ApprovalSubmission {
   submission_history: Array<{
