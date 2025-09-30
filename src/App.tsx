@@ -14,7 +14,6 @@ import LoginPage from "./pages/login";
 import ForgotPasswordPage from "./pages/forgot-password";
 import NotFound from "./pages/NotFound";
 import { withRole } from "./components/layout/withRole";
-import { ensureSession } from "./lib/autoGuest";
 
 const queryClient = new QueryClient();
 
@@ -43,28 +42,13 @@ const AppRoutes = () => (
 );
 
 const App = () => {
-  const [bootstrapped, setBootstrapped] = useState(false);
-
-  useEffect(() => {
-    ensureSession().finally(() => setBootstrapped(true));
-  }, []);
-
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          {bootstrapped ? (
-            <AppRoutes />
-          ) : (
-            <div className="flex min-h-screen items-center justify-center bg-background">
-              <div className="text-center space-y-3">
-                <div className="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
-                <p className="text-sm text-muted-foreground">Đang khởi tạo phiên khách…</p>
-              </div>
-            </div>
-          )}
+          <AppRoutes />
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
