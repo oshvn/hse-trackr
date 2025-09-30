@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Upload, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -10,7 +11,7 @@ import type { ContractorRequirement } from '@/pages/my-submissions';
 interface NewSubmissionDialogProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (docTypeId: string, file: File) => Promise<void>;
+  onSubmit: (docTypeId: string, file: File, note: string) => Promise<void>;
   requirements: ContractorRequirement[];
   category: string | null;
 }
@@ -25,6 +26,7 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
   const [selectedDocTypeId, setSelectedDocTypeId] = useState<string>('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [note, setNote] = useState('');
   const { toast } = useToast();
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -55,11 +57,12 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
 
     try {
       setUploading(true);
-      await onSubmit(selectedDocTypeId, selectedFile);
-      
+      await onSubmit(selectedDocTypeId, selectedFile, note);
+
       // Reset form
       setSelectedDocTypeId('');
       setSelectedFile(null);
+      setNote('');
       onClose();
       
       toast({
@@ -82,6 +85,7 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
     if (!uploading) {
       setSelectedDocTypeId('');
       setSelectedFile(null);
+      setNote('');
       onClose();
     }
   };
@@ -130,7 +134,7 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
 
           <div className="space-y-2">
             <Label htmlFor="file">Upload Document</Label>
-            <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
+            <div className="relative border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
               {selectedFile ? (
                 <div className="space-y-2">
                   <FileText className="h-8 w-8 text-primary mx-auto" />
@@ -164,6 +168,17 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="note">Ghi chú</Label>
+            <Textarea
+              id="note"
+              placeholder="Thêm ghi chú cho quản trị viên (tùy chọn)"
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              rows={3}
+            />
           </div>
 
           <div className="flex gap-2 pt-4">

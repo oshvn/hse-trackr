@@ -40,11 +40,11 @@ const DashboardPage: React.FC = () => {
         .from("contractors")
         .select("*")
         .order("name");
-      
+
       if (error) throw error;
       return data || [];
     },
-    enabled: !loading, // Allow guest access
+    enabled: !!session,
     retry: 2,
     retryDelay: 1000
   });
@@ -58,31 +58,31 @@ const DashboardPage: React.FC = () => {
         .select("*")
         .order("category", { ascending: true })
         .order("name", { ascending: true });
-      
+
       if (error) throw error;
       return data || [];
     },
-    enabled: !loading, // Allow guest access
+    enabled: !!session,
     retry: 2
   });
 
   // Fetch KPI data - requires auth
-  const { data: kpiData = [], isLoading: kpiLoading }: { data: KpiData[], isLoading: boolean } = useQuery({
+  const { data: kpiData = [], isLoading: kpiLoading }: { data: KpiData[]; isLoading: boolean } = useQuery({
     queryKey: ["contractor_kpi"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("v_contractor_kpi")
         .select("*");
-      
+
       if (error) throw error;
       return data || [];
     },
-    enabled: !!session && (role === "admin" || role === "contractor"),
+    enabled: !!session,
     retry: 1
   });
 
   // Fetch progress data - requires auth
-  const { data: progressData = [], isLoading: progressLoading }: { data: DocProgressData[], isLoading: boolean } = useQuery({
+  const { data: progressData = [], isLoading: progressLoading }: { data: DocProgressData[]; isLoading: boolean } = useQuery({
     queryKey: ["doc_progress"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -90,11 +90,11 @@ const DashboardPage: React.FC = () => {
         .select("*")
         .order("contractor_name")
         .order("doc_type_name");
-      
+
       if (error) throw error;
       return data || [];
     },
-    enabled: !!session && (role === "admin" || role === "contractor"),
+    enabled: !!session,
     retry: 1
   });
 
@@ -103,16 +103,16 @@ const DashboardPage: React.FC = () => {
     queryKey: ["contractor_requirements", filters.contractor],
     queryFn: async () => {
       if (filters.contractor === 'all') return [];
-      
+
       const { data, error } = await supabase
         .from("contractor_requirements")
         .select("doc_type_id, required_count, planned_due_date")
         .eq("contractor_id", filters.contractor);
-      
+
       if (error) throw error;
       return data || [];
     },
-    enabled: !!session && (role === "admin" || role === "contractor") && filters.contractor !== 'all',
+    enabled: !!session && role !== 'guest' && filters.contractor !== 'all',
   });
 
   // Fetch submissions for planned vs actual
@@ -120,22 +120,22 @@ const DashboardPage: React.FC = () => {
     queryKey: ["submissions", filters.contractor],
     queryFn: async () => {
       if (filters.contractor === 'all') return [];
-      
+
       const { data, error } = await supabase
         .from("submissions")
         .select("doc_type_id, approved_at, cnt")
         .eq("contractor_id", filters.contractor)
         .not("approved_at", "is", null);
-      
+
       if (error) throw error;
       return data || [];
     },
-    enabled: !!session && (role === "admin" || role === "contractor") && filters.contractor !== 'all',
+    enabled: !!session && role !== 'guest' && filters.contractor !== 'all',
   });
 
   // Calculate KPIs based on current filters
   const filteredProgressData = filterData(progressData, filters);
-  
+
   const overallCompletion = calculateOverallCompletion(progressData, filters, kpiData);
   const mustHaveReady = calculateMustHaveReady(progressData, filters, kpiData);
   const overdueMustHaves = calculateOverdueMustHaves(progressData, filters);
@@ -160,8 +160,10 @@ const DashboardPage: React.FC = () => {
     setSelectedCell({ contractorId, docTypeId });
   };
 
+  const isDataLoading = contractorsLoading || docTypesLoading || kpiLoading || progressLoading;
+
   // Loading states
-  if (loading) {
+  if (loading || (!session && !error)) {
     return (
       <div className="min-h-screen bg-background p-6">
         <div className="space-y-6">
@@ -230,39 +232,63 @@ const DashboardPage: React.FC = () => {
         />
 
         {/* KPI Cards */}
-        <KpiCards
-          overallCompletion={role !== "guest" ? overallCompletion : 0}
-          mustHaveReady={role !== "guest" ? mustHaveReady : 0}
-          overdueMustHaves={role !== "guest" ? overdueMustHaves : 0}
-          avgPrepTime={role !== "guest" ? avgPrepTime : 0}
-          avgApprovalTime={role !== "guest" ? avgApprovalTime : 0}
-        />
+        {isDataLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            {[...Array(5)].map((_, index) => (
+              <Skeleton key={index} className="h-24" />
+            ))}
+          </div>
+        ) : (
+          <KpiCards
+            overallCompletion={overallCompletion}
+            mustHaveReady={mustHaveReady}
+            overdueMustHaves={overdueMustHaves}
+            avgPrepTime={avgPrepTime}
+            avgApprovalTime={avgApprovalTime}
+          />
+        )}
 
         {/* Charts Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Heatmap
-            data={role !== "guest" ? filteredProgressData : []}
-            contractors={contractors}
-            docTypes={docTypes}
-            filters={filters}
-            onCellClick={handleCellClick}
-          />
-          
-          <PlannedVsActual
-            contractorId={filters.contractor}
-            contractorName={contractorName}
-            requirements={requirements}
-            submissions={submissions}
-          />
-          
-          <RedCardList
-            redCards={role !== "guest" ? redCards : []}
-            onCardClick={handleRedCardClick}
-          />
-          
-          <CompletionByContractorBar
-            kpiData={role !== "guest" ? kpiData : []}
-          />
+          {isDataLoading ? (
+            <Skeleton className="h-80" />
+          ) : (
+            <Heatmap
+              data={filteredProgressData}
+              contractors={contractors}
+              docTypes={docTypes}
+              filters={filters}
+              onCellClick={handleCellClick}
+            />
+          )}
+
+          {isDataLoading ? (
+            <Skeleton className="h-80" />
+          ) : (
+            <PlannedVsActual
+              contractorId={filters.contractor}
+              contractorName={contractorName}
+              requirements={requirements}
+              submissions={submissions}
+            />
+          )}
+
+          {isDataLoading ? (
+            <Skeleton className="h-80" />
+          ) : (
+            <RedCardList
+              redCards={redCards}
+              onCardClick={handleRedCardClick}
+            />
+          )}
+
+          {isDataLoading ? (
+            <Skeleton className="h-80" />
+          ) : (
+            <CompletionByContractorBar
+              kpiData={kpiData}
+            />
+          )}
         </div>
 
         {/* Detail Side Panel */}

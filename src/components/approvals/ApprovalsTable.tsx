@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { RowActions } from './RowActions';
-import { Clock, AlertTriangle, CheckCircle, RotateCcw } from 'lucide-react';
+import { Clock, AlertTriangle, CheckCircle, RotateCcw, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import type { ApprovalSubmission } from '@/pages/admin/approvals';
 
@@ -154,6 +154,7 @@ export const ApprovalsTable: React.FC<ApprovalsTableProps> = ({
               <TableHead>Status</TableHead>
               <TableHead>Submitted</TableHead>
               <TableHead>Priority</TableHead>
+              <TableHead>Attachment</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -231,7 +232,24 @@ export const ApprovalsTable: React.FC<ApprovalsTableProps> = ({
                     )}
                   </div>
                 </TableCell>
-                
+                <TableCell onClick={(e) => e.stopPropagation()}>
+                  {submission.file_url ? (
+                    <Button asChild variant="outline" size="sm">
+                      <a
+                        href={submission.file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1"
+                      >
+                        <Download className="h-3 w-3" />
+                        {submission.file_name || 'File'}
+                      </a>
+                    </Button>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">No file</span>
+                  )}
+                </TableCell>
+
                 <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                   <RowActions
                     submissionId={submission.id}
