@@ -1,14 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Eye, EyeOff, LogIn } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { useSessionRole } from "@/hooks/useSessionRole";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { ForgotPasswordDialog } from "@/components/auth/ForgotPasswordDialog";
 import { z } from "zod";
 
 const loginSchema = z.object({
@@ -21,10 +20,22 @@ const LoginPage = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   const { user, profile } = useSessionRole();
+
+  useEffect(() => {
+    if (user && profile?.status === "active") {
+      setRedirecting(true);
+
+      if (profile.role === "admin") {
+        navigate("/", { replace: true });
+      } else if (profile.role === "contractor") {
+        navigate("/my-submissions", { replace: true });
+      }
+    }
+  }, [user, profile, navigate]);
 
   // Redirect if already logged in
   if (user && profile?.status === "active") {
@@ -124,7 +135,7 @@ const LoginPage = () => {
           });
 
           if (data.user.user_metadata?.force_password_change === true) {
-            navigate("/update-password", { replace: true });
+            navigate("/forgot-password", { replace: true });
             return;
           }
 
@@ -132,7 +143,7 @@ const LoginPage = () => {
           if (profileData.role === "admin") {
             navigate("/", { replace: true }); // Dashboard
           } else if (profileData.role === "contractor") {
-            navigate("/submissions", { replace: true });
+            navigate("/my-submissions", { replace: true });
           } else {
             toast({
               title: "Vai trò không xác định",
@@ -163,6 +174,17 @@ const LoginPage = () => {
       setLoading(false);
     }
   };
+
+  if (redirecting) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="space-y-3 text-center">
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
+          <p className="text-sm text-muted-foreground">Đang chuyển hướng…</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
@@ -229,9 +251,9 @@ const LoginPage = () => {
                 type="button"
                 variant="link"
                 className="text-sm"
-                onClick={() => setShowForgotPassword(true)}
+                asChild
               >
-                Quên mật khẩu?
+                <Link to="/forgot-password">Quên mật khẩu?</Link>
               </Button>
               <div className="text-sm text-muted-foreground">
                 <Link to="/" className="text-primary hover:underline">
@@ -243,10 +265,6 @@ const LoginPage = () => {
         </CardContent>
       </Card>
 
-      <ForgotPasswordDialog
-        open={showForgotPassword}
-        onOpenChange={setShowForgotPassword}
-      />
     </div>
   );
 };

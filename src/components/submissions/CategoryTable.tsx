@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, AlertCircle } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
-import type { ContractorRequirement, DocProgress, Submission } from '@/pages/ContractorSubmissions';
+import type { ContractorRequirement, DocProgress, Submission } from '@/pages/my-submissions';
 
 interface CategoryTableProps {
   requirements: ContractorRequirement[];

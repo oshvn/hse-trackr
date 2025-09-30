@@ -12,15 +12,15 @@ export const AppShell = () => {
 
   useEffect(() => {
     // Check if user needs to change password
-    if (user?.user_metadata?.force_password_change === true && location.pathname !== "/update-password") {
-      navigate("/update-password", { replace: true });
+    if (user?.user_metadata?.force_password_change === true && location.pathname !== "/forgot-password") {
+      navigate("/forgot-password", { replace: true });
       return;
     }
 
     // Redirect guests trying to access protected pages
-    const protectedPaths = ["/submissions", "/approvals", "/settings", "/users"];
+    const protectedPaths = ["/my-submissions", "/admin"];
     if (role === "guest" && protectedPaths.some(path => location.pathname.startsWith(path))) {
-      navigate("/auth", { replace: true });
+      navigate("/login", { replace: true });
     }
   }, [user, role, location.pathname, navigate]);
 

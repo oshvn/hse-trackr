@@ -4,7 +4,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
-import type { FilterState } from '@/pages/ApprovalsQueuePage';
+import type { FilterState } from '@/pages/admin/approvals';
 
 interface ApprovalsFiltersProps {
   filters: FilterState;

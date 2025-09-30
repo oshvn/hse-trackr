@@ -6,8 +6,8 @@ import { Card } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Clock, CheckCircle, XCircle, Upload, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
-import { suggestActions, type DocProgressRow } from '@/lib/suggestedActions';
-import type { DocProgress, Submission } from '@/pages/ContractorSubmissions';
+import { suggestActions, type DocProgressRow } from '@/helpers/suggestActions';
+import type { DocProgress, Submission } from '@/pages/my-submissions';
 
 interface SubmissionHistorySheetProps {
   open: boolean;
