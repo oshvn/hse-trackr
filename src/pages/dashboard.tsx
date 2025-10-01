@@ -4,18 +4,16 @@ import { supabase } from '@/lib/supabase';
 import { useSessionRole } from '@/hooks/useSessionRole';
 import { FilterBar } from '@/components/dashboard/FilterBar';
 import { KpiCards } from '@/components/dashboard/KpiCards';
-import { PlannedVsActual } from '@/components/Charts/PlannedVsActualChart';
 import { CompletionByContractorBar } from '@/components/Charts/CompletionByContractorChart';
 import { DetailSidePanel } from '@/components/dashboard/DetailSidePanel';
-import { ProgressByCategory } from '@/components/dashboard/ProgressByCategory';
-import { CompletionMatrix } from '@/components/dashboard/CompletionMatrix';
-import type { CompletionMatrixCell } from '@/components/dashboard/CompletionMatrix';
-import { CriticalDocsSection } from '@/components/dashboard/CriticalDocsSection';
-import { CategoryDrilldownPanel } from '@/components/dashboard/CategoryDrilldownPanel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { AlertCircle } from 'lucide-react';
+import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
+import { ProcessTable, type ProcessTableRow } from '@/components/dashboard/ProcessTable';
+import { CriticalDocsSection } from '@/components/dashboard/CriticalDocsSection';
+import { MustHaveSplitChart } from '@/components/dashboard/MustHaveSplitChart';
 import type { FilterState, KpiData, DocProgressData } from '@/lib/dashboardHelpers';
 import {
   calculateOverallCompletion,
@@ -23,8 +21,10 @@ import {
   calculateOverdueMustHaves,
   calculateAvgPrepTime,
   calculateAvgApprovalTime,
+  calculateOverdueDays,
   getRedCards,
-  filterData
+  getAmberAlerts,
+  filterData,
 } from '@/lib/dashboardHelpers';
 
 interface Contractor {
@@ -85,16 +85,13 @@ const FALLBACK_CATEGORY_MAP = CATEGORY_CONFIG.reduce<Record<string, string>>((ac
 }, {});
 
 const DashboardPage: React.FC = () => {
-  const { session, role, loading, error, retry } = useSessionRole();
+  const { session, role, error, retry } = useSessionRole();
   const [filters, setFilters] = useState<FilterState>({
     contractor: 'all',
     category: 'all',
     search: '',
   });
-  const [drilldown, setDrilldown] = useState<{ category: string | null; contractorId: string | null }>({
-    category: null,
-    contractorId: null,
-  });
+  const [criticalOnly, setCriticalOnly] = useState(false);
   const [selectedDetail, setSelectedDetail] = useState<{ contractorId: string; docTypeId: string } | null>(null);
 
   const {
@@ -171,39 +168,6 @@ const DashboardPage: React.FC = () => {
     retry: 1,
   });
 
-  const { data: requirements = [] } = useQuery({
-    queryKey: ['contractor_requirements', filters.contractor],
-    queryFn: async () => {
-      if (filters.contractor === 'all') return [];
-
-      const { data, error: queryError } = await supabase
-        .from('contractor_requirements')
-        .select('doc_type_id, required_count, planned_due_date')
-        .eq('contractor_id', filters.contractor);
-
-      if (queryError) throw queryError;
-      return data || [];
-    },
-    enabled: !!session && role !== 'guest' && filters.contractor !== 'all',
-  });
-
-  const { data: submissions = [] } = useQuery({
-    queryKey: ['submissions', filters.contractor],
-    queryFn: async () => {
-      if (filters.contractor === 'all') return [];
-
-      const { data, error: queryError } = await supabase
-        .from('submissions')
-        .select('doc_type_id, approved_at, cnt')
-        .eq('contractor_id', filters.contractor)
-        .not('approved_at', 'is', null);
-
-      if (queryError) throw queryError;
-      return data || [];
-    },
-    enabled: !!session && role !== 'guest' && filters.contractor !== 'all',
-  });
-
   const normalizedDocTypes = useMemo(() => {
     return docTypes.map(docType => {
       const upperCode = docType.code ? docType.code.toUpperCase() : '';
@@ -259,6 +223,10 @@ const DashboardPage: React.FC = () => {
     });
   }, [enrichedProgressData, filters.contractor, filters.search]);
 
+  const filteredData = useMemo(() => {
+    return filterData(enrichedProgressData, filters);
+  }, [enrichedProgressData, filters]);
+
   const categoriesPresent = useMemo(() => {
     const present = new Set(baseFilteredData.map(item => item.category));
     return CATEGORY_ORDER.filter(category => present.has(category));
@@ -266,68 +234,31 @@ const DashboardPage: React.FC = () => {
 
   const availableCategories = categoriesPresent.length > 0 ? categoriesPresent : CATEGORY_ORDER;
 
-  const categoriesForView = (filters.category === 'all'
-    ? availableCategories
-    : availableCategories.filter(category => category === filters.category)) as typeof CATEGORY_ORDER;
-
-  const visibleContractors = filters.contractor === 'all'
-    ? contractors
-    : contractors.filter(contractor => contractor.id === filters.contractor);
-
-  const categoryProgressItems = useMemo(() => {
-    const totals = new Map<string, { approved: number; required: number }>();
-
-    baseFilteredData.forEach(item => {
-      const summary = totals.get(item.category) ?? { approved: 0, required: 0 };
-      summary.approved += item.approved_count;
-      summary.required += item.required_count;
-      totals.set(item.category, summary);
-    });
-
-    return categoriesForView.map(category => {
-      const summary = totals.get(category) ?? { approved: 0, required: 0 };
-      const completion = summary.required > 0
-        ? (summary.approved / summary.required) * 100
-        : 0;
+  const processRows: ProcessTableRow[] = useMemo(() => {
+    return filteredData.map(item => {
+      const progressPercent = item.required_count > 0
+        ? Math.round((item.approved_count / item.required_count) * 100)
+        : 100;
 
       return {
-        category,
-        approved: summary.approved,
-        required: summary.required,
-        completion,
-      };
-    });
-  }, [baseFilteredData, categoriesForView]);
-
-  const matrixCells = useMemo(() => {
-    const map = new Map<string, CompletionMatrixCell>();
-
-    baseFilteredData.forEach(item => {
-      const key = `${item.category}__${item.contractor_id}`;
-      const existing = map.get(key) ?? {
-        category: item.category,
         contractorId: item.contractor_id,
         contractorName: item.contractor_name,
-        approved: 0,
-        required: 0,
-        completion: 0,
+        docTypeId: item.doc_type_id,
+        docTypeName: item.doc_type_name,
+        docTypeCode: item.doc_type_code ?? null,
+        isCritical: item.is_critical,
+        requiredCount: item.required_count,
+        approvedCount: item.approved_count,
+        statusColor: item.status_color,
+        plannedDueDate: item.planned_due_date,
+        overdueDays: calculateOverdueDays(item.planned_due_date),
+        progressPercent,
+        firstStartedAt: item.first_started_at,
+        firstSubmittedAt: item.first_submitted_at,
+        firstApprovedAt: item.first_approved_at,
       };
-
-      existing.approved += item.approved_count;
-      existing.required += item.required_count;
-      existing.completion = existing.required > 0
-        ? (existing.approved / existing.required) * 100
-        : 0;
-
-      map.set(key, existing);
     });
-
-    return Array.from(map.values()).filter(cell => categoriesForView.includes(cell.category as any));
-  }, [baseFilteredData, categoriesForView]);
-
-  const redCards = useMemo(() => {
-    return getRedCards(enrichedProgressData, filters).filter(item => item.overdueDays > 0);
-  }, [enrichedProgressData, filters]);
+  }, [filteredData]);
 
   const overallCompletion = useMemo(() => (
     calculateOverallCompletion(enrichedProgressData, filters, kpiData)
@@ -349,22 +280,29 @@ const DashboardPage: React.FC = () => {
     calculateAvgApprovalTime(enrichedProgressData, filters, kpiData)
   ), [enrichedProgressData, filters, kpiData]);
 
-  const isDataLoading = contractorsLoading || docTypesLoading || kpiLoading || progressLoading;
+  const redAlerts = useMemo(() => (
+    getRedCards(enrichedProgressData, filters)
+  ), [enrichedProgressData, filters]);
 
-  const contractorName = filters.contractor === 'all'
-    ? 'All Contractors'
-    : contractors.find(contractor => contractor.id === filters.contractor)?.name ?? 'Contractor';
+  const amberAlerts = useMemo(() => (
+    getAmberAlerts(enrichedProgressData, filters)
+  ), [enrichedProgressData, filters]);
+
+  const mustHaveCount = normalizedDocTypes.filter(docType => docType.isCritical).length;
+  const regularCount = normalizedDocTypes.length - mustHaveCount;
+
+  const isDataLoading = contractorsLoading || docTypesLoading || kpiLoading || progressLoading;
 
   if (error && !session) {
     return (
       <div className="min-h-screen bg-background p-6">
         <div className="max-w-md mx-auto text-center space-y-4 mt-20">
-          <h1 className="text-2xl font-bold">Lỗi tải dữ liệu</h1>
+          <h1 className="text-2xl font-bold">Data load error</h1>
           <p className="text-muted-foreground">{error}</p>
           <div className="space-x-2">
-            <Button onClick={retry}>Thử lại</Button>
+            <Button onClick={retry}>Retry</Button>
             <Button variant="outline" onClick={() => window.location.href = '/auth'}>
-              Đăng nhập
+              Sign in
             </Button>
           </div>
         </div>
@@ -381,19 +319,13 @@ const DashboardPage: React.FC = () => {
             <AlertDescription>
               {error}
               <Button variant="link" size="sm" onClick={retry} className="ml-2">
-                Thử lại
+                Retry
               </Button>
             </AlertDescription>
           </Alert>
         )}
 
-        <div>
-          <h1 className="text-3xl font-bold">HSE Document Register</h1>
-          <p className="text-muted-foreground">
-            Track contractor compliance and document status
-            {role === 'guest' && ' (Chế độ khách)'}
-          </p>
-        </div>
+        <DashboardHeader role={role} />
 
         <FilterBar
           contractors={contractors}
@@ -422,67 +354,35 @@ const DashboardPage: React.FC = () => {
           />
         )}
 
-        {isDataLoading ? (
-          <Skeleton className="h-52" />
-        ) : (
-          <ProgressByCategory
-            items={categoryProgressItems}
-            onCategoryClick={category => setDrilldown({
-              category,
-              contractorId: filters.contractor === 'all' ? null : filters.contractor,
-            })}
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+          <ProcessTable
+            rows={processRows}
+            isLoading={isDataLoading}
+            criticalOnly={criticalOnly}
+            onCriticalOnlyChange={setCriticalOnly}
+            onSelectRow={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
           />
-        )}
 
-        {isDataLoading ? (
-          <Skeleton className="h-72" />
-        ) : (
-          <CompletionMatrix
-            categories={categoriesForView}
-            contractors={visibleContractors}
-            cells={matrixCells}
-            onCellClick={(category, contractorId) => setDrilldown({ category, contractorId })}
-          />
-        )}
+          <div className="space-y-6">
+            {docTypesLoading ? (
+              <Skeleton className="h-80" />
+            ) : (
+              <MustHaveSplitChart mustHaveCount={mustHaveCount} regularCount={regularCount} />
+            )}
 
-        {isDataLoading ? (
-          <Skeleton className="h-80" />
-        ) : (
-          <CriticalDocsSection
-            items={redCards}
-            onDocClick={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
-          />
-        )}
-
-        <div className="grid gap-6 lg:grid-cols-2">
-          {isDataLoading ? (
-            <Skeleton className="h-80" />
-          ) : (
-            <CompletionByContractorBar kpiData={kpiData} />
-          )}
-
-          {isDataLoading ? (
-            <Skeleton className="h-80" />
-          ) : (
-            <PlannedVsActual
-              contractorId={filters.contractor}
-              contractorName={contractorName}
-              requirements={requirements}
-              submissions={submissions}
+            <CriticalDocsSection
+              redItems={redAlerts}
+              amberItems={amberAlerts}
+              onDocClick={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
             />
-          )}
-        </div>
 
-        <CategoryDrilldownPanel
-          open={!!drilldown.category}
-          onClose={() => setDrilldown({ category: null, contractorId: null })}
-          category={drilldown.category}
-          contractors={contractors}
-          docTypes={normalizedDocTypes}
-          progressData={baseFilteredData}
-          focusedContractorId={drilldown.contractorId}
-          onSelectDoc={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
-        />
+            {isDataLoading ? (
+              <Skeleton className="h-80" />
+            ) : (
+              <CompletionByContractorBar kpiData={kpiData} />
+            )}
+          </div>
+        </div>
 
         <DetailSidePanel
           open={!!selectedDetail}

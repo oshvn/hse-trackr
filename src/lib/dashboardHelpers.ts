@@ -112,9 +112,12 @@ export const calculateMustHaveReady = (
   // All contractors - calculate from doc progress
   const filtered = filterData(data, filters);
   const criticalItems = filtered.filter(item => item.is_critical);
-  const readyCritical = criticalItems.filter(item => item.approved_count > 0);
-  
-  return criticalItems.length > 0 ? Math.round((readyCritical.length / criticalItems.length) * 100) : 0;
+  const eligibleCritical = criticalItems.filter(item => item.required_count > 0);
+  const readyCritical = eligibleCritical.filter(item => item.approved_count >= item.required_count);
+
+  return eligibleCritical.length > 0
+    ? Math.round((readyCritical.length / eligibleCritical.length) * 100)
+    : 0;
 };
 
 // Calculate Overdue Must-Haves count
@@ -204,6 +207,24 @@ export const getRedCards = (
     }))
     .filter(item => item.overdueDays > 0)
     .sort((a, b) => b.overdueDays - a.overdueDays);
+};
+
+export const getAmberAlerts = (
+  data: DocProgressData[],
+  filters: FilterState,
+  daysThreshold = 3
+): (DocProgressData & { dueInDays: number })[] => {
+  const filtered = filterData(data, filters);
+  const today = getCurrentDateBangkok();
+
+  return filtered
+    .filter(item => item.is_critical && item.status_color === "amber" && item.planned_due_date)
+    .map(item => ({
+      ...item,
+      dueInDays: Math.max(0, calculateDaysDifference(today, parseISO(item.planned_due_date!)))
+    }))
+    .filter(item => item.dueInDays <= daysThreshold)
+    .sort((a, b) => a.dueInDays - b.dueInDays);
 };
 
 // Format percentage

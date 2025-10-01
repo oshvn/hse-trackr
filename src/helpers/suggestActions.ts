@@ -16,31 +16,31 @@ export function suggestActions(row: DocProgressRow): string[] {
     const daysOver = row.overdue_days ?? Math.ceil((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
 
     actions.push(
-      `Tổ chức họp khẩn với ${row.contractor_name} về ${row.doc_type_name} (trễ ${daysOver} ngày).`
+      `Schedule an urgent meeting with ${row.contractor_name} about ${row.doc_type_name} (overdue ${daysOver} day${daysOver !== 1 ? 's' : ''}).`
     );
-    
+
     actions.push(
-      `Gửi email cảnh báo + đính kèm template mẫu cho ${row.doc_type_name}.`
+      `Send an escalation email with the latest template for ${row.doc_type_name}.`
     );
-    
+
     actions.push(
-      `Chỉ định mentor hỗ trợ hoàn thiện hồ sơ, cung cấp checklist chuẩn.`
+      'Assign a mentor to close the gaps and share the standard checklist.'
     );
   }
-  
+
   if (row.status_color === "amber" && dueDate) {
     const daysToDeadline = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
     if (daysToDeadline <= 3 && daysToDeadline >= 0) {
       actions.push(
-        `Nhắc nhở định kỳ hằng ngày; đặt lịch review nội bộ trước hạn.`
+        'Add daily reminders and book a pre-deadline internal review.'
       );
-      
+
       actions.push(
-        `Liên hệ trực tiếp ${row.contractor_name} kiểm tra tiến độ ${row.doc_type_name}.`
+        `Check in with ${row.contractor_name} to confirm progress on ${row.doc_type_name}.`
       );
     }
   }
-  
+
   return actions;
 }
