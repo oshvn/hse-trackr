@@ -25,9 +25,6 @@ interface DetailData extends DocProgressData {
     approved_at: string | null;
     note: string | null;
     cnt: number;
-    file_name: string | null;
-    file_size: number | null;
-    storage_path: string | null;
     file_url: string | null;
   }>;
 }
@@ -75,7 +72,7 @@ export const DetailSidePanel: React.FC<DetailSidePanelProps> = ({
       // Load submission history
       const { data: submissionHistory, error } = await supabase
         .from('submissions')
-        .select('id, status, created_at, submitted_at, approved_at, note, cnt, file_name, file_size, storage_path')
+        .select('id, status, created_at, submitted_at, approved_at, note, cnt')
         .eq('contractor_id', contractorId)
         .eq('doc_type_id', docTypeId)
         .order('created_at', { ascending: false });
@@ -84,28 +81,10 @@ export const DetailSidePanel: React.FC<DetailSidePanelProps> = ({
 
       const overdueDays = calculateOverdueDays(progressItem.planned_due_date);
 
-      const historyWithUrls = await Promise.all(
-        (submissionHistory || []).map(async (submission) => {
-          if (!submission.storage_path) {
-            return { ...submission, file_url: null };
-          }
-
-          try {
-            const { data: signed } = await supabase
-              .storage
-              .from(STORAGE_BUCKET)
-              .createSignedUrl(submission.storage_path, 60 * 60);
-
-            return {
-              ...submission,
-              file_url: signed?.signedUrl ?? null,
-            };
-          } catch (storageError) {
-            console.error('Failed to create signed URL', storageError);
-            return { ...submission, file_url: null };
-          }
-        })
-      );
+      const historyWithUrls = (submissionHistory || []).map((submission) => ({
+        ...submission,
+        file_url: null
+      }));
 
       setDetailData({
         ...progressItem,
@@ -323,11 +302,6 @@ export const DetailSidePanel: React.FC<DetailSidePanelProps> = ({
                                   <strong>Note:</strong> {submission.note}
                                 </div>
                               )}
-                              {submission.file_name && (
-                                <div className="text-sm mt-2 flex items-center justify-between gap-2">
-                                  <div>
-                                    <strong>File:</strong> {submission.file_name}
-                                    {submission.file_size && (
                                       <span className="ml-1 text-xs text-muted-foreground">
                                         ({(submission.file_size / (1024 * 1024)).toFixed(2)} MB)
                                       </span>

@@ -19,9 +19,6 @@ interface SubmissionDetail extends ApprovalSubmission {
     submitted_at: string | null;
     approved_at: string | null;
     note: string | null;
-    file_name: string | null;
-    file_size: number | null;
-    storage_path: string | null;
     file_url: string | null;
   }>;
 }
@@ -83,7 +80,7 @@ export const SubmissionDetailSheet: React.FC<SubmissionDetailSheetProps> = ({
       // Load submission history for this contractor and doc type
       const { data: historyData, error: historyError } = await supabase
         .from('submissions')
-        .select('id, status, created_at, submitted_at, approved_at, note, file_name, file_size, storage_path')
+        .select('id, status, created_at, submitted_at, approved_at, note')
         .eq('contractor_id', submissionData.contractor_id)
         .eq('doc_type_id', submissionData.doc_type_id)
         .order('created_at', { ascending: false });
@@ -97,37 +94,10 @@ export const SubmissionDetailSheet: React.FC<SubmissionDetailSheetProps> = ({
         ? Math.max(0, Math.ceil((today.getTime() - new Date(plannedDueDate).getTime()) / (1000 * 60 * 60 * 24)))
         : 0;
 
-      let fileUrl: string | null = null;
-      if (submissionData.storage_path) {
-        try {
-          const { data: signed } = await supabase
-            .storage
-            .from(STORAGE_BUCKET)
-            .createSignedUrl(submissionData.storage_path, 60 * 60);
-          fileUrl = signed?.signedUrl ?? null;
-        } catch (storageError) {
-          console.error('Failed to sign submission file', storageError);
-        }
-      }
-
-      const historyWithUrls = await Promise.all(
-        (historyData || []).map(async (item) => {
-          if (!item.storage_path) {
-            return { ...item, file_url: null };
-          }
-
-          try {
-            const { data: signed } = await supabase
-              .storage
-              .from(STORAGE_BUCKET)
-              .createSignedUrl(item.storage_path, 60 * 60);
-            return { ...item, file_url: signed?.signedUrl ?? null };
-          } catch (storageError) {
-            console.error('Failed to sign history file', storageError);
-            return { ...item, file_url: null };
-          }
-        })
-      );
+      const historyWithUrls = (historyData || []).map((item) => ({
+        ...item,
+        file_url: null
+      }));
 
       const detailedSubmission: SubmissionDetail = {
         id: submissionData.id,
@@ -144,10 +114,10 @@ export const SubmissionDetailSheet: React.FC<SubmissionDetailSheetProps> = ({
         is_critical: submissionData.doc_types.is_critical,
         planned_due_date: plannedDueDate,
         overdue_days: overdueDays > 0 ? overdueDays : undefined,
-        file_name: submissionData.file_name,
-        file_size: submissionData.file_size,
-        storage_path: submissionData.storage_path,
-        file_url: fileUrl,
+        file_name: null,
+        file_size: null,
+        storage_path: null,
+        file_url: null,
         submission_history: historyWithUrls
       };
 
@@ -332,11 +302,6 @@ export const SubmissionDetailSheet: React.FC<SubmissionDetailSheetProps> = ({
                             <strong>Note:</strong> {item.note}
                           </div>
                         )}
-                        {item.file_name && (
-                          <div className="flex items-center justify-between gap-2 text-sm mt-2">
-                            <div>
-                              <strong>File:</strong> {item.file_name}
-                              {item.file_size && (
                                 <span className="ml-1 text-xs text-muted-foreground">
                                   ({(item.file_size / (1024 * 1024)).toFixed(2)} MB)
                                 </span>

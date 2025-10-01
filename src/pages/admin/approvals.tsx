@@ -107,50 +107,34 @@ const AdminApprovalsPage: React.FC = () => {
       }
 
       const today = new Date();
-      const processedSubmissions: ApprovalSubmission[] = await Promise.all(
-        (data || []).map(async (sub) => {
-          const reqKey = `${sub.contractor_id}-${sub.doc_type_id}`;
-          const plannedDueDate = plannedDueDates[reqKey];
-          const overdueDays = plannedDueDate && !sub.approved_at
-            ? differenceInDays(today, new Date(plannedDueDate))
-            : 0;
+      const processedSubmissions: ApprovalSubmission[] = (data || []).map((sub) => {
+        const reqKey = `${sub.contractor_id}-${sub.doc_type_id}`;
+        const plannedDueDate = plannedDueDates[reqKey];
+        const overdueDays = plannedDueDate && !sub.approved_at
+          ? differenceInDays(today, new Date(plannedDueDate))
+          : 0;
 
-          let fileUrl: string | null = null;
-          if (sub.storage_path) {
-            try {
-              const { data: signed } = await supabase
-                .storage
-                .from(STORAGE_BUCKET)
-                .createSignedUrl(sub.storage_path, 60 * 60);
-
-              fileUrl = signed?.signedUrl ?? null;
-            } catch (storageError) {
-              console.error('Failed to sign submission file', storageError);
-            }
-          }
-
-          return {
-            id: sub.id,
-            contractor_id: sub.contractor_id,
-            doc_type_id: sub.doc_type_id,
-            status: sub.status,
-            created_at: sub.created_at,
-            submitted_at: sub.submitted_at,
-            approved_at: sub.approved_at,
-            note: sub.note,
-            contractor_name: sub.contractors.name,
-            doc_type_name: sub.doc_types.name,
-            doc_type_category: sub.doc_types.category,
-            is_critical: sub.doc_types.is_critical,
-            planned_due_date: plannedDueDate,
-            overdue_days: overdueDays > 0 ? overdueDays : undefined,
-            file_name: sub.file_name,
-            file_size: sub.file_size,
-            storage_path: sub.storage_path,
-            file_url: fileUrl,
-          };
-        })
-      );
+        return {
+          id: sub.id,
+          contractor_id: sub.contractor_id,
+          doc_type_id: sub.doc_type_id,
+          status: sub.status,
+          created_at: sub.created_at,
+          submitted_at: sub.submitted_at,
+          approved_at: sub.approved_at,
+          note: sub.note,
+          contractor_name: sub.contractors.name,
+          doc_type_name: sub.doc_types.name,
+          doc_type_category: sub.doc_types.category,
+          is_critical: sub.doc_types.is_critical,
+          planned_due_date: plannedDueDate,
+          overdue_days: overdueDays > 0 ? overdueDays : undefined,
+          file_name: null,
+          file_size: null,
+          storage_path: null,
+          file_url: null,
+        };
+      });
 
       setSubmissions(processedSubmissions);
       setTotalPages(Math.ceil((count || 0) / PAGE_SIZE));

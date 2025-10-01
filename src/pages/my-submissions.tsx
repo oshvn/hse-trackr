@@ -125,28 +125,10 @@ const MySubmissionsPage: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (submissionsError) throw submissionsError;
-      const submissionsWithUrls = await Promise.all(
-        (submissionsData || []).map(async (submission) => {
-          if (!submission.storage_path) {
-            return { ...submission, file_url: null };
-          }
-
-          try {
-            const { data: signed } = await supabase
-              .storage
-              .from(STORAGE_BUCKET)
-              .createSignedUrl(submission.storage_path, 60 * 60);
-
-            return {
-              ...submission,
-              file_url: signed?.signedUrl ?? null,
-            };
-          } catch (storageError) {
-            console.error('Failed to sign submission file', storageError);
-            return { ...submission, file_url: null };
-          }
-        })
-      );
+      const submissionsWithUrls = (submissionsData || []).map((submission) => ({
+        ...submission,
+        file_url: null
+      }));
 
       setSubmissions(submissionsWithUrls as Submission[]);
 

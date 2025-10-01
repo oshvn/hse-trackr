@@ -266,9 +266,9 @@ const DashboardPage: React.FC = () => {
 
   const availableCategories = categoriesPresent.length > 0 ? categoriesPresent : CATEGORY_ORDER;
 
-  const categoriesForView = filters.category === 'all'
+  const categoriesForView = (filters.category === 'all'
     ? availableCategories
-    : availableCategories.filter(category => category === filters.category);
+    : availableCategories.filter(category => category === filters.category)) as typeof CATEGORY_ORDER;
 
   const visibleContractors = filters.contractor === 'all'
     ? contractors
@@ -322,7 +322,7 @@ const DashboardPage: React.FC = () => {
       map.set(key, existing);
     });
 
-    return Array.from(map.values()).filter(cell => categoriesForView.includes(cell.category));
+    return Array.from(map.values()).filter(cell => categoriesForView.includes(cell.category as any));
   }, [baseFilteredData, categoriesForView]);
 
   const redCards = useMemo(() => {
