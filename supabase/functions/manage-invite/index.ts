@@ -8,11 +8,12 @@ const corsHeaders = {
 
 const SUPER_ADMIN_EMAIL = Deno.env.get('SUPER_ADMIN_EMAIL')?.toLowerCase() ?? 'admin@osh.vn'
 
-/**
- * Generates a cryptographically secure random password
- * @param length Password length (minimum 16 characters)
- * @returns Strong password with mixed character types
- */
+const errorResponse = (status: number, message: string) =>
+  new Response(JSON.stringify({ error: message }), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  })
+
 function generateSecurePassword(length = 16): string {
   const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
   const lowercase = 'abcdefghijklmnopqrstuvwxyz'
@@ -24,36 +25,32 @@ function generateSecurePassword(length = 16): string {
   crypto.getRandomValues(array)
 
   let password = ''
-  // Ensure at least one character from each category
   password += uppercase[array[0] % uppercase.length]
   password += lowercase[array[1] % lowercase.length]
   password += digits[array[2] % digits.length]
   password += special[array[3] % special.length]
 
-  // Fill remaining with random characters
   for (let i = 4; i < length; i++) {
     password += allChars[array[i] % allChars.length]
   }
 
-  // Shuffle the password
-  return password.split('').sort(() => {
-    const shuffleArray = new Uint8Array(1)
-    crypto.getRandomValues(shuffleArray)
-    return shuffleArray[0] - 128
-  }).join('')
+  return password
+    .split('')
+    .sort(() => {
+      const shuffleArray = new Uint8Array(1)
+      crypto.getRandomValues(shuffleArray)
+      return shuffleArray[0] - 128
+    })
+    .join('')
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
 
   if (req.method !== 'POST') {
-    return new Response(
-      JSON.stringify({ error: 'Method not allowed' }),
-      { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    return errorResponse(405, 'Method not allowed')
   }
 
   try {
@@ -63,29 +60,20 @@ serve(async (req) => {
 
     if (!supabaseUrl || !serviceRoleKey || !anonKey) {
       console.error('Missing required environment variables')
-      return new Response(
-        JSON.stringify({ error: 'Server configuration error' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return errorResponse(500, 'Server configuration error')
     }
 
-    // Verify the caller's JWT token
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized: Missing authorization header' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return errorResponse(401, 'Unauthorized: Missing authorization header')
     }
 
-    // Create anon client to verify caller identity
     const requestClient = createClient(supabaseUrl, anonKey, {
       global: {
         headers: { Authorization: authHeader },
       },
     })
 
-    // Create service client for admin operations
     const serviceClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: {
         persistSession: false,
@@ -93,7 +81,6 @@ serve(async (req) => {
       },
     })
 
-    // Verify the caller is authenticated
     const {
       data: { user },
       error: userError,
@@ -101,13 +88,9 @@ serve(async (req) => {
 
     if (userError || !user) {
       console.error('Authentication failed:', userError?.message)
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized: Invalid token' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return errorResponse(401, 'Unauthorized: Invalid token')
     }
 
-    // Verify the caller is an admin
     const { data: callerProfile, error: callerProfileError } = await serviceClient
       .from('profiles')
       .select('role, email')
@@ -116,109 +99,167 @@ serve(async (req) => {
 
     if (callerProfileError) {
       console.error('Failed to fetch caller profile:', callerProfileError.message)
-      return new Response(
-        JSON.stringify({ error: 'Failed to verify permissions' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return errorResponse(500, 'Failed to verify permissions')
     }
 
     if (!callerProfile || callerProfile.role !== 'admin') {
-      console.error('Permission denied: Caller is not an admin')
-      return new Response(
-        JSON.stringify({ error: 'Forbidden: Admin role required' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return errorResponse(403, 'Forbidden: Admin role required')
     }
 
-    // Parse and validate request body
     const body = await req.json()
-    const { email, role, contractor_id, note } = body
+    const action = (body?.action ?? 'invite') as 'invite' | 'reset_password'
 
-    // Validate email
-    if (!email || typeof email !== 'string' || !email.includes('@')) {
+    if (action === 'reset_password') {
+      const targetUserId = (body?.target_user_id ?? body?.targetUserId) as string | undefined
+      const targetEmail = (body?.email as string | undefined)?.toLowerCase().trim()
+
+      if (!targetUserId && !targetEmail) {
+        return errorResponse(400, 'Missing target_user_id or email')
+      }
+
+      const profileQuery = serviceClient
+        .from('profiles')
+        .select('user_id, email, role, contractor_id')
+
+      let targetProfile = null
+      if (targetUserId) {
+        const { data, error } = await profileQuery.eq('user_id', targetUserId).maybeSingle()
+        if (error) {
+          console.error('Failed to fetch target profile:', error.message)
+          return errorResponse(500, 'Failed to load target profile')
+        }
+        targetProfile = data
+      }
+
+      if (!targetProfile && targetEmail) {
+        const { data, error } = await profileQuery.eq('email', targetEmail).maybeSingle()
+        if (error) {
+          console.error('Failed to fetch target profile by email:', error.message)
+          return errorResponse(500, 'Failed to load target profile')
+        }
+        targetProfile = data
+      }
+
+      if (!targetProfile) {
+        return errorResponse(404, 'User profile not found')
+      }
+
+      const normalizedEmail = (targetProfile.email ?? targetEmail ?? '').toLowerCase()
+      if (!normalizedEmail) {
+        return errorResponse(400, 'Cannot resolve user email')
+      }
+
+      if (normalizedEmail === SUPER_ADMIN_EMAIL) {
+        return errorResponse(403, 'Cannot reset password for Super Admin')
+      }
+
+      const targetAuthUserId = targetProfile.user_id ?? targetUserId!
+      const existingUserResponse = await serviceClient.auth.admin.getUserById(targetAuthUserId)
+      if (existingUserResponse.error || !existingUserResponse.data?.user) {
+        console.error('Failed to retrieve auth user:', existingUserResponse.error?.message)
+        return errorResponse(404, 'Auth user not found')
+      }
+
+      const existingUser = existingUserResponse.data.user
+      const password = generateSecurePassword(16)
+
+      const { error: updateError } = await serviceClient.auth.admin.updateUserById(existingUser.id, {
+        password,
+        email_confirm: true,
+        user_metadata: {
+          ...(existingUser.user_metadata ?? {}),
+          password_reset_at: new Date().toISOString(),
+          password_reset_by: user.id,
+        },
+      })
+
+      if (updateError) {
+        console.error('Failed to update auth user password:', updateError.message)
+        return errorResponse(500, 'Failed to reset password')
+      }
+
+      const { error: profileUpdateError } = await serviceClient
+        .from('profiles')
+        .update({ updated_at: new Date().toISOString(), status: 'active' })
+        .eq('user_id', existingUser.id)
+
+      if (profileUpdateError) {
+        console.error('Failed to update profile after reset:', profileUpdateError.message)
+      }
+
       return new Response(
-        JSON.stringify({ error: 'Invalid email address' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          success: true,
+          email: normalizedEmail,
+          password,
+          role: targetProfile.role ?? (existingUser.user_metadata?.role ?? 'contractor'),
+          contractor_id: targetProfile.contractor_id ?? null,
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }
 
-    // Validate role
+    // Default action: invite new user
+    const email = (body?.email as string | undefined)?.toLowerCase().trim()
+    const role = body?.role as 'admin' | 'contractor' | undefined
+    const contractor_id = body?.contractor_id as string | undefined
+    const note = body?.note as string | undefined
+
+    if (!email) {
+      return errorResponse(400, 'Email is required')
+    }
+
     if (!role || (role !== 'admin' && role !== 'contractor')) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid role: must be admin or contractor' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return errorResponse(400, 'Invalid role: must be admin or contractor')
     }
 
-    // Validate contractor_id for contractor role
     if (role === 'contractor' && !contractor_id) {
-      return new Response(
-        JSON.stringify({ error: 'contractor_id is required for contractor role' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return errorResponse(400, 'contractor_id is required for contractor role')
     }
 
-    const normalizedEmail = email.toLowerCase().trim()
+    if (email === SUPER_ADMIN_EMAIL) {
+      return errorResponse(400, 'Cannot invite with reserved Super Admin email')
+    }
 
-    // Check if user already exists in auth
-    const { data: existingAuthUser, error: authCheckError } = await serviceClient.auth.admin.listUsers()
-    
+    const { data: existingUsers, error: authCheckError } = await serviceClient.auth.admin.listUsers()
     if (authCheckError) {
       console.error('Failed to check existing users:', authCheckError.message)
-      return new Response(
-        JSON.stringify({ error: 'Failed to verify user existence' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return errorResponse(500, 'Failed to verify user existence')
     }
 
-    const userExists = existingAuthUser.users.some(u => u.email?.toLowerCase() === normalizedEmail)
+    const userExists = existingUsers.users.some((u) => u.email?.toLowerCase() === email)
     if (userExists) {
-      return new Response(
-        JSON.stringify({ error: 'User already exists with this email' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return errorResponse(400, 'User already exists with this email')
     }
 
-    // Generate a strong random password (NEVER logged)
     const temporaryPassword = generateSecurePassword(16)
-
-    // Create user in auth with email confirmation bypassed
     const { data: newUser, error: createUserError } = await serviceClient.auth.admin.createUser({
-      email: normalizedEmail,
+      email,
       password: temporaryPassword,
       email_confirm: true,
       user_metadata: {
-        role: role,
+        role,
         invited_by: user.id,
-      }
+      },
     })
 
     if (createUserError || !newUser.user) {
       console.error('Failed to create auth user:', createUserError?.message)
-      return new Response(
-        JSON.stringify({ error: 'Failed to create user account' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return errorResponse(500, 'Failed to create user account')
     }
 
-    console.log(`User created successfully: ${normalizedEmail} (ID: ${newUser.user.id})`)
-
-    // Insert into allowed_users_email (ignore duplicates)
     const { error: allowedEmailError } = await serviceClient
       .from('allowed_users_email')
-      .insert({ email: normalizedEmail })
-      .select()
+      .insert({ email })
 
     if (allowedEmailError && !allowedEmailError.message.includes('duplicate')) {
-      console.error('Failed to add to allowed emails:', allowedEmailError.message)
-      // Non-fatal error, continue
+      console.error('Failed to add allowed email:', allowedEmailError.message)
     }
 
-    // Upsert profile record with the new user_id
-    const profileData: any = {
+    const profileData: Record<string, unknown> = {
       user_id: newUser.user.id,
-      email: normalizedEmail,
-      role: role,
+      email,
+      role,
       status: 'invited',
       invited_by: user.id,
       invited_at: new Date().toISOString(),
@@ -238,33 +279,22 @@ serve(async (req) => {
 
     if (upsertProfileError) {
       console.error('Failed to create profile:', upsertProfileError.message)
-      // Rollback: delete the auth user
       await serviceClient.auth.admin.deleteUser(newUser.user.id)
-      return new Response(
-        JSON.stringify({ error: 'Failed to create user profile' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return errorResponse(500, 'Failed to create user profile')
     }
 
-    console.log(`Profile created successfully for: ${normalizedEmail}`)
-
-    // Return success with the temporary password
-    // SECURITY: Password is only returned in this response, never logged or stored
     return new Response(
       JSON.stringify({
         success: true,
-        email: normalizedEmail,
+        email,
         password: temporaryPassword,
-        role: role,
-        contractor_id: contractor_id || null,
+        role,
+        contractor_id: contractor_id ?? null,
       }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
   } catch (err) {
     console.error('manage-invite error:', err instanceof Error ? err.message : 'Unknown error')
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    return errorResponse(500, 'Internal server error')
   }
 })

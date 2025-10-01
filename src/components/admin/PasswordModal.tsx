@@ -1,12 +1,6 @@
-import { useState } from 'react';
-import { Copy, Check, X } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { useCallback, useState } from 'react';
+import { Copy, Check } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 
@@ -18,15 +12,28 @@ interface PasswordModalProps {
   role: string;
 }
 
+const ROLE_LABEL: Record<string, string> = {
+  admin: 'Quản trị viên',
+  contractor: 'Nhà thầu',
+};
+
 export const PasswordModal = ({ open, onOpenChange, email, password, role }: PasswordModalProps) => {
   const [emailCopied, setEmailCopied] = useState(false);
   const [passwordCopied, setPasswordCopied] = useState(false);
   const { toast } = useToast();
 
-  const copyToClipboard = async (text: string, type: 'email' | 'password') => {
+  const handleDialogChange = useCallback((next: boolean) => {
+    if (!next) {
+      setEmailCopied(false);
+      setPasswordCopied(false);
+    }
+    onOpenChange(next);
+  }, [onOpenChange]);
+
+  const copyToClipboard = useCallback(async (text: string, type: 'email' | 'password') => {
     try {
       await navigator.clipboard.writeText(text);
-      
+
       if (type === 'email') {
         setEmailCopied(true);
         setTimeout(() => setEmailCopied(false), 2000);
@@ -37,7 +44,7 @@ export const PasswordModal = ({ open, onOpenChange, email, password, role }: Pas
 
       toast({
         title: 'Đã sao chép',
-        description: `${type === 'email' ? 'Email' : 'Mật khẩu'} đã được sao chép vào clipboard.`,
+        description: type === 'email' ? 'Email đã được sao chép.' : 'Mật khẩu đã được sao chép.',
       });
     } catch (err) {
       toast({
@@ -46,10 +53,12 @@ export const PasswordModal = ({ open, onOpenChange, email, password, role }: Pas
         variant: 'destructive',
       });
     }
-  };
+  }, [toast]);
 
-  const copyAll = async () => {
-    const fullCredentials = `Email: ${email}\nMật khẩu: ${password}\nVai trò: ${role === 'admin' ? 'Quản trị viên' : 'Nhà thầu'}`;
+  const copyAll = useCallback(async () => {
+    const fullCredentials = `Email: ${email}
+Mật khẩu: ${password}
+Vai trò: ${ROLE_LABEL[role] ?? role}`;
     try {
       await navigator.clipboard.writeText(fullCredentials);
       toast({
@@ -63,30 +72,13 @@ export const PasswordModal = ({ open, onOpenChange, email, password, role }: Pas
         variant: 'destructive',
       });
     }
-  };
-
-  const handleClose = () => {
-    // Clear copied states when closing
-    setEmailCopied(false);
-    setPasswordCopied(false);
-    onOpenChange(false);
-  };
+  }, [email, password, role, toast]);
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-lg">
+    <Dialog open={open} onOpenChange={handleDialogChange}>
+      <DialogContent className="sm:max-w-lg [&>[data-radix-dialog-close]]:hidden">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            Tài khoản đã được tạo
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleClose}
-              className="h-6 w-6"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </DialogTitle>
+          <DialogTitle>Tài khoản đã được tạo</DialogTitle>
           <DialogDescription>
             Vui lòng lưu thông tin đăng nhập này. Mật khẩu chỉ hiển thị một lần duy nhất.
           </DialogDescription>
@@ -96,7 +88,7 @@ export const PasswordModal = ({ open, onOpenChange, email, password, role }: Pas
           <div className="space-y-2">
             <label className="text-sm font-medium">Email</label>
             <div className="flex gap-2">
-              <div className="flex-1 p-3 bg-muted rounded-md font-mono text-sm break-all">
+              <div className="flex-1 rounded-md bg-muted p-3 font-mono text-sm break-all">
                 {email}
               </div>
               <Button
@@ -117,7 +109,7 @@ export const PasswordModal = ({ open, onOpenChange, email, password, role }: Pas
           <div className="space-y-2">
             <label className="text-sm font-medium">Mật khẩu tạm thời</label>
             <div className="flex gap-2">
-              <div className="flex-1 p-3 bg-muted rounded-md font-mono text-sm break-all">
+              <div className="flex-1 rounded-md bg-muted p-3 font-mono text-sm break-all">
                 {password}
               </div>
               <Button
@@ -137,30 +129,21 @@ export const PasswordModal = ({ open, onOpenChange, email, password, role }: Pas
 
           <div className="space-y-2">
             <label className="text-sm font-medium">Vai trò</label>
-            <div className="p-3 bg-muted rounded-md text-sm">
-              {role === 'admin' ? 'Quản trị viên' : 'Nhà thầu'}
+            <div className="rounded-md bg-muted p-3 text-sm">
+              {ROLE_LABEL[role] ?? role}
             </div>
           </div>
 
-          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-3">
-            <p className="text-sm text-yellow-800 dark:text-yellow-200">
-              ⚠️ Lưu ý: Mật khẩu này chỉ hiển thị một lần. Hãy gửi cho người dùng ngay hoặc lưu lại ở nơi an toàn.
-            </p>
+          <div className="rounded-md border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
+            ⚠️ Lưu ý: Mật khẩu này chỉ hiển thị một lần. Hãy gửi cho người dùng ngay hoặc lưu lại ở nơi an toàn.
           </div>
 
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={copyAll}
-            >
-              <Copy className="h-4 w-4 mr-2" />
+            <Button variant="outline" className="flex-1" onClick={copyAll}>
+              <Copy className="mr-2 h-4 w-4" />
               Sao chép tất cả
             </Button>
-            <Button
-              className="flex-1"
-              onClick={handleClose}
-            >
+            <Button className="flex-1" onClick={() => handleDialogChange(false)}>
               Đóng
             </Button>
           </div>

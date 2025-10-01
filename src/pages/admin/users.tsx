@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Users, Search, UserPlus, Filter, Trash2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Users, Search, UserPlus, Filter, Trash2, KeyRound } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,10 +7,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { InviteUserDialog } from '@/components/admin/InviteUserDialog';
 import { EditUserDialog } from '@/components/admin/EditUserDialog';
+import { PasswordModal } from '@/components/admin/PasswordModal';
 import { UserProfile } from '@/hooks/useSessionRole';
 
 interface Contractor {
@@ -31,6 +41,8 @@ const AdminUsersPage = () => {
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [resettingUserId, setResettingUserId] = useState<string | null>(null);
+  const [resetCredentials, setResetCredentials] = useState<{ email: string; password: string; role: string } | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -50,7 +62,7 @@ const AdminUsersPage = () => {
 
       if (error) throw error;
 
-      const usersWithContractorName = (data || []).map(user => ({
+      const mappedUsers: UserProfile[] = (data || []).map((user) => ({
         id: user.id,
         user_id: user.user_id,
         email: user.email,
@@ -60,7 +72,7 @@ const AdminUsersPage = () => {
         contractor_name: user.contractor?.name ?? null,
       }));
 
-      setUsers(usersWithContractorName);
+      setUsers(mappedUsers);
     } catch (err: any) {
       toast({
         title: 'Lỗi tải danh sách người dùng',
@@ -86,12 +98,11 @@ const AdminUsersPage = () => {
     }
   };
 
-  const filteredUsers = users.filter(user => {
+  const filteredUsers = users.filter((user) => {
     const matchesSearch = user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (user.contractor_name || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
     const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
-
     return matchesSearch && matchesRole && matchesStatus;
   });
 
@@ -129,35 +140,87 @@ const AdminUsersPage = () => {
     setShowInviteDialog(false);
   };
 
+  const handleResetPassword = async (user: UserProfile) => {
+    const isSuperAdmin = user.email?.toLowerCase() === SUPER_ADMIN_EMAIL;
+    if (isSuperAdmin) {
+      return;
+    }
+
+    if (!user.user_id) {
+      toast({
+        title: 'Không thể đặt lại mật khẩu',
+        description: 'Tài khoản này chưa được kích hoạt trong Supabase Auth.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      setResettingUserId(user.user_id);
+      const { data, error } = await supabase.functions.invoke('manage-invite', {
+        body: {
+          action: 'reset_password',
+          target_user_id: user.user_id,
+          email: user.email,
+        },
+      });
+
+      if (error || data?.error) {
+        throw new Error(error?.message || data?.error || 'Không thể đặt lại mật khẩu');
+      }
+
+      setResetCredentials({
+        email: data.email,
+        password: data.password,
+        role: data.role,
+      });
+
+      toast({
+        title: 'Đã tạo mật khẩu mới',
+        description: 'Hiển thị mật khẩu tạm thời để gửi cho người dùng.',
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Lỗi đặt lại mật khẩu',
+        description: err.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setResettingUserId(null);
+    }
+  };
+
   const handleDeleteUser = async () => {
     if (!userToDelete) {
       return;
     }
 
+    const targetUser = userToDelete;
+
     try {
       setDeleting(true);
 
-      if (!userToDelete.user_id) {
+      if (!targetUser.user_id) {
         const { error: profileError } = await supabase
           .from('profiles')
           .delete()
-          .eq('id', userToDelete.id);
+          .eq('id', targetUser.id);
 
         if (profileError) {
           throw profileError;
         }
 
-        if (userToDelete.email) {
+        if (targetUser.email) {
           await supabase
             .from('allowed_users_email')
             .delete()
-            .eq('email', userToDelete.email);
+            .eq('email', targetUser.email);
         }
       } else {
         const { data, error } = await supabase.functions.invoke('manage-users', {
           body: {
             action: 'delete_user',
-            targetUserId: userToDelete.user_id,
+            targetUserId: targetUser.user_id,
           },
         });
 
@@ -166,9 +229,11 @@ const AdminUsersPage = () => {
         }
       }
 
+      setUsers((prev) => prev.filter((user) => user.id !== targetUser.id));
+
       toast({
         title: 'Đã xoá người dùng',
-        description: `${userToDelete.email} đã được xoá hoàn toàn.`,
+        description: `${targetUser.email} đã được xoá hoàn toàn.`,
       });
       setUserToDelete(null);
       void loadUsers();
@@ -185,21 +250,21 @@ const AdminUsersPage = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      <div className="flex h-64 items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Users className="h-6 w-6" />
           <h1 className="text-2xl font-bold">Quản lý người dùng & phân quyền</h1>
         </div>
         <Button onClick={() => setShowInviteDialog(true)}>
-          <UserPlus className="h-4 w-4 mr-2" />
+          <UserPlus className="mr-2 h-4 w-4" />
           Mời người dùng
         </Button>
       </div>
@@ -209,21 +274,21 @@ const AdminUsersPage = () => {
           <CardTitle>Bộ lọc & Tìm kiếm</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Tìm kiếm theo email hoặc nhà thầu..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(event) => setSearchTerm(event.target.value)}
                   className="pl-8"
                 />
               </div>
             </div>
             <Select value={roleFilter} onValueChange={setRoleFilter}>
               <SelectTrigger className="w-[180px]">
-                <Filter className="h-4 w-4 mr-2" />
+                <Filter className="mr-2 h-4 w-4" />
                 <SelectValue placeholder="Lọc theo vai trò" />
               </SelectTrigger>
               <SelectContent>
@@ -260,6 +325,7 @@ const AdminUsersPage = () => {
                   <TableHead>Vai trò</TableHead>
                   <TableHead>Nhà thầu</TableHead>
                   <TableHead>Trạng thái</TableHead>
+                  <TableHead className="text-center">Lấy lại mật khẩu</TableHead>
                   <TableHead className="text-right">Thao tác</TableHead>
                 </TableRow>
               </TableHeader>
@@ -280,7 +346,28 @@ const AdminUsersPage = () => {
                       </TableCell>
                       <TableCell>{user.contractor_name || '-'}</TableCell>
                       <TableCell>{getStatusBadge(user.status)}</TableCell>
-                      <TableCell className="text-right space-x-2">
+                      <TableCell className="text-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-blue-600"
+                          onClick={() => handleResetPassword(user)}
+                          disabled={isSuperAdmin || !user.user_id || resettingUserId === user.user_id}
+                        >
+                          {resettingUserId === user.user_id ? (
+                            <span className="flex items-center justify-center gap-2">
+                              <span className="h-4 w-4 animate-spin rounded-full border-b-2 border-current" />
+                              Đang tạo
+                            </span>
+                          ) : (
+                            <>
+                              <KeyRound className="mr-2 h-4 w-4" />
+                              Lấy lại
+                            </>
+                          )}
+                        </Button>
+                      </TableCell>
+                      <TableCell className="space-x-2 text-right">
                         <Button
                           variant="outline"
                           size="sm"
@@ -307,7 +394,7 @@ const AdminUsersPage = () => {
               </TableBody>
             </Table>
             {filteredUsers.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
+              <div className="py-8 text-center text-muted-foreground">
                 Không tìm thấy người dùng phù hợp với bộ lọc.
               </div>
             )}
@@ -353,6 +440,20 @@ const AdminUsersPage = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {resetCredentials && (
+        <PasswordModal
+          open={!!resetCredentials}
+          onOpenChange={(open) => {
+            if (!open) {
+              setResetCredentials(null);
+            }
+          }}
+          email={resetCredentials.email}
+          password={resetCredentials.password}
+          role={resetCredentials.role}
+        />
+      )}
     </div>
   );
 };
