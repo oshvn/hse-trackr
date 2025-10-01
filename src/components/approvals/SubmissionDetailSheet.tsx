@@ -302,28 +302,6 @@ export const SubmissionDetailSheet: React.FC<SubmissionDetailSheetProps> = ({
                             <strong>Note:</strong> {item.note}
                           </div>
                         )}
-                                <span className="ml-1 text-xs text-muted-foreground">
-                                  ({(item.file_size / (1024 * 1024)).toFixed(2)} MB)
-                                </span>
-                              )}
-                            </div>
-                            {item.file_url ? (
-                              <Button asChild variant="outline" size="sm">
-                                <a
-                                  href={item.file_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="flex items-center gap-1"
-                                >
-                                  <Download className="h-3 w-3" />
-                                  Download
-                                </a>
-                              </Button>
-                            ) : (
-                              <Badge variant="secondary">File unavailable</Badge>
-                            )}
-                          </div>
-                        )}
                       </div>
                     </div>
                   </div>

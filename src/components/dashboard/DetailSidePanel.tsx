@@ -302,28 +302,6 @@ export const DetailSidePanel: React.FC<DetailSidePanelProps> = ({
                                   <strong>Note:</strong> {submission.note}
                                 </div>
                               )}
-                                      <span className="ml-1 text-xs text-muted-foreground">
-                                        ({(submission.file_size / (1024 * 1024)).toFixed(2)} MB)
-                                      </span>
-                                    )}
-                                  </div>
-                                  {submission.file_url ? (
-                                    <Button asChild variant="outline" size="sm">
-                                      <a
-                                        href={submission.file_url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center gap-1"
-                                      >
-                                        <Download className="h-3 w-3" />
-                                        Download
-                                      </a>
-                                    </Button>
-                                  ) : (
-                                    <Badge variant="secondary">File unavailable</Badge>
-                                  )}
-                                </div>
-                              )}
                             </div>
                           </div>
                         </div>
