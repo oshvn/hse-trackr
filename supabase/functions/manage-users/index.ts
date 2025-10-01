@@ -153,7 +153,7 @@ serve(async (req) => {
 
     const { error: authDeleteError } = await serviceClient.auth.admin.deleteUser(targetUserId)
 
-    if (authDeleteError) {
+    if (authDeleteError && !(authDeleteError.message?.includes('User not found') || (authDeleteError as any)?.status === 404)) {
       console.error('Failed to delete auth user', authDeleteError)
       return new Response(
         JSON.stringify({ error: 'Failed to delete auth user' }),

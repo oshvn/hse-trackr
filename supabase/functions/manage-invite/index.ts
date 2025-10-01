@@ -44,6 +44,26 @@ function generateSecurePassword(length = 16): string {
     .join('')
 }
 
+const findAuthUser = async (
+  serviceClient: any,
+  userId: string | null,
+  email: string,
+) => {
+  if (userId) {
+    const byId = await serviceClient.auth.admin.getUserById(userId)
+    if (!byId.error && byId.data?.user) {
+      return byId.data.user
+    }
+  }
+
+  const { data: listData, error: listError } = await serviceClient.auth.admin.listUsers()
+  if (listError) {
+    console.error('Failed to list auth users:', listError.message)
+    return null
+  }
+  return listData.users.find((u) => u.email?.toLowerCase() === email) ?? null
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -153,21 +173,17 @@ serve(async (req) => {
         return errorResponse(403, 'Cannot reset password for Super Admin')
       }
 
-      const targetAuthUserId = targetProfile.user_id ?? targetUserId!
-      const existingUserResponse = await serviceClient.auth.admin.getUserById(targetAuthUserId)
-      if (existingUserResponse.error || !existingUserResponse.data?.user) {
-        console.error('Failed to retrieve auth user:', existingUserResponse.error?.message)
+      const authUser = await findAuthUser(serviceClient, targetProfile.user_id ?? targetUserId ?? null, normalizedEmail)
+      if (!authUser) {
         return errorResponse(404, 'Auth user not found')
       }
 
-      const existingUser = existingUserResponse.data.user
       const password = generateSecurePassword(16)
-
-      const { error: updateError } = await serviceClient.auth.admin.updateUserById(existingUser.id, {
+      const { error: updateError } = await serviceClient.auth.admin.updateUserById(authUser.id, {
         password,
         email_confirm: true,
         user_metadata: {
-          ...(existingUser.user_metadata ?? {}),
+          ...(authUser.user_metadata ?? {}),
           password_reset_at: new Date().toISOString(),
           password_reset_by: user.id,
         },
@@ -180,8 +196,12 @@ serve(async (req) => {
 
       const { error: profileUpdateError } = await serviceClient
         .from('profiles')
-        .update({ updated_at: new Date().toISOString(), status: 'active' })
-        .eq('user_id', existingUser.id)
+        .update({
+          updated_at: new Date().toISOString(),
+          status: 'active',
+          user_id: authUser.id,
+        })
+        .eq('email', normalizedEmail)
 
       if (profileUpdateError) {
         console.error('Failed to update profile after reset:', profileUpdateError.message)
@@ -192,14 +212,13 @@ serve(async (req) => {
           success: true,
           email: normalizedEmail,
           password,
-          role: targetProfile.role ?? (existingUser.user_metadata?.role ?? 'contractor'),
+          role: targetProfile.role ?? (authUser.user_metadata?.role ?? 'contractor'),
           contractor_id: targetProfile.contractor_id ?? null,
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }
 
-    // Default action: invite new user
     const email = (body?.email as string | undefined)?.toLowerCase().trim()
     const role = body?.role as 'admin' | 'contractor' | undefined
     const contractor_id = body?.contractor_id as string | undefined

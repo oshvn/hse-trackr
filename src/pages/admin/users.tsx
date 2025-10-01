@@ -179,6 +179,7 @@ const AdminUsersPage = () => {
         title: 'Đã tạo mật khẩu mới',
         description: 'Hiển thị mật khẩu tạm thời để gửi cho người dùng.',
       });
+      void loadUsers();
     } catch (err: any) {
       toast({
         title: 'Lỗi đặt lại mật khẩu',
