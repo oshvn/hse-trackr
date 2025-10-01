@@ -16,7 +16,14 @@ import { CriticalAlertsCard } from '@/components/dashboard/CriticalAlertsCard';
 import { CategoryProgressChart } from '@/components/dashboard/CategoryProgressChart';
 import { PlannedVsActualCompact } from '@/components/dashboard/PlannedVsActualCompact';
 import { SnapshotTable } from '@/components/dashboard/SnapshotTable';
-import type { FilterState, KpiData, DocProgressData, CategoryProgressSummary, ProcessSnapshotItem } from '@/lib/dashboardHelpers';
+import { CategoryDrilldownPanel } from '@/components/dashboard/CategoryDrilldownPanel';
+import type {
+  FilterState,
+  KpiData,
+  DocProgressData,
+  CategoryProgressSummary,
+  ProcessSnapshotItem,
+} from '@/lib/dashboardHelpers';
 import {
   calculateOverallCompletion,
   calculateMustHaveReady,
@@ -41,6 +48,18 @@ interface DocTypeRow {
   code?: string | null;
   category: string;
   is_critical?: boolean | null;
+}
+
+interface RequirementRow {
+  doc_type_id: string;
+  required_count: number;
+  planned_due_date: string | null;
+}
+
+interface SubmissionRow {
+  doc_type_id: string;
+  approved_at: string | null;
+  cnt: number;
 }
 
 const CATEGORY_CONFIG = [
@@ -96,6 +115,7 @@ const DashboardPage: React.FC = () => {
   });
   const [selectedDetail, setSelectedDetail] = useState<{ contractorId: string; docTypeId: string } | null>(null);
   const [planContractorId, setPlanContractorId] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const {
     data: contractors = [],
@@ -107,7 +127,6 @@ const DashboardPage: React.FC = () => {
         .from('contractors')
         .select('id, name')
         .order('name');
-
       if (queryError) throw queryError;
       return data || [];
     },
@@ -127,7 +146,6 @@ const DashboardPage: React.FC = () => {
         .select('id, name, code, category, is_critical')
         .order('category', { ascending: true })
         .order('name', { ascending: true });
-
       if (queryError) throw queryError;
       return data || [];
     },
@@ -144,7 +162,6 @@ const DashboardPage: React.FC = () => {
       const { data, error: queryError } = await supabase
         .from('v_contractor_kpi')
         .select('*');
-
       if (queryError) throw queryError;
       return data || [];
     },
@@ -163,7 +180,6 @@ const DashboardPage: React.FC = () => {
         .select('*')
         .order('contractor_name')
         .order('doc_type_name');
-
       if (queryError) throw queryError;
       return data || [];
     },
@@ -171,23 +187,21 @@ const DashboardPage: React.FC = () => {
     retry: 1,
   });
 
-  const normalizedDocTypes = useMemo(() => {
-    return docTypes.map(docType => {
-      const upperCode = docType.code ? docType.code.toUpperCase() : '';
-      const primaryCategory =
-        CODE_CATEGORY_MAP[upperCode] ||
-        FALLBACK_CATEGORY_MAP[docType.category] ||
-        CATEGORY_ORDER[0];
+  const normalizedDocTypes = useMemo(() => docTypes.map(docType => {
+    const upperCode = docType.code ? docType.code.toUpperCase() : '';
+    const primaryCategory =
+      CODE_CATEGORY_MAP[upperCode] ||
+      FALLBACK_CATEGORY_MAP[docType.category] ||
+      CATEGORY_ORDER[0];
 
-      return {
-        id: docType.id,
-        name: docType.name,
-        code: upperCode || null,
-        primaryCategory,
-        isCritical: !!docType.is_critical,
-      };
-    });
-  }, [docTypes]);
+    return {
+      id: docType.id,
+      name: docType.name,
+      code: upperCode || null,
+      primaryCategory,
+      isCritical: !!docType.is_critical,
+    };
+  }), [docTypes]);
 
   const docTypeMeta = useMemo(() => {
     const map = new Map<string, {
@@ -204,27 +218,25 @@ const DashboardPage: React.FC = () => {
     return map;
   }, [normalizedDocTypes]);
 
-  const enrichedProgressData = useMemo(() => {
-    return progressData.map(item => {
-      const meta = docTypeMeta.get(item.doc_type_id);
-      const primaryCategory = meta?.primaryCategory ?? item.category;
+  const enrichedProgressData = useMemo(() => progressData.map(item => {
+    const meta = docTypeMeta.get(item.doc_type_id);
+    const primaryCategory = meta?.primaryCategory ?? item.category;
 
-      return {
-        ...item,
-        doc_type_code: meta?.code ?? item.doc_type_code ?? null,
-        category: primaryCategory,
-        is_critical: item.is_critical || meta?.isCritical || false,
-      };
-    });
-  }, [progressData, docTypeMeta]);
+    return {
+      ...item,
+      doc_type_code: meta?.code ?? item.doc_type_code ?? null,
+      category: primaryCategory,
+      is_critical: item.is_critical || meta?.isCritical || false,
+    };
+  }), [progressData, docTypeMeta]);
 
-  const baseFilteredData = useMemo(() => {
-    return filterData(enrichedProgressData, {
-      contractor: filters.contractor,
-      category: 'all',
-      search: filters.search,
-    });
-  }, [enrichedProgressData, filters.contractor, filters.search]);
+  const baseFilteredData = useMemo(() => filterData(enrichedProgressData, {
+    contractor: filters.contractor,
+    category: 'all',
+    search: filters.search,
+  }), [enrichedProgressData, filters.contractor, filters.search]);
+
+  const filteredData = useMemo(() => filterData(enrichedProgressData, filters), [enrichedProgressData, filters]);
 
   const categoriesPresent = useMemo(() => {
     const present = new Set(baseFilteredData.map(item => item.category));
@@ -232,10 +244,6 @@ const DashboardPage: React.FC = () => {
   }, [baseFilteredData]);
 
   const availableCategories = categoriesPresent.length > 0 ? categoriesPresent : CATEGORY_ORDER;
-
-  const filteredData = useMemo(() => {
-    return filterData(enrichedProgressData, filters);
-  }, [enrichedProgressData, filters]);
 
   const overallCompletion = useMemo(() => (
     calculateOverallCompletion(enrichedProgressData, filters, kpiData)
@@ -257,13 +265,9 @@ const DashboardPage: React.FC = () => {
     calculateAvgApprovalTime(enrichedProgressData, filters, kpiData)
   ), [enrichedProgressData, filters, kpiData]);
 
-  const redAlerts = useMemo(() => (
-    getRedCards(enrichedProgressData, filters)
-  ), [enrichedProgressData, filters]);
+  const redAlerts = useMemo(() => getRedCards(enrichedProgressData, filters), [enrichedProgressData, filters]);
 
-  const amberAlerts = useMemo(() => (
-    getAmberAlerts(enrichedProgressData, filters)
-  ), [enrichedProgressData, filters]);
+  const amberAlerts = useMemo(() => getAmberAlerts(enrichedProgressData, filters), [enrichedProgressData, filters]);
 
   const categoryProgress: CategoryProgressSummary[] = useMemo(() => (
     getCategoryProgress(enrichedProgressData, filters)
@@ -273,27 +277,6 @@ const DashboardPage: React.FC = () => {
     getProcessSnapshot(enrichedProgressData, filters, 5)
   ), [enrichedProgressData, filters]);
 
-  const planTotals = useMemo(() => {
-    const totals: Record<string, { planned: number; actual: number }> = {
-      all: { planned: 0, actual: 0 },
-    };
-
-    filteredData.forEach(item => {
-      const planned = item.required_count;
-      const actual = item.approved_count;
-
-      totals.all.planned += planned;
-      totals.all.actual += actual;
-
-      const entry = totals[item.contractor_id] ?? { planned: 0, actual: 0 };
-      entry.planned += planned;
-      entry.actual += actual;
-      totals[item.contractor_id] = entry;
-    });
-
-    return totals;
-  }, [filteredData]);
-
   const planOptions = useMemo(() => {
     const options = [{ id: 'all', name: 'All contractors' }];
     contractors.forEach(contractor => {
@@ -301,6 +284,10 @@ const DashboardPage: React.FC = () => {
     });
     return options;
   }, [contractors]);
+
+  const planContractorName = useMemo(() => (
+    planOptions.find(option => option.id === planContractorId)?.name ?? 'Contractor'
+  ), [planOptions, planContractorId]);
 
   useEffect(() => {
     const validIds = new Set(planOptions.map(option => option.id));
@@ -314,6 +301,51 @@ const DashboardPage: React.FC = () => {
       setPlanContractorId(filters.contractor);
     }
   }, [filters.contractor, planContractorId]);
+
+  const planDataEnabled = !!session && planContractorId !== 'all';
+
+  const {
+    data: planRequirements = [],
+    isLoading: planRequirementsLoading,
+  } = useQuery<RequirementRow[]>({
+    queryKey: ['plan_requirements', planContractorId],
+    queryFn: async () => {
+      const { data, error: queryError } = await supabase
+        .from('contractor_requirements')
+        .select('doc_type_id, required_count, planned_due_date')
+        .eq('contractor_id', planContractorId);
+      if (queryError) throw queryError;
+      return data || [];
+    },
+    enabled: planDataEnabled,
+  });
+
+  const {
+    data: planSubmissions = [],
+    isLoading: planSubmissionsLoading,
+  } = useQuery<SubmissionRow[]>({
+    queryKey: ['plan_submissions', planContractorId],
+    queryFn: async () => {
+      const { data, error: queryError } = await supabase
+        .from('submissions')
+        .select('doc_type_id, approved_at, cnt')
+        .eq('contractor_id', planContractorId)
+        .not('approved_at', 'is', null)
+        .order('approved_at', { ascending: true });
+      if (queryError) throw queryError;
+      return data || [];
+    },
+    enabled: planDataEnabled,
+  });
+
+  const categoryDrilldownItems = useMemo(() => {
+    if (!selectedCategory) return [] as DocProgressData[];
+    return filterData(enrichedProgressData, {
+      contractor: filters.contractor,
+      category: selectedCategory,
+      search: filters.search,
+    });
+  }, [selectedCategory, enrichedProgressData, filters.contractor, filters.search]);
 
   const mustHaveCount = normalizedDocTypes.filter(docType => docType.isCritical).length;
   const standardCount = normalizedDocTypes.length - mustHaveCount;
@@ -366,7 +398,7 @@ const DashboardPage: React.FC = () => {
         />
 
         {isDataLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
             {[...Array(5)].map((_, index) => (
               <Skeleton key={index} className="h-24" />
             ))}
@@ -381,55 +413,64 @@ const DashboardPage: React.FC = () => {
           />
         )}
 
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-          <div className="space-y-6">
-            {isDataLoading ? (
-              <Skeleton className="h-[260px]" />
-            ) : (
-              <CriticalAlertsCard
-                redItems={redAlerts}
-                amberItems={amberAlerts}
-                onSelect={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
-              />
-            )}
-
-            {isDataLoading ? (
-              <Skeleton className="h-[260px]" />
-            ) : (
-              <CategoryProgressChart data={categoryProgress} />
-            )}
-
-            <SnapshotTable
-              items={snapshotItems}
-              isLoading={isDataLoading}
+        <div className="grid gap-4 xl:grid-cols-3 auto-rows-[220px]">
+          {isDataLoading ? (
+            <Skeleton className="min-h-[220px]" />
+          ) : (
+            <CriticalAlertsCard
+              className="min-h-[220px]"
+              redItems={redAlerts}
+              amberItems={amberAlerts}
               onSelect={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
             />
-          </div>
+          )}
 
-          <div className="space-y-6">
-            {isDataLoading ? (
-              <Skeleton className="h-[260px]" />
-            ) : (
-              <MustHaveSplitChart mustHaveCount={mustHaveCount} standardCount={standardCount} />
-            )}
+          {isDataLoading ? (
+            <Skeleton className="min-h-[220px]" />
+          ) : (
+            <CategoryProgressChart
+              className="min-h-[220px]"
+              data={categoryProgress}
+              onSelectCategory={category => setSelectedCategory(category)}
+            />
+          )}
 
-            {isDataLoading ? (
-              <Skeleton className="h-[260px]" />
-            ) : (
-              <PlannedVsActualCompact
-                contractorId={planContractorId}
-                onContractorChange={setPlanContractorId}
-                contractorOptions={planOptions}
-                totals={planTotals}
-              />
-            )}
+          {isDataLoading ? (
+            <Skeleton className="min-h-[220px]" />
+          ) : (
+            <MustHaveSplitChart
+              className="min-h-[220px]"
+              mustHaveCount={mustHaveCount}
+              standardCount={standardCount}
+            />
+          )}
 
-            {isDataLoading ? (
-              <Skeleton className="h-[260px]" />
-            ) : (
-              <CompletionByContractorBar kpiData={kpiData} />
-            )}
-          </div>
+          <PlannedVsActualCompact
+            className="min-h-[220px]"
+            contractorId={planContractorId}
+            contractorName={planContractorName}
+            contractorOptions={planOptions}
+            requirements={planRequirements}
+            submissions={planSubmissions}
+            onContractorChange={setPlanContractorId}
+            isLoading={planContractorId !== 'all' ? (planRequirementsLoading || planSubmissionsLoading) : false}
+          />
+
+          {isDataLoading ? (
+            <Skeleton className="min-h-[220px]" />
+          ) : (
+            <CompletionByContractorBar
+              className="min-h-[220px]"
+              kpiData={kpiData}
+            />
+          )}
+
+          <SnapshotTable
+            className="xl:col-span-3 min-h-[260px]"
+            items={snapshotItems}
+            isLoading={isDataLoading}
+            onSelect={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
+          />
         </div>
 
         <DetailSidePanel
@@ -438,6 +479,17 @@ const DashboardPage: React.FC = () => {
           contractorId={selectedDetail?.contractorId || null}
           docTypeId={selectedDetail?.docTypeId || null}
           docProgressData={enrichedProgressData}
+        />
+
+        <CategoryDrilldownPanel
+          open={!!selectedCategory}
+          category={selectedCategory}
+          onClose={() => setSelectedCategory(null)}
+          items={categoryDrilldownItems}
+          onSelectDoc={(contractorId, docTypeId) => {
+            setSelectedCategory(null);
+            setSelectedDetail({ contractorId, docTypeId });
+          }}
         />
       </div>
     </div>

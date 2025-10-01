@@ -7,12 +7,14 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { ProcessSnapshotItem } from '@/lib/dashboardHelpers';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface SnapshotTableProps {
   items: ProcessSnapshotItem[];
   isLoading: boolean;
   onSelect: (contractorId: string, docTypeId: string) => void;
   onViewAll?: () => void;
+  className?: string;
 }
 
 const getStatusBadgeMeta = (status: string) => {
@@ -30,15 +32,15 @@ const getStatusBadgeMeta = (status: string) => {
 
 const renderDueMeta = (item: ProcessSnapshotItem) => {
   if (!item.planned_due_date) {
-    return <span className="text-sm text-muted-foreground">No due date</span>;
+    return <span className="text-xs text-muted-foreground">No due date</span>;
   }
 
-  const dueLabel = format(new Date(item.planned_due_date), 'MMM dd, yyyy');
+  const dueLabel = format(new Date(item.planned_due_date), 'MMM dd');
 
   if (item.overdueDays > 0) {
     return (
-      <div className="flex flex-col gap-1">
-        <span className="text-sm">{dueLabel}</span>
+      <div className="flex flex-col gap-1 text-xs">
+        <span>{dueLabel}</span>
         <Badge variant="destructive">Overdue {item.overdueDays}d</Badge>
       </div>
     );
@@ -46,8 +48,8 @@ const renderDueMeta = (item: ProcessSnapshotItem) => {
 
   if (item.dueInDays !== null && item.dueInDays <= 3) {
     return (
-      <div className="flex flex-col gap-1">
-        <span className="text-sm">{dueLabel}</span>
+      <div className="flex flex-col gap-1 text-xs">
+        <span>{dueLabel}</span>
         <Badge variant="outline" className="border-amber-300 text-amber-700">
           Due in {item.dueInDays}d
         </Badge>
@@ -55,16 +57,16 @@ const renderDueMeta = (item: ProcessSnapshotItem) => {
     );
   }
 
-  return <span className="text-sm">{dueLabel}</span>;
+  return <span className="text-xs">{dueLabel}</span>;
 };
 
-export const SnapshotTable: React.FC<SnapshotTableProps> = ({ items, isLoading, onSelect, onViewAll }) => {
+export const SnapshotTable: React.FC<SnapshotTableProps> = ({ items, isLoading, onSelect, onViewAll, className }) => {
   return (
-    <Card className="p-6">
-      <div className="flex items-center justify-between mb-4">
+    <Card className={cn('p-5 flex flex-col', className)}>
+      <div className="flex items-center justify-between mb-3">
         <div>
           <h3 className="text-lg font-semibold">Top Issues</h3>
-          <p className="text-sm text-muted-foreground">Most critical documents based on severity and due dates</p>
+          <p className="text-sm text-muted-foreground">Most critical documents by severity and timeline</p>
         </div>
         {onViewAll && (
           <Button variant="ghost" size="sm" onClick={onViewAll} className="text-primary">
@@ -80,23 +82,23 @@ export const SnapshotTable: React.FC<SnapshotTableProps> = ({ items, isLoading, 
           ))}
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="flex-1 overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-64">Document</TableHead>
-                <TableHead className="w-44">Contractor</TableHead>
-                <TableHead className="w-60">Plan vs actual</TableHead>
-                <TableHead className="w-32">Status</TableHead>
-                <TableHead className="w-48">Due date</TableHead>
-                <TableHead className="text-right w-28">Actions</TableHead>
+                <TableHead className="w-52">Document</TableHead>
+                <TableHead className="w-40">Contractor</TableHead>
+                <TableHead className="w-48">Plan vs actual</TableHead>
+                <TableHead className="w-28">Status</TableHead>
+                <TableHead className="w-36">Due</TableHead>
+                <TableHead className="text-right w-24">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {items.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6}>
-                    <div className="py-10 text-center text-muted-foreground text-sm">
+                    <div className="py-8 text-center text-muted-foreground text-sm">
                       No issues match the current filters
                     </div>
                   </TableCell>
@@ -108,7 +110,7 @@ export const SnapshotTable: React.FC<SnapshotTableProps> = ({ items, isLoading, 
                   return (
                     <TableRow key={`${item.contractor_id}-${item.doc_type_id}`}>
                       <TableCell>
-                        <div className="font-medium line-clamp-1">{item.doc_type_name}</div>
+                        <div className="font-medium line-clamp-1 text-sm">{item.doc_type_name}</div>
                         {item.doc_type_code && (
                           <div className="text-xs text-muted-foreground uppercase tracking-wide">
                             {item.doc_type_code}
@@ -116,15 +118,15 @@ export const SnapshotTable: React.FC<SnapshotTableProps> = ({ items, isLoading, 
                         )}
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium">{item.contractor_name}</div>
+                        <div className="font-medium text-sm">{item.contractor_name}</div>
                         <div className="text-xs text-muted-foreground">
                           {item.first_started_at ? `Started ${format(new Date(item.first_started_at), 'MMM dd')}` : 'Not started'}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="space-y-2">
+                        <div className="space-y-1">
                           <Progress value={progressValue} className="h-2" />
-                          <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                             <span>Actual: {item.approved_count}</span>
                             <span>Planned: {item.required_count}</span>
                           </div>

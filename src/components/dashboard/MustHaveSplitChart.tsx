@@ -2,15 +2,17 @@ import React, { useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
+import { cn } from '@/lib/utils';
 
 interface MustHaveSplitChartProps {
   mustHaveCount: number;
   standardCount: number;
+  className?: string;
 }
 
 const COLORS = ['#f97316', '#2563eb'];
 
-export const MustHaveSplitChart: React.FC<MustHaveSplitChartProps> = ({ mustHaveCount, standardCount }) => {
+export const MustHaveSplitChart: React.FC<MustHaveSplitChartProps> = ({ mustHaveCount, standardCount, className }) => {
   const data = useMemo(() => {
     const total = mustHaveCount + standardCount;
     return [
@@ -30,8 +32,8 @@ export const MustHaveSplitChart: React.FC<MustHaveSplitChartProps> = ({ mustHave
   const total = mustHaveCount + standardCount;
 
   return (
-    <Card className="p-6 h-[260px]">
-      <div className="flex items-center justify-between mb-4">
+    <Card className={cn('p-5 flex flex-col', className)}>
+      <div className="flex items-center justify-between mb-3">
         <div>
           <h3 className="text-lg font-semibold">Document Mix</h3>
           <p className="text-sm text-muted-foreground">Share of must-have vs standard requirements</p>
@@ -41,7 +43,7 @@ export const MustHaveSplitChart: React.FC<MustHaveSplitChartProps> = ({ mustHave
         </Badge>
       </div>
 
-      <div className="h-[180px]">
+      <div className="flex-1">
         {total === 0 ? (
           <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
             No document types configured yet
@@ -55,8 +57,8 @@ export const MustHaveSplitChart: React.FC<MustHaveSplitChartProps> = ({ mustHave
                 nameKey="name"
                 cx="50%"
                 cy="50%"
-                innerRadius={45}
-                outerRadius={70}
+                innerRadius={40}
+                outerRadius={60}
                 paddingAngle={3}
               >
                 {data.map((entry, index) => (
@@ -69,7 +71,7 @@ export const MustHaveSplitChart: React.FC<MustHaveSplitChartProps> = ({ mustHave
                   payload.name,
                 ]}
               />
-              <Legend verticalAlign="bottom" height={24} />
+              <Legend verticalAlign="bottom" height={20} />
             </PieChart>
           </ResponsiveContainer>
         )}

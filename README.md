@@ -6,7 +6,7 @@ A Lovable + Supabase reference implementation for managing Health, Safety & Envi
 
 - **Auto guest onboarding** – visitors are transparently signed in with a read-only guest account and dropped straight into the KPI dashboard.
 - **Role based routing** – dedicated experiences for guest, contractor, and admin roles with protected routes and contextual navigation.
-- **Document analytics** – responsive dashboard with KPI cards, completion heatmap, planned vs actual trends, critical red card list, and contractor comparison chart.
+- **Dashboard analytics** - single-screen overview with KPI strip, critical alerts, category drilldown, planned vs actual timeline, contractor leaderboard, and issue snapshot table.
 - **Contractor workspace** – upload, track, and refresh submission status scoped to the contractor’s portfolio.
 - **Admin console** – approvals queue, user & role management, and document type configuration with support for critical must-have tracking.
 - **Supabase native** – schema, RLS policies, and seeds provided as idempotent SQL for quick bootstrap of local or hosted projects.

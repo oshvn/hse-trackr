@@ -3,143 +3,135 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle2, Hourglass, XCircle } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 import type { DocProgressData } from '@/lib/dashboardHelpers';
+import { format } from 'date-fns';
 
 interface CategoryDrilldownPanelProps {
   open: boolean;
-  onClose: () => void;
   category: string | null;
-  contractors: Array<{ id: string; name: string }>;
-  docTypes: Array<{ id: string; name: string; code?: string | null; primaryCategory: string }>;
-  progressData: DocProgressData[];
-  focusedContractorId?: string | null;
+  onClose: () => void;
+  items: DocProgressData[];
   onSelectDoc: (contractorId: string, docTypeId: string) => void;
 }
 
-const getStatusBadge = (approved: number, required: number) => {
-  if (required === 0) {
-    return <Badge variant="secondary">N/A</Badge>;
-  }
-
-  if (approved >= required) {
-    return (
-      <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300 flex items-center gap-1">
-        <CheckCircle2 className="h-3 w-3" /> Completed
-      </Badge>
-    );
-  }
-
-  if (approved > 0) {
-    return (
-      <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-300 flex items-center gap-1">
-        <Hourglass className="h-3 w-3" /> Pending
-      </Badge>
-    );
-  }
-
-  return (
-    <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300 flex items-center gap-1">
-      <XCircle className="h-3 w-3" /> Missing
-    </Badge>
-  );
-};
-
 export const CategoryDrilldownPanel: React.FC<CategoryDrilldownPanelProps> = ({
   open,
-  onClose,
   category,
-  contractors,
-  docTypes,
-  progressData,
-  focusedContractorId,
-  onSelectDoc
+  onClose,
+  items,
+  onSelectDoc,
 }) => {
-  const filteredContractors = useMemo(() => {
-    if (focusedContractorId) {
-      return contractors.filter(contractor => contractor.id === focusedContractorId);
-    }
-    return contractors;
-  }, [contractors, focusedContractorId]);
-
-  const docTypesForCategory = useMemo(() => {
-    if (!category) return [];
-    return docTypes.filter(docType => docType.primaryCategory === category);
-  }, [docTypes, category]);
-
-  const progressMap = useMemo(() => {
-    const map = new Map<string, DocProgressData>();
-    progressData.forEach(item => {
-      map.set(`${item.doc_type_id}__${item.contractor_id}`, item);
+  const sortedItems = useMemo(() => {
+    const withProgress = items.map(item => {
+      const progressPercent = item.required_count > 0
+        ? Math.round((item.approved_count / item.required_count) * 100)
+        : 100;
+      return {
+        ...item,
+        progressPercent,
+      };
     });
-    return map;
-  }, [progressData]);
 
-  if (!category) {
-    return null;
-  }
+    return withProgress.sort((a, b) => {
+      if (a.status_color === b.status_color) {
+        const dueA = a.planned_due_date ? new Date(a.planned_due_date).getTime() : Number.MAX_SAFE_INTEGER;
+        const dueB = b.planned_due_date ? new Date(b.planned_due_date).getTime() : Number.MAX_SAFE_INTEGER;
+        return dueA - dueB;
+      }
+
+      const severityRank = { red: 3, amber: 2, green: 1 } as const;
+      return (severityRank[b.status_color as keyof typeof severityRank] ?? 0) -
+        (severityRank[a.status_color as keyof typeof severityRank] ?? 0);
+    });
+  }, [items]);
 
   return (
-    <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent className="w-full sm:max-w-4xl overflow-y-auto">
+    <Sheet open={open} onOpenChange={value => !value && onClose()}>
+      <SheetContent className="w-full sm:max-w-3xl">
         <SheetHeader>
-          <SheetTitle>{category}</SheetTitle>
+          <SheetTitle>{category ?? 'Category details'}</SheetTitle>
         </SheetHeader>
 
-        <div className="mt-6 space-y-4">
-          {docTypesForCategory.length === 0 ? (
-            <div className="text-muted-foreground text-sm">No document types configured for this category.</div>
+        <div className="mt-6">
+          {sortedItems.length === 0 ? (
+            <div className="text-sm text-muted-foreground">
+              No documents in this category match the current filters.
+            </div>
           ) : (
-            <ScrollArea className="max-h-[70vh]">
+            <ScrollArea className="h-[70vh] pr-4">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-64">Document</TableHead>
-                    {filteredContractors.map(contractor => (
-                      <TableHead key={contractor.id} className="text-center">
-                        {contractor.name}
-                      </TableHead>
-                    ))}
+                    <TableHead className="w-48">Document</TableHead>
+                    <TableHead className="w-40">Contractor</TableHead>
+                    <TableHead className="w-32">Status</TableHead>
+                    <TableHead className="w-32">Due</TableHead>
+                    <TableHead className="w-40">Progress</TableHead>
+                    <TableHead className="text-right w-32">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {docTypesForCategory.map(docType => (
-                    <TableRow key={docType.id}>
-                      <TableCell>
-                        <div className="font-medium">{docType.name}</div>
-                        {docType.code && (
-                          <div className="text-xs text-muted-foreground">Code: {docType.code}</div>
-                        )}
-                      </TableCell>
-                      {filteredContractors.map(contractor => {
-                        const progress = progressMap.get(`${docType.id}__${contractor.id}`);
-                        const approved = progress?.approved_count ?? 0;
-                        const required = progress?.required_count ?? 0;
-                        const completion = required > 0 ? Math.round((approved / required) * 100) : 0;
-                        const statusBadge = getStatusBadge(approved, required);
+                  {sortedItems.map(item => {
+                    const progressValue = item.required_count > 0
+                      ? Math.round((item.approved_count / item.required_count) * 100)
+                      : 100;
 
-                        return (
-                          <TableCell key={contractor.id}>
-                            <div className="flex flex-col gap-2">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium">{approved}/{required}</span>
-                                <span className="text-xs text-muted-foreground">{completion}%</span>
-                              </div>
-                              <div>{statusBadge}</div>
-                              <button
-                                type="button"
-                                className="text-xs text-primary hover:underline text-left disabled:text-muted-foreground"
-                                onClick={() => progress && onSelectDoc(contractor.id, docType.id)}
-                                disabled={!progress || required === 0}
-                              >
-                                View details
-                              </button>
+                    const statusMeta = (() => {
+                      switch (item.status_color) {
+                        case 'red':
+                          return { label: 'Critical', className: 'bg-red-100 text-red-700 border-red-200' };
+                        case 'amber':
+                          return { label: 'At risk', className: 'bg-amber-100 text-amber-700 border-amber-200' };
+                        case 'green':
+                          return { label: 'On track', className: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
+                        default:
+                          return { label: 'Monitoring', className: 'bg-slate-100 text-slate-700 border-slate-200' };
+                      }
+                    })();
+
+                    return (
+                      <TableRow key={`${item.contractor_id}-${item.doc_type_id}`}>
+                        <TableCell>
+                          <div className="font-medium text-sm">{item.doc_type_name}</div>
+                          {item.doc_type_code && (
+                            <div className="text-xs text-muted-foreground uppercase tracking-wide">
+                              {item.doc_type_code}
                             </div>
-                          </TableCell>
-                        );
-                      })}
-                    </TableRow>
-                  ))}
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium text-sm">{item.contractor_name}</div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={statusMeta.className}>
+                            {statusMeta.label}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {item.planned_due_date ? format(new Date(item.planned_due_date), 'MMM dd, yyyy') : '—'}
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            <Progress value={progressValue} className="h-2" />
+                            <div className="text-[11px] text-muted-foreground flex items-center justify-between">
+                              <span>{item.approved_count} approved</span>
+                              <span>{item.required_count} required</span>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <button
+                            type="button"
+                            className="text-sm text-primary hover:underline"
+                            onClick={() => onSelectDoc(item.contractor_id, item.doc_type_id)}
+                          >
+                            View details
+                          </button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </ScrollArea>
