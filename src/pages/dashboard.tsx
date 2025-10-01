@@ -466,7 +466,7 @@ const DashboardPage: React.FC = () => {
           )}
 
           <SnapshotTable
-            className="xl:col-span-2 min-h-[260px]"
+            className="min-h-[220px]"
             items={snapshotItems}
             isLoading={isDataLoading}
             onSelect={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
