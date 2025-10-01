@@ -8,16 +8,19 @@ const corsHeaders = {
 
 const SUPER_ADMIN_EMAIL = Deno.env.get('SUPER_ADMIN_EMAIL')?.toLowerCase() ?? 'admin@osh.vn'
 
+const errorResponse = (status: number, message: string) =>
+  new Response(JSON.stringify({ error: message }), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  })
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
 
   if (req.method !== 'POST') {
-    return new Response(
-      JSON.stringify({ error: 'Method not allowed' }),
-      { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    return errorResponse(405, 'Method not allowed')
   }
 
   try {
@@ -27,18 +30,12 @@ serve(async (req) => {
 
     if (!supabaseUrl || !serviceRoleKey || !anonKey) {
       console.error('Missing Supabase environment variables')
-      return new Response(
-        JSON.stringify({ error: 'Server configuration error' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return errorResponse(500, 'Server configuration error')
     }
 
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return errorResponse(401, 'Unauthorized')
     }
 
     const requestClient = createClient(supabaseUrl, anonKey, {
@@ -60,10 +57,7 @@ serve(async (req) => {
     } = await requestClient.auth.getUser()
 
     if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return errorResponse(401, 'Unauthorized')
     }
 
     const { data: requesterProfile, error: profileError } = await serviceClient
@@ -73,71 +67,63 @@ serve(async (req) => {
       .maybeSingle()
 
     if (profileError || !requesterProfile || requesterProfile.role !== 'admin') {
-      return new Response(
-        JSON.stringify({ error: 'Forbidden' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return errorResponse(403, 'Forbidden')
     }
 
     const body = await req.json()
     const action = body?.action
 
     if (action !== 'delete_user') {
-      return new Response(
-        JSON.stringify({ error: 'Unsupported action' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return errorResponse(400, 'Unsupported action')
     }
 
     const targetUserId = body?.targetUserId as string | undefined
+    const targetEmailInput = (body?.email as string | undefined)?.toLowerCase().trim()
 
-    if (!targetUserId) {
-      return new Response(
-        JSON.stringify({ error: 'Missing target user id' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    if (!targetUserId && !targetEmailInput) {
+      return errorResponse(400, 'Missing target user identifier')
     }
 
-    const { data: targetProfile, error: targetProfileError } = await serviceClient
+    const profileQuery = serviceClient
       .from('profiles')
       .select('id, user_id, email')
-      .eq('user_id', targetUserId)
-      .maybeSingle()
 
-    if (targetProfileError) {
-      console.error('Failed to fetch target profile', targetProfileError)
-      return new Response(
-        JSON.stringify({ error: 'Failed to load target profile' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    let targetProfile = null
+    if (targetUserId) {
+      const { data, error } = await profileQuery.eq('user_id', targetUserId).maybeSingle()
+      if (error) {
+        console.error('Failed to fetch target profile by user_id', error)
+        return errorResponse(500, 'Failed to load target profile')
+      }
+      targetProfile = data
+    }
+
+    if (!targetProfile && targetEmailInput) {
+      const { data, error } = await profileQuery.eq('email', targetEmailInput).maybeSingle()
+      if (error) {
+        console.error('Failed to fetch target profile by email', error)
+        return errorResponse(500, 'Failed to load target profile')
+      }
+      targetProfile = data
     }
 
     if (!targetProfile) {
-      return new Response(
-        JSON.stringify({ error: 'User profile not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return errorResponse(404, 'User profile not found')
     }
 
-    const targetEmail = targetProfile.email?.toLowerCase()
+    const targetEmail = (targetProfile.email ?? targetEmailInput ?? '').toLowerCase()
     if (targetEmail === SUPER_ADMIN_EMAIL) {
-      return new Response(
-        JSON.stringify({ error: 'Cannot modify super admin' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return errorResponse(403, 'Cannot modify super admin')
     }
 
     const { error: deleteProfileError } = await serviceClient
       .from('profiles')
       .delete()
-      .eq('user_id', targetUserId)
+      .eq('id', targetProfile.id)
 
     if (deleteProfileError) {
       console.error('Failed to delete profile', deleteProfileError)
-      return new Response(
-        JSON.stringify({ error: 'Failed to delete profile' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return errorResponse(500, 'Failed to delete profile')
     }
 
     if (targetEmail) {
@@ -151,25 +137,35 @@ serve(async (req) => {
       }
     }
 
-    const { error: authDeleteError } = await serviceClient.auth.admin.deleteUser(targetUserId)
+    let authUserId = targetProfile.user_id ?? targetUserId ?? null
 
-    if (authDeleteError && !(authDeleteError.message?.includes('User not found') || (authDeleteError as any)?.status === 404)) {
-      console.error('Failed to delete auth user', authDeleteError)
-      return new Response(
-        JSON.stringify({ error: 'Failed to delete auth user' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    if (authUserId) {
+      const { error: authDeleteError } = await serviceClient.auth.admin.deleteUser(authUserId)
+
+      if (authDeleteError && !(authDeleteError.message?.includes('User not found') || (authDeleteError as any)?.status === 404)) {
+        console.error('Failed to delete auth user', authDeleteError)
+        return errorResponse(500, 'Failed to delete auth user')
+      }
+    } else if (targetEmail) {
+      const { data: listData, error: listError } = await serviceClient.auth.admin.listUsers()
+      if (!listError) {
+        const authUser = (listData.users ?? []).find((u: any) => u.email?.toLowerCase() === targetEmail)
+        if (authUser) {
+          const { error: authDeleteError } = await serviceClient.auth.admin.deleteUser(authUser.id)
+          if (authDeleteError && !(authDeleteError.message?.includes('User not found') || (authDeleteError as any)?.status === 404)) {
+            console.error('Failed to delete auth user', authDeleteError)
+            return errorResponse(500, 'Failed to delete auth user')
+          }
+        }
+      }
     }
 
     return new Response(
       JSON.stringify({ success: true }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
   } catch (err) {
     console.error('manage-users error', err)
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    return errorResponse(500, 'Internal server error')
   }
 })

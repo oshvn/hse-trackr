@@ -201,33 +201,16 @@ const AdminUsersPage = () => {
     try {
       setDeleting(true);
 
-      if (!targetUser.user_id) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .delete()
-          .eq('id', targetUser.id);
+      const { data, error } = await supabase.functions.invoke('manage-users', {
+        body: {
+          action: 'delete_user',
+          targetUserId: targetUser.user_id,
+          email: targetUser.email,
+        },
+      });
 
-        if (profileError) {
-          throw profileError;
-        }
-
-        if (targetUser.email) {
-          await supabase
-            .from('allowed_users_email')
-            .delete()
-            .eq('email', targetUser.email);
-        }
-      } else {
-        const { data, error } = await supabase.functions.invoke('manage-users', {
-          body: {
-            action: 'delete_user',
-            targetUserId: targetUser.user_id,
-          },
-        });
-
-        if (error || data?.error) {
-          throw new Error(error?.message || data?.error || 'Không thể xoá người dùng');
-        }
+      if (error || data?.error) {
+        throw new Error(error?.message || data?.error || 'Không thể xoá người dùng');
       }
 
       setUsers((prev) => prev.filter((user) => user.id !== targetUser.id));

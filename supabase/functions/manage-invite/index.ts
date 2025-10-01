@@ -61,7 +61,7 @@ const findAuthUser = async (
     console.error('Failed to list auth users:', listError.message)
     return null
   }
-  return listData.users.find((u) => u.email?.toLowerCase() === email) ?? null
+  return listData.users.find((u: any) => u.email?.toLowerCase() === email) ?? null
 }
 
 serve(async (req) => {
@@ -131,28 +131,28 @@ serve(async (req) => {
 
     if (action === 'reset_password') {
       const targetUserId = (body?.target_user_id ?? body?.targetUserId) as string | undefined
-      const targetEmail = (body?.email as string | undefined)?.toLowerCase().trim()
+      const targetEmailInput = (body?.email as string | undefined)?.toLowerCase().trim()
 
-      if (!targetUserId && !targetEmail) {
+      if (!targetUserId && !targetEmailInput) {
         return errorResponse(400, 'Missing target_user_id or email')
       }
 
       const profileQuery = serviceClient
         .from('profiles')
-        .select('user_id, email, role, contractor_id')
+        .select('id, user_id, email, role, contractor_id')
 
       let targetProfile = null
       if (targetUserId) {
         const { data, error } = await profileQuery.eq('user_id', targetUserId).maybeSingle()
         if (error) {
-          console.error('Failed to fetch target profile:', error.message)
+          console.error('Failed to fetch target profile by user_id:', error.message)
           return errorResponse(500, 'Failed to load target profile')
         }
         targetProfile = data
       }
 
-      if (!targetProfile && targetEmail) {
-        const { data, error } = await profileQuery.eq('email', targetEmail).maybeSingle()
+      if (!targetProfile && targetEmailInput) {
+        const { data, error } = await profileQuery.eq('email', targetEmailInput).maybeSingle()
         if (error) {
           console.error('Failed to fetch target profile by email:', error.message)
           return errorResponse(500, 'Failed to load target profile')
@@ -164,7 +164,7 @@ serve(async (req) => {
         return errorResponse(404, 'User profile not found')
       }
 
-      const normalizedEmail = (targetProfile.email ?? targetEmail ?? '').toLowerCase()
+      const normalizedEmail = (targetProfile.email ?? targetEmailInput ?? '').toLowerCase()
       if (!normalizedEmail) {
         return errorResponse(400, 'Cannot resolve user email')
       }
@@ -246,7 +246,7 @@ serve(async (req) => {
       return errorResponse(500, 'Failed to verify user existence')
     }
 
-    const userExists = existingUsers.users.some((u) => u.email?.toLowerCase() === email)
+    const userExists = existingUsers.users.some((u: any) => u.email?.toLowerCase() === email)
     if (userExists) {
       return errorResponse(400, 'User already exists with this email')
     }
