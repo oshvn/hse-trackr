@@ -24,24 +24,29 @@ A Lovable + Supabase reference implementation for managing Health, Safety & Envi
 ```
 src/
   components/
-    Charts/                # Recharts visualisations
-    Heatmap.tsx            # KPI heatmap component
-    KpiCard.tsx            # KPI card primitive
-    RedCardList.tsx        # Overdue critical list with suggested actions
-    layout/                # App shell, sidebar, header
+    Charts/                        # Recharts visualisations
+    dashboard/
+      DashboardHeader.tsx          # Clock + date banner
+      CriticalAlertsCard.tsx       # Red/amber must-have alerts
+      CategoryProgressChart.tsx    # Category completion stacked bars
+      PlannedVsActualCompact.tsx   # Planned vs actual comparator
+      SnapshotTable.tsx            # Issue snapshot table
+      MustHaveSplitChart.tsx       # Must-have vs standard mix
+      KpiCards.tsx                 # KPI strip
+    layout/                        # App shell, sidebar, header
   helpers/
-    suggestActions.ts      # Suggested actions helper logic
+    suggestActions.ts              # Suggested actions helper logic
   hooks/
-    useSessionRole.tsx     # Session/profile resolver with role helpers
+    useSessionRole.tsx             # Session/profile resolver with role helpers
   lib/
-    autoGuest.ts           # Guest session bootstrapper
-    supabase.ts            # Supabase client bootstrap
+    autoGuest.ts                   # Guest session bootstrapper
+    supabase.ts                    # Supabase client bootstrap
   pages/
-    dashboard.tsx          # Public & admin dashboard
-    login.tsx              # Contractor/admin login form
-    forgot-password.tsx    # Reset password + forced update flow
-    my-submissions.tsx     # Contractor workspace
-    admin/                 # Admin routes (approvals, settings, users)
+    dashboard.tsx                  # Public & admin dashboard
+    login.tsx                      # Contractor/admin login form
+    forgot-password.tsx            # Reset password + forced update flow
+    my-submissions.tsx             # Contractor workspace
+    admin/                         # Admin routes (approvals, settings, users)
 ```
 
 Supabase migrations live under `supabase/migrations`. The consolidated refactor migration is `20251015093000_hse_register_refactor.sql`.
@@ -113,7 +118,7 @@ The dev server runs on [http://localhost:5173](http://localhost:5173). The app a
 - ✅ **Contractor authentication** – login with a contractor account, ensure redirect to *My Submissions*, upload a placeholder submission, and confirm the table refreshes.
 - ✅ **File uploads** – confirm the uploaded file appears in Supabase Storage (`hse-documents` bucket) and the download link works from the contractor history and admin approvals screens.
 - ✅ **Admin routes** – login as admin and verify access to Approvals Queue, Users & Roles, and Settings. Ensure non-admins are redirected away.
-- ✅ **Dashboard analytics** – check KPI cards, heatmap interaction, planned vs actual chart, contractor comparison chart, and red card list including suggested actions.
+- ✅ **Dashboard analytics** – check KPI cards, critical alerts card, category progress chart, planned vs actual comparator, contractor leaderboard, and the issue snapshot table (including detail drawer + suggested actions).
 - ✅ **RLS enforcement** – using Supabase SQL editor:
   - Run `select * from submissions` as a contractor and confirm only their contractor rows return.
   - Attempt to insert/update a submission for another contractor – operation should be rejected.

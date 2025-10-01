@@ -66,10 +66,15 @@ export const filterData = <T extends { contractor_id: string; category?: string 
   const searchTerm = filters.search?.trim().toLowerCase();
   if (searchTerm) {
     filtered = filtered.filter(item => {
-      const record: any = item;
-      const docName = typeof record.doc_type_name === "string" ? record.doc_type_name.toLowerCase() : "";
-      const docCode = typeof record.doc_type_code === "string" ? record.doc_type_code.toLowerCase() : "";
-      const contractorName = typeof record.contractor_name === "string" ? record.contractor_name.toLowerCase() : "";
+      const record = item as {
+        doc_type_name?: string;
+        doc_type_code?: string | null;
+        contractor_name?: string;
+      };
+
+      const docName = record.doc_type_name?.toLowerCase() ?? "";
+      const docCode = record.doc_type_code?.toLowerCase() ?? "";
+      const contractorName = record.contractor_name?.toLowerCase() ?? "";
       return docName.includes(searchTerm) || docCode.includes(searchTerm) || contractorName.includes(searchTerm);
     });
   }
@@ -186,6 +191,16 @@ export const calculateAvgApprovalTime = (
 };
 
 // Calculate overdue days for an item
+
+// Calculate days until due date (non-negative)
+export const calculateDueInDays = (plannedDueDate: string | null): number | null => {
+  if (!plannedDueDate) return null;
+  const today = getCurrentDateBangkok();
+  const dueDate = parseISO(plannedDueDate);
+  const diff = calculateDaysDifference(today, dueDate);
+  return diff >= 0 ? diff : null;
+};
+
 export const calculateOverdueDays = (plannedDueDate: string | null): number => {
   if (!plannedDueDate) return 0;
   const today = getCurrentDateBangkok();
@@ -225,6 +240,107 @@ export const getAmberAlerts = (
     }))
     .filter(item => item.dueInDays <= daysThreshold)
     .sort((a, b) => a.dueInDays - b.dueInDays);
+};
+
+const STATUS_SEVERITY_RANK: Record<string, number> = {
+  red: 3,
+  amber: 2,
+  green: 1,
+};
+
+export interface CategoryProgressSummary {
+  category: string;
+  approved: number;
+  required: number;
+  completion: number;
+}
+
+export const getCategoryProgress = (
+  data: DocProgressData[],
+  filters: FilterState
+): CategoryProgressSummary[] => {
+  const filtered = filterData(data, filters);
+  const totals = new Map<string, { approved: number; required: number }>();
+
+  filtered.forEach(item => {
+    const entry = totals.get(item.category) ?? { approved: 0, required: 0 };
+    entry.approved += item.approved_count;
+    entry.required += item.required_count;
+    totals.set(item.category, entry);
+  });
+
+  return Array.from(totals.entries())
+    .map(([category, totalsEntry]) => {
+      const { approved, required } = totalsEntry;
+      const completion = required > 0 ? Math.round((approved / required) * 100) : 0;
+      return { category, approved, required, completion };
+    })
+    .sort((a, b) => a.completion - b.completion);
+};
+
+export interface ProcessSnapshotItem extends DocProgressData {
+  overdueDays: number;
+  dueInDays: number | null;
+  progressPercent: number;
+  severityRank: number;
+}
+
+const getSeverityRank = (statusColor: string): number => {
+  return STATUS_SEVERITY_RANK[statusColor] ?? 0;
+};
+
+export const getProcessSnapshot = (
+  data: DocProgressData[],
+  filters: FilterState,
+  limit = 5
+): ProcessSnapshotItem[] => {
+  const filtered = filterData(data, filters);
+
+  const snapshot = filtered.map(item => {
+    const overdueDays = calculateOverdueDays(item.planned_due_date);
+    const dueInDays = calculateDueInDays(item.planned_due_date);
+    const progressPercent = item.required_count > 0
+      ? Math.round((item.approved_count / item.required_count) * 100)
+      : 100;
+
+    return {
+      ...item,
+      overdueDays,
+      dueInDays,
+      progressPercent,
+      severityRank: getSeverityRank(item.status_color),
+    };
+  });
+
+  snapshot.sort((a, b) => {
+    if (b.severityRank !== a.severityRank) {
+      return b.severityRank - a.severityRank;
+    }
+
+    if (a.severityRank === 3 || b.severityRank === 3) {
+      if (b.overdueDays !== a.overdueDays) {
+        return b.overdueDays - a.overdueDays;
+      }
+    }
+
+    if (a.severityRank === 2 && b.severityRank === 2) {
+      const dueA = a.dueInDays ?? Number.MAX_SAFE_INTEGER;
+      const dueB = b.dueInDays ?? Number.MAX_SAFE_INTEGER;
+      if (dueA !== dueB) {
+        return dueA - dueB;
+      }
+    }
+
+    if (a.progressPercent !== b.progressPercent) {
+      return a.progressPercent - b.progressPercent;
+    }
+
+    const dueTimeA = a.planned_due_date ? parseISO(a.planned_due_date).getTime() : Number.MAX_SAFE_INTEGER;
+    const dueTimeB = b.planned_due_date ? parseISO(b.planned_due_date).getTime() : Number.MAX_SAFE_INTEGER;
+    return dueTimeA - dueTimeB;
+  });
+
+  return snapshot.slice(0, Math.max(limit, 0));
 };
 
 // Format percentage

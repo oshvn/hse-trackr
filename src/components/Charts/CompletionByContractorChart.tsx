@@ -20,9 +20,11 @@ export const CompletionByContractorBar: React.FC<CompletionByContractorBarProps>
 
   if (chartData.length === 0) {
     return (
-      <Card className="p-6 h-80">
-        <h3 className="text-lg font-semibold mb-4">Completion % by Contractor</h3>
-        <div className="flex items-center justify-center h-full text-muted-foreground">
+      <Card className="p-6 h-[260px]">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold">Completion % by Contractor</h3>
+        </div>
+        <div className="flex items-center justify-center h-[180px] text-muted-foreground">
           No contractor data available
         </div>
       </Card>
@@ -30,10 +32,12 @@ export const CompletionByContractorBar: React.FC<CompletionByContractorBarProps>
   }
 
   return (
-    <Card className="p-6 h-80">
-      <h3 className="text-lg font-semibold mb-4">Completion % by Contractor</h3>
-      
-      <div className="h-64">
+    <Card className="p-6 h-[260px]">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold">Completion % by Contractor</h3>
+      </div>
+
+      <div className="h-[180px]">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={chartData}

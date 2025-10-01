@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useSessionRole } from '@/hooks/useSessionRole';
@@ -11,19 +11,22 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { AlertCircle } from 'lucide-react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
-import { ProcessTable, type ProcessTableRow } from '@/components/dashboard/ProcessTable';
-import { CriticalDocsSection } from '@/components/dashboard/CriticalDocsSection';
 import { MustHaveSplitChart } from '@/components/dashboard/MustHaveSplitChart';
-import type { FilterState, KpiData, DocProgressData } from '@/lib/dashboardHelpers';
+import { CriticalAlertsCard } from '@/components/dashboard/CriticalAlertsCard';
+import { CategoryProgressChart } from '@/components/dashboard/CategoryProgressChart';
+import { PlannedVsActualCompact } from '@/components/dashboard/PlannedVsActualCompact';
+import { SnapshotTable } from '@/components/dashboard/SnapshotTable';
+import type { FilterState, KpiData, DocProgressData, CategoryProgressSummary, ProcessSnapshotItem } from '@/lib/dashboardHelpers';
 import {
   calculateOverallCompletion,
   calculateMustHaveReady,
   calculateOverdueMustHaves,
   calculateAvgPrepTime,
   calculateAvgApprovalTime,
-  calculateOverdueDays,
   getRedCards,
   getAmberAlerts,
+  getCategoryProgress,
+  getProcessSnapshot,
   filterData,
 } from '@/lib/dashboardHelpers';
 
@@ -91,8 +94,8 @@ const DashboardPage: React.FC = () => {
     category: 'all',
     search: '',
   });
-  const [criticalOnly, setCriticalOnly] = useState(false);
   const [selectedDetail, setSelectedDetail] = useState<{ contractorId: string; docTypeId: string } | null>(null);
+  const [planContractorId, setPlanContractorId] = useState<string>('all');
 
   const {
     data: contractors = [],
@@ -223,10 +226,6 @@ const DashboardPage: React.FC = () => {
     });
   }, [enrichedProgressData, filters.contractor, filters.search]);
 
-  const filteredData = useMemo(() => {
-    return filterData(enrichedProgressData, filters);
-  }, [enrichedProgressData, filters]);
-
   const categoriesPresent = useMemo(() => {
     const present = new Set(baseFilteredData.map(item => item.category));
     return CATEGORY_ORDER.filter(category => present.has(category));
@@ -234,31 +233,9 @@ const DashboardPage: React.FC = () => {
 
   const availableCategories = categoriesPresent.length > 0 ? categoriesPresent : CATEGORY_ORDER;
 
-  const processRows: ProcessTableRow[] = useMemo(() => {
-    return filteredData.map(item => {
-      const progressPercent = item.required_count > 0
-        ? Math.round((item.approved_count / item.required_count) * 100)
-        : 100;
-
-      return {
-        contractorId: item.contractor_id,
-        contractorName: item.contractor_name,
-        docTypeId: item.doc_type_id,
-        docTypeName: item.doc_type_name,
-        docTypeCode: item.doc_type_code ?? null,
-        isCritical: item.is_critical,
-        requiredCount: item.required_count,
-        approvedCount: item.approved_count,
-        statusColor: item.status_color,
-        plannedDueDate: item.planned_due_date,
-        overdueDays: calculateOverdueDays(item.planned_due_date),
-        progressPercent,
-        firstStartedAt: item.first_started_at,
-        firstSubmittedAt: item.first_submitted_at,
-        firstApprovedAt: item.first_approved_at,
-      };
-    });
-  }, [filteredData]);
+  const filteredData = useMemo(() => {
+    return filterData(enrichedProgressData, filters);
+  }, [enrichedProgressData, filters]);
 
   const overallCompletion = useMemo(() => (
     calculateOverallCompletion(enrichedProgressData, filters, kpiData)
@@ -288,8 +265,58 @@ const DashboardPage: React.FC = () => {
     getAmberAlerts(enrichedProgressData, filters)
   ), [enrichedProgressData, filters]);
 
+  const categoryProgress: CategoryProgressSummary[] = useMemo(() => (
+    getCategoryProgress(enrichedProgressData, filters)
+  ), [enrichedProgressData, filters]);
+
+  const snapshotItems: ProcessSnapshotItem[] = useMemo(() => (
+    getProcessSnapshot(enrichedProgressData, filters, 5)
+  ), [enrichedProgressData, filters]);
+
+  const planTotals = useMemo(() => {
+    const totals: Record<string, { planned: number; actual: number }> = {
+      all: { planned: 0, actual: 0 },
+    };
+
+    filteredData.forEach(item => {
+      const planned = item.required_count;
+      const actual = item.approved_count;
+
+      totals.all.planned += planned;
+      totals.all.actual += actual;
+
+      const entry = totals[item.contractor_id] ?? { planned: 0, actual: 0 };
+      entry.planned += planned;
+      entry.actual += actual;
+      totals[item.contractor_id] = entry;
+    });
+
+    return totals;
+  }, [filteredData]);
+
+  const planOptions = useMemo(() => {
+    const options = [{ id: 'all', name: 'All contractors' }];
+    contractors.forEach(contractor => {
+      options.push({ id: contractor.id, name: contractor.name });
+    });
+    return options;
+  }, [contractors]);
+
+  useEffect(() => {
+    const validIds = new Set(planOptions.map(option => option.id));
+    if (!validIds.has(planContractorId)) {
+      setPlanContractorId(planOptions[0]?.id ?? 'all');
+    }
+  }, [planOptions, planContractorId]);
+
+  useEffect(() => {
+    if (filters.contractor !== 'all' && planContractorId !== filters.contractor) {
+      setPlanContractorId(filters.contractor);
+    }
+  }, [filters.contractor, planContractorId]);
+
   const mustHaveCount = normalizedDocTypes.filter(docType => docType.isCritical).length;
-  const regularCount = normalizedDocTypes.length - mustHaveCount;
+  const standardCount = normalizedDocTypes.length - mustHaveCount;
 
   const isDataLoading = contractorsLoading || docTypesLoading || kpiLoading || progressLoading;
 
@@ -355,29 +382,50 @@ const DashboardPage: React.FC = () => {
         )}
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-          <ProcessTable
-            rows={processRows}
-            isLoading={isDataLoading}
-            criticalOnly={criticalOnly}
-            onCriticalOnlyChange={setCriticalOnly}
-            onSelectRow={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
-          />
-
           <div className="space-y-6">
-            {docTypesLoading ? (
-              <Skeleton className="h-80" />
+            {isDataLoading ? (
+              <Skeleton className="h-[260px]" />
             ) : (
-              <MustHaveSplitChart mustHaveCount={mustHaveCount} regularCount={regularCount} />
+              <CriticalAlertsCard
+                redItems={redAlerts}
+                amberItems={amberAlerts}
+                onSelect={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
+              />
             )}
 
-            <CriticalDocsSection
-              redItems={redAlerts}
-              amberItems={amberAlerts}
-              onDocClick={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
+            {isDataLoading ? (
+              <Skeleton className="h-[260px]" />
+            ) : (
+              <CategoryProgressChart data={categoryProgress} />
+            )}
+
+            <SnapshotTable
+              items={snapshotItems}
+              isLoading={isDataLoading}
+              onSelect={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
             />
+          </div>
+
+          <div className="space-y-6">
+            {isDataLoading ? (
+              <Skeleton className="h-[260px]" />
+            ) : (
+              <MustHaveSplitChart mustHaveCount={mustHaveCount} standardCount={standardCount} />
+            )}
 
             {isDataLoading ? (
-              <Skeleton className="h-80" />
+              <Skeleton className="h-[260px]" />
+            ) : (
+              <PlannedVsActualCompact
+                contractorId={planContractorId}
+                onContractorChange={setPlanContractorId}
+                contractorOptions={planOptions}
+                totals={planTotals}
+              />
+            )}
+
+            {isDataLoading ? (
+              <Skeleton className="h-[260px]" />
             ) : (
               <CompletionByContractorBar kpiData={kpiData} />
             )}
