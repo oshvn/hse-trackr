@@ -19,6 +19,7 @@ import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { MustHaveSplitChart } from '@/components/dashboard/MustHaveSplitChart';
 import { CriticalAlertsCard } from '@/components/dashboard/CriticalAlertsCard';
 import { CategoryProgressChart } from '@/components/dashboard/CategoryProgressChart';
+import { BulletChart } from '@/components/dashboard/BulletChart';
 import { PlannedVsActualCompact } from '@/components/dashboard/PlannedVsActualCompact';
 import { SnapshotTable } from '@/components/dashboard/SnapshotTable';
 import { CategoryDrilldownPanel } from '@/components/dashboard/CategoryDrilldownPanel';
@@ -485,7 +486,7 @@ const DashboardPage: React.FC = () => {
               </>
             ) : (
               <>
-                <CategoryProgressChart
+                <BulletChart
                   className="min-h-[220px]"
                   data={detailedProgressByContractor}
                   onSelect={(category, contractorId) => {
