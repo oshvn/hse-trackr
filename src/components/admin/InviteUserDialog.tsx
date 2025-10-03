@@ -18,9 +18,9 @@ import { z } from "zod";
 import { PasswordModal } from "./PasswordModal";
 
 const inviteUserSchema = z.object({
-  email: z.string().email("Email không hợp lệ"),
+  email: z.string().email("Invalid email address"),
   role: z.union([z.literal("admin"), z.literal("contractor")]).refine(val => val, {
-    message: "Vui lòng chọn vai trò"
+    message: "Please select a role"
   }),
   contractor_id: z.string().optional(),
   note: z.string().optional(),
@@ -30,7 +30,7 @@ const inviteUserSchema = z.object({
   }
   return true;
 }, {
-  message: "Vui lòng chọn nhà thầu cho người dùng có vai trò nhà thầu",
+  message: "Please select a contractor for contractor users",
   path: ["contractor_id"]
 });
 
@@ -101,7 +101,7 @@ export const InviteUserDialog = ({
       });
 
       if (error) {
-        throw new Error(error.message || 'Không thể tạo người dùng');
+        throw new Error(error.message || 'Failed to create user');
       }
 
       if (data?.error) {
@@ -109,7 +109,7 @@ export const InviteUserDialog = ({
       }
 
       if (!data?.success || !data?.password) {
-        throw new Error('Phản hồi không hợp lệ từ server');
+        throw new Error('Phản hồi Invalid response from server');
       }
 
       // Store the credentials for the modal
@@ -132,9 +132,9 @@ export const InviteUserDialog = ({
           variant: "destructive",
         });
       } else {
-        const errorMessage = (validationError as any).message || 'Đã xảy ra lỗi không xác định';
+        const errorMessage = (validationError as any).message || 'An unexpected error occurred';
         toast({
-          title: "Lỗi tạo người dùng",
+          title: "User creation failed",
           description: errorMessage,
           variant: "destructive",
         });
@@ -157,9 +157,9 @@ export const InviteUserDialog = ({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Mời người dùng mới</DialogTitle>
+            <DialogTitle>Invite new user</DialogTitle>
             <DialogDescription>
-              Tạo tài khoản mới với mật khẩu tạm thời
+              Create an account with a temporary password
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleInvite} className="space-y-4">
@@ -176,21 +176,21 @@ export const InviteUserDialog = ({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="invite-role">Vai trò *</Label>
+              <Label htmlFor="invite-role">Role *</Label>
               <Select value={role} onValueChange={(value) => setRole(value as "admin" | "contractor")}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Chọn vai trò" />
+                  <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin">Quản trị viên</SelectItem>
-                  <SelectItem value="contractor">Nhà thầu</SelectItem>
+                  <SelectItem value="admin">Administrator</SelectItem>
+                  <SelectItem value="contractor">Contractor</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             {role === "contractor" && (
               <div className="space-y-2">
-                <Label htmlFor="invite-contractor">Nhà thầu *</Label>
+                <Label htmlFor="invite-contractor">Contractor *</Label>
                 <Select value={contractorId} onValueChange={setContractorId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Chọn nhà thầu" />
@@ -207,10 +207,10 @@ export const InviteUserDialog = ({
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="invite-note">Ghi chú</Label>
+              <Label htmlFor="invite-note">Notes</Label>
               <Textarea
                 id="invite-note"
-                placeholder="Ghi chú về người dùng (tùy chọn)"
+                placeholder="Add a note about this user (optional)"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 rows={3}
@@ -225,7 +225,7 @@ export const InviteUserDialog = ({
                 onClick={() => onOpenChange(false)}
                 disabled={loading}
               >
-                Hủy
+                Cancel
               </Button>
               <Button type="submit" className="flex-1" disabled={loading}>
                 {loading ? (
@@ -233,7 +233,7 @@ export const InviteUserDialog = ({
                 ) : (
                   <UserPlus className="h-4 w-4 mr-2" />
                 )}
-                Tạo tài khoản
+                Create account
               </Button>
             </div>
           </form>

@@ -1,17 +1,17 @@
-import { useState, useEffect } from 'react';
-import { Edit, Trash2 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useEffect, useMemo, useState } from "react";
+import { Edit, Trash2 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,9 +21,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { useToast } from '@/hooks/use-toast';
-import { UserProfile } from '@/hooks/useSessionRole';
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+import { UserProfile } from "@/hooks/useSessionRole";
 
 interface Contractor {
   id: string;
@@ -39,6 +39,17 @@ interface EditUserDialogProps {
   isSuperAdmin?: boolean;
 }
 
+const ROLE_LABEL: Record<UserProfile["role"], string> = {
+  admin: "Administrator",
+  contractor: "Contractor",
+};
+
+const STATUS_LABEL: Record<UserProfile["status"], string> = {
+  invited: "Invited",
+  active: "Active",
+  deactivated: "Deactivated",
+};
+
 export const EditUserDialog = ({
   open,
   onOpenChange,
@@ -47,75 +58,76 @@ export const EditUserDialog = ({
   onUserUpdated,
   isSuperAdmin = false,
 }: EditUserDialogProps) => {
-  const [role, setRole] = useState<'admin' | 'contractor'>(user.role);
-  const [contractorId, setContractorId] = useState(user.contractor_id || '');
-  const [status, setStatus] = useState<'invited' | 'active' | 'deactivated'>(user.status);
-  const [note, setNote] = useState('');
+  const { toast } = useToast();
+
+  const [role, setRole] = useState<UserProfile["role"]>(user.role);
+  const [contractorId, setContractorId] = useState<string>(user.contractor_id ?? "");
+  const [status, setStatus] = useState<UserProfile["status"]>(user.status);
+  const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
   const [showDeactivateDialog, setShowDeactivateDialog] = useState(false);
-  const { toast } = useToast();
+
   const readOnly = isSuperAdmin;
 
   useEffect(() => {
     setRole(user.role);
-    setContractorId(user.contractor_id || '');
+    setContractorId(user.contractor_id ?? "");
     setStatus(user.status);
-    setNote('');
+    setNote("");
   }, [user]);
 
-  const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const contractorOptions = useMemo(() => contractors, [contractors]);
+
+  const handleUpdate = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
 
     if (readOnly) {
       onOpenChange(false);
       return;
     }
 
+    if (role === "contractor" && !contractorId) {
+      toast({
+        title: "Missing information",
+        description: "Select a contractor for this account before saving.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setLoading(true);
 
-      const updateData: Record<string, unknown> = {
+      const updatePayload: Record<string, unknown> = {
         role,
         status,
         updated_at: new Date().toISOString(),
+        contractor_id: role === "contractor" ? contractorId : null,
+        note: note.trim() ? note.trim() : null,
       };
 
-      if (role === 'contractor') {
-        if (!contractorId) {
-          toast({
-            title: 'Thiếu thông tin',
-            description: 'Vui lòng chọn nhà thầu cho tài khoản nhà thầu.',
-            variant: 'destructive',
-          });
-          return;
-        }
-        updateData.contractor_id = contractorId;
-      } else {
-        updateData.contractor_id = null;
-      }
-
-      if (note.trim()) {
-        updateData.note = note.trim();
-      }
-
       const { error } = await supabase
-        .from('profiles')
-        .update(updateData)
-        .eq('id', user.id);
+        .from("profiles")
+        .update(updatePayload)
+        .eq("id", user.id);
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       toast({
-        title: 'Cập nhật thành công',
-        description: 'Thông tin người dùng đã được lưu.',
+        title: "Update successful",
+        description: "User information has been saved.",
       });
 
       onUserUpdated();
-    } catch (err: any) {
+      onOpenChange(false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to update user.";
       toast({
-        title: 'Lỗi cập nhật',
-        description: err.message,
-        variant: 'destructive',
+        title: "Update failed",
+        description: message,
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -132,27 +144,30 @@ export const EditUserDialog = ({
       setLoading(true);
 
       const { error } = await supabase
-        .from('profiles')
+        .from("profiles")
         .update({
-          status: 'deactivated',
+          status: "deactivated",
           updated_at: new Date().toISOString(),
         })
-        .eq('id', user.id);
+        .eq("id", user.id);
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       toast({
-        title: 'Đã vô hiệu hóa',
-        description: 'Tài khoản người dùng đã được vô hiệu hóa.',
+        title: "Account deactivated",
+        description: "The user account has been deactivated.",
       });
 
       setShowDeactivateDialog(false);
       onUserUpdated();
-    } catch (err: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to deactivate user.";
       toast({
-        title: 'Lỗi vô hiệu hóa',
-        description: err.message,
-        variant: 'destructive',
+        title: "Deactivation failed",
+        description: message,
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -164,39 +179,52 @@ export const EditUserDialog = ({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Chỉnh sửa người dùng</DialogTitle>
+            <DialogTitle>Edit user</DialogTitle>
             <DialogDescription>
-              Cập nhật thông tin và phân quyền cho {user.email}
+              Update details and permissions for {user.email}
             </DialogDescription>
           </DialogHeader>
+
           {readOnly && (
             <div className="rounded-md border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-800">
-              Tài khoản Super Admin không thể chỉnh sửa từ giao diện này.
+              Super Admin accounts cannot be edited from this screen.
             </div>
           )}
-          <form onSubmit={handleUpdate} className="space-y-4 mt-4">
+
+          <form onSubmit={handleUpdate} className="mt-4 space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="edit-role">Vai trò</Label>
-              <Select value={role} onValueChange={(value) => setRole(value as 'admin' | 'contractor')} disabled={readOnly}>
+              <Label htmlFor="edit-role">Role</Label>
+              <Select
+                value={role}
+                onValueChange={(value) => setRole(value as UserProfile["role"])}
+                disabled={readOnly}
+              >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin">Quản trị viên</SelectItem>
-                  <SelectItem value="contractor">Nhà thầu</SelectItem>
+                  {Object.entries(ROLE_LABEL).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
-            {role === 'contractor' && (
+            {role === "contractor" && (
               <div className="space-y-2">
-                <Label htmlFor="edit-contractor">Nhà thầu</Label>
-                <Select value={contractorId} onValueChange={setContractorId} disabled={readOnly}>
+                <Label htmlFor="edit-contractor">Contractor</Label>
+                <Select
+                  value={contractorId}
+                  onValueChange={setContractorId}
+                  disabled={readOnly}
+                >
                   <SelectTrigger>
-                    <SelectValue placeholder="Chọn nhà thầu" />
+                    <SelectValue placeholder="Select contractor" />
                   </SelectTrigger>
                   <SelectContent>
-                    {contractors.map((contractor) => (
+                    {contractorOptions.map((contractor) => (
                       <SelectItem key={contractor.id} value={contractor.id}>
                         {contractor.name}
                       </SelectItem>
@@ -207,26 +235,32 @@ export const EditUserDialog = ({
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="edit-status">Trạng thái</Label>
-              <Select value={status} onValueChange={(value) => setStatus(value as 'invited' | 'active' | 'deactivated')} disabled={readOnly}>
+              <Label htmlFor="edit-status">Status</Label>
+              <Select
+                value={status}
+                onValueChange={(value) => setStatus(value as UserProfile["status"])}
+                disabled={readOnly}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="invited">Đã mời</SelectItem>
-                  <SelectItem value="active">Đang hoạt động</SelectItem>
-                  <SelectItem value="deactivated">Đã vô hiệu hóa</SelectItem>
+                  {Object.entries(STATUS_LABEL).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="edit-note">Ghi chú cập nhật</Label>
+              <Label htmlFor="edit-note">Update note</Label>
               <Textarea
                 id="edit-note"
-                placeholder="Ghi chú về thay đổi này (tùy chọn)"
+                placeholder="Add a note about this change (optional)"
                 value={note}
-                onChange={(e) => setNote(e.target.value)}
+                onChange={(event) => setNote(event.target.value)}
                 rows={3}
                 disabled={readOnly}
               />
@@ -240,26 +274,28 @@ export const EditUserDialog = ({
                 onClick={() => onOpenChange(false)}
                 disabled={loading}
               >
-                Hủy
+                Cancel
               </Button>
+
               {!readOnly && (
                 <Button
                   type="button"
                   variant="destructive"
                   onClick={() => setShowDeactivateDialog(true)}
-                  disabled={loading || status === 'deactivated'}
+                  disabled={loading || status === "deactivated"}
                 >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Vô hiệu hóa
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Deactivate
                 </Button>
               )}
+
               <Button type="submit" disabled={loading || readOnly}>
                 {loading ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white" />
                 ) : (
-                  <Edit className="h-4 w-4 mr-2" />
+                  <Edit className="mr-2 h-4 w-4" />
                 )}
-                Cập nhật
+                Save changes
               </Button>
             </div>
           </form>
@@ -269,19 +305,19 @@ export const EditUserDialog = ({
       <AlertDialog open={showDeactivateDialog} onOpenChange={setShowDeactivateDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Xác nhận vô hiệu hóa</AlertDialogTitle>
+            <AlertDialogTitle>Confirm deactivation</AlertDialogTitle>
             <AlertDialogDescription>
-              Bạn có chắc chắn muốn vô hiệu hóa tài khoản của {user.email}? Người dùng sẽ không thể đăng nhập vào hệ thống nữa.
+              Are you sure you want to deactivate {user.email}? The user will no longer be able to sign in.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={loading}>Hủy</AlertDialogCancel>
+            <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeactivate}
               disabled={loading}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {loading ? 'Đang xử lý...' : 'Vô hiệu hóa'}
+              {loading ? "Processing..." : "Deactivate"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

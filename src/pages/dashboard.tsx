@@ -528,6 +528,17 @@ const DashboardPage: React.FC = () => {
           )}
         </div>
 
+        <Dialog open={isMilestoneModalOpen} onOpenChange={setIsMilestoneModalOpen}>
+          <DialogContent className="max-w-5xl">
+            <DialogHeader>
+              <DialogTitle>Milestone timeline</DialogTitle>
+            </DialogHeader>
+            <div className="mt-4 space-y-4">
+              <MilestoneGanttChart items={milestoneProgressItems} />
+            </div>
+          </DialogContent>
+        </Dialog>
+
         <DetailSidePanel
           open={!!selectedDetail}
           onClose={() => setSelectedDetail(null)}
@@ -548,23 +559,6 @@ const DashboardPage: React.FC = () => {
             setSelectedDetail({ contractorId, docTypeId });
           }}
         />
-      </div>
-    </div>
-  );
-};
-
-export default Dash
-        <Dialog open={isMilestoneModalOpen} onOpenChange={setIsMilestoneModalOpen}>
-          <DialogContent className="max-w-5xl">
-            <DialogHeader>
-              <DialogTitle>Milestone timeline</DialogTitle>
-            </DialogHeader>
-            <div className="mt-4 space-y-4">
-              <MilestoneGanttChart items={milestoneProgressItems} />
-            </div>
-          </DialogContent>
-        </Dialog>
-
       </div>
     </div>
   );

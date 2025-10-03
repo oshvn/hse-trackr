@@ -136,7 +136,7 @@ const AdminSettings: React.FC = () => {
         description: `${docType.name} được cập nhật thành công`,
       });
       await loadSettings();
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to update doc type", error);
       toast({
         title: "Không thể cập nhật",
@@ -203,7 +203,7 @@ const AdminSettings: React.FC = () => {
 
       setNewDocType({ name: "", category: "", code: "", is_critical: false });
       await loadSettings();
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to create doc type", error);
       toast({
         title: "Không thể tạo",
@@ -273,7 +273,7 @@ const AdminSettings: React.FC = () => {
         description: "Yêu cầu tài liệu cập nhật thành công",
       });
       await loadSettings();
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to save requirement", error);
       toast({
         title: "Không thể lưu",
