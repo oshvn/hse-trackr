@@ -8,6 +8,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { ProcessSnapshotItem } from '@/lib/dashboardHelpers';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { EmptyState } from '@/components/ui/empty-state';
+import { FileWarning } from 'lucide-react';
 
 interface SnapshotTableProps {
   items: ProcessSnapshotItem[];
@@ -62,14 +64,14 @@ const renderDueMeta = (item: ProcessSnapshotItem) => {
 
 export const SnapshotTable: React.FC<SnapshotTableProps> = ({ items, isLoading, onSelect, onViewAll, className }) => {
   return (
-    <Card className={cn('p-5 flex flex-col', className)}>
-      <div className="flex items-center justify-between mb-3">
+    <Card className={cn('p-6 flex flex-col gap-4', className)}>
+      <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold">Top Issues</h3>
+          <h3 className="text-lg font-bold">Top Issues</h3>
           <p className="text-sm text-muted-foreground">Most critical documents by severity and timeline</p>
         </div>
         {onViewAll && (
-          <Button variant="ghost" size="sm" onClick={onViewAll} className="text-primary">
+          <Button variant="ghost" size="sm" onClick={onViewAll} className="text-primary hover:bg-accent">
             View full table
           </Button>
         )}
@@ -98,17 +100,20 @@ export const SnapshotTable: React.FC<SnapshotTableProps> = ({ items, isLoading, 
               {items.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6}>
-                    <div className="py-8 text-center text-muted-foreground text-sm">
-                      No issues match the current filters
-                    </div>
+                    <EmptyState
+                      icon={FileWarning}
+                      title="No issues found"
+                      description="All documents are on track or match different filters"
+                    />
                   </TableCell>
                 </TableRow>
               ) : (
                 items.map(item => {
                   const statusMeta = getStatusBadgeMeta(item.status_color);
                   const progressValue = Math.min(Math.max(item.progressPercent, 0), 100);
+                  const progressColor = progressValue >= 80 ? 'bg-status-success' : progressValue >= 60 ? 'bg-status-warning' : 'bg-status-danger';
                   return (
-                    <TableRow key={`${item.contractor_id}-${item.doc_type_id}`}>
+                    <TableRow key={`${item.contractor_id}-${item.doc_type_id}`} className="hover:bg-accent/50 cursor-pointer transition-colors" onClick={() => onSelect(item.contractor_id, item.doc_type_id)}>
                       <TableCell>
                         <div className="font-medium line-clamp-1 text-sm">{item.doc_type_name}</div>
                         {item.doc_type_code && (
@@ -125,7 +130,7 @@ export const SnapshotTable: React.FC<SnapshotTableProps> = ({ items, isLoading, 
                       </TableCell>
                       <TableCell>
                         <div className="space-y-1">
-                          <Progress value={progressValue} className="h-2" />
+                          <Progress value={progressValue} className={cn("h-2", progressColor)} />
                           <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                             <span>Actual: {item.approved_count}</span>
                             <span>Planned: {item.required_count}</span>
@@ -142,8 +147,11 @@ export const SnapshotTable: React.FC<SnapshotTableProps> = ({ items, isLoading, 
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-primary"
-                          onClick={() => onSelect(item.contractor_id, item.doc_type_id)}
+                          className="text-primary hover:bg-primary/10"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelect(item.contractor_id, item.doc_type_id);
+                          }}
                         >
                           Details
                         </Button>

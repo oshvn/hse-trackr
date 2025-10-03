@@ -1,8 +1,16 @@
 import React from 'react';
 import { Card } from '@/components/ui/card';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import type { KpiData } from '@/lib/dashboardHelpers';
 import { cn } from '@/lib/utils';
+import { EmptyState } from '@/components/ui/empty-state';
+import { BarChart3 } from 'lucide-react';
+
+const getStatusColor = (completion: number): string => {
+  if (completion >= 80) return 'hsl(var(--status-success))';
+  if (completion >= 60) return 'hsl(var(--status-warning))';
+  return 'hsl(var(--status-danger))';
+};
 
 interface CompletionByContractorBarProps {
   kpiData: KpiData[];
@@ -23,44 +31,49 @@ export const CompletionByContractorBar: React.FC<CompletionByContractorBarProps>
 
   if (chartData.length === 0) {
     return (
-      <Card className={cn('p-5 flex flex-col', className)}>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold">Completion % by Contractor</h3>
+      <Card className={cn('p-6 flex flex-col gap-4', className)}>
+        <div>
+          <h3 className="text-lg font-bold">Completion % by Contractor</h3>
+          <p className="text-sm text-muted-foreground">Overall progress comparison</p>
         </div>
-        <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
-          No contractor data available
-        </div>
+        <EmptyState
+          icon={BarChart3}
+          title="No contractor data"
+          description="Contractor completion data will appear here"
+        />
       </Card>
     );
   }
 
   return (
-    <Card className={cn('p-5 flex flex-col', className)}>
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-lg font-semibold">Completion % by Contractor</h3>
+    <Card className={cn('p-6 flex flex-col gap-4', className)}>
+      <div>
+        <h3 className="text-lg font-bold">Completion % by Contractor</h3>
+        <p className="text-sm text-muted-foreground">Overall progress comparison</p>
       </div>
 
-      <div className="flex-1">
+      <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 30 }}>
-            <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+          <BarChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 35 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
             <XAxis
               dataKey="name"
               tick={{ fontSize: 11 }}
               angle={-35}
               textAnchor="end"
-              height={40}
+              height={50}
               interval={0}
             />
             <YAxis tick={{ fontSize: 11 }} domain={[0, 100]} />
             <Tooltip
               content={({ active, payload, label }) => {
                 if (active && payload && payload.length) {
+                  const value = payload[0].value as number;
                   return (
-                    <div className="bg-background border rounded-lg p-3 shadow-sm text-sm">
-                      <p className="font-medium">{label}</p>
-                      <p style={{ color: payload[0].color }}>
-                        Completion: {payload[0].value}%
+                    <div className="bg-card border rounded-lg p-3 shadow-lg text-sm">
+                      <p className="font-semibold mb-1">{label}</p>
+                      <p style={{ color: getStatusColor(value) }}>
+                        Completion: {value}%
                       </p>
                     </div>
                   );
@@ -68,7 +81,12 @@ export const CompletionByContractorBar: React.FC<CompletionByContractorBarProps>
                 return null;
               }}
             />
-            <Bar dataKey="completion" fill="#2563eb" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="completion" radius={[4, 4, 0, 0]}>
+              {chartData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={getStatusColor(entry.completion)} />
+              ))}
+              <LabelList dataKey="completion" position="top" formatter={(value: number) => `${value}%`} style={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} />
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
