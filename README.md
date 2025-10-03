@@ -59,7 +59,7 @@ Supabase migrations live under `supabase/migrations`. The consolidated refactor 
 
 ## Environment variables
 
-Create a `.env.local` file (or configure your hosting environment) with the following variables:
+Copy `.env.example` to `.env.local` (or configure your hosting environment) with the following variables:
 
 ```
 VITE_SUPABASE_URL=<your-supabase-url>
