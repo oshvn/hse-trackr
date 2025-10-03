@@ -8,7 +8,7 @@ import { CompletionByContractorBar } from '@/components/Charts/CompletionByContr
 import { MilestoneGanttChart } from '@/components/dashboard/MilestoneGanttChart';
 import { MilestoneOverviewCard } from '@/components/dashboard/MilestoneOverviewCard';
 import { ProcessingTimeTable } from '@/components/dashboard/ProcessingTimeTable';
-import { ActionSuggestions } from '@/components/dashboard/ActionSuggestions';
+
 import { DetailSidePanel } from '@/components/dashboard/DetailSidePanel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -41,7 +41,6 @@ import {
   calculateDetailedProgressByContractor,
   calculateMilestoneProgress,
   calculateProcessingTimes,
-  generateActionSuggestions,
   extractCriticalAlerts,
 } from '@/lib/dashboardHelpers';
 
@@ -286,8 +285,6 @@ const DashboardPage: React.FC = () => {
 
   const amberAlerts = useMemo(() => criticalAlerts.filter(alert => alert.overdueDays === 0 && alert.dueInDays !== null && alert.dueInDays <= 3), [criticalAlerts]);
 
-  const actionSuggestions = useMemo(() => generateActionSuggestions(criticalAlerts), [criticalAlerts]);
-
   const overallCompletion = useMemo(() => (
     calculateOverallCompletion(enrichedProgressData, filters, kpiData)
   ), [enrichedProgressData, filters, kpiData]);
@@ -455,23 +452,15 @@ const DashboardPage: React.FC = () => {
             <h2 className="text-xl font-bold text-foreground">Priority Actions</h2>
           </div>
           
-          <div className="grid gap-4 lg:grid-cols-2">
-            {isDataLoading ? (
-              <>
-                <Skeleton className="h-[220px]" />
-                <Skeleton className="h-[220px]" />
-              </>
-            ) : (
-              <>
-                <CriticalAlertsCard
-                  redItems={redAlerts}
-                  amberItems={amberAlerts}
-                  onSelect={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
-                />
-                <ActionSuggestions suggestions={actionSuggestions} />
-              </>
-            )}
-          </div>
+          {isDataLoading ? (
+            <Skeleton className="h-[220px]" />
+          ) : (
+            <CriticalAlertsCard
+              redItems={redAlerts}
+              amberItems={amberAlerts}
+              onSelect={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
+            />
+          )}
         </div>
 
         {/* Analysis Zone */}
