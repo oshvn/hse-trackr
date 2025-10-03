@@ -10,6 +10,8 @@ import { format } from 'date-fns';
 interface CategoryDrilldownPanelProps {
   open: boolean;
   category: string | null;
+  contractorId?: string | null;
+  contractorName?: string | null;
   onClose: () => void;
   items: DocProgressData[];
   onSelectDoc: (contractorId: string, docTypeId: string) => void;
@@ -22,8 +24,20 @@ export const CategoryDrilldownPanel: React.FC<CategoryDrilldownPanelProps> = ({
   items,
   onSelectDoc,
 }) => {
+  const filteredItems = useMemo(() => {
+    return items.filter(item => {
+      if (contractorId && item.contractor_id !== contractorId) {
+        return false;
+      }
+      if (category && item.category !== category) {
+        return false;
+      }
+      return true;
+    });
+  }, [items, contractorId, category]);
+
   const sortedItems = useMemo(() => {
-    const withProgress = items.map(item => {
+    const withProgress = filteredItems.map(item => {
       const progressPercent = item.required_count > 0
         ? Math.round((item.approved_count / item.required_count) * 100)
         : 100;
@@ -44,19 +58,22 @@ export const CategoryDrilldownPanel: React.FC<CategoryDrilldownPanelProps> = ({
       return (severityRank[b.status_color as keyof typeof severityRank] ?? 0) -
         (severityRank[a.status_color as keyof typeof severityRank] ?? 0);
     });
-  }, [items]);
+  }, [filteredItems]);
 
   return (
     <Sheet open={open} onOpenChange={value => !value && onClose()}>
       <SheetContent className="w-full sm:max-w-3xl">
         <SheetHeader>
-          <SheetTitle>{category ?? 'Category details'}</SheetTitle>
+          <SheetTitle>
+            {category ?? 'Category details'}
+            {contractorName ? ` · ${contractorName}` : null}
+          </SheetTitle>
         </SheetHeader>
 
         <div className="mt-6">
           {sortedItems.length === 0 ? (
             <div className="text-sm text-muted-foreground">
-              No documents in this category match the current filters.
+              No documents match the current filters for this selection.
             </div>
           ) : (
             <ScrollArea className="h-[70vh] pr-4">

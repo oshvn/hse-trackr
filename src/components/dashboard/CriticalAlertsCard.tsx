@@ -51,7 +51,11 @@ export const CriticalAlertsCard: React.FC<CriticalAlertsCardProps> = ({
   const amberVisible = amberItems.slice(0, remainingSlots);
 
   return (
-    <Card className={cn('p-5 flex flex-col', className)}>
+    <div className={cn('flex flex-col gap-3', className)}>
+      <div className="rounded-md border border-red-500 bg-red-600/10 px-4 py-2 text-sm font-semibold text-red-600">
+        ⚠️ CẢNH BÁO: Có {totalAlerts} Red Card cần xử lý ngay!
+      </div>
+      <Card className="p-5 flex flex-col flex-1">
       <div className="flex items-center gap-2 mb-3">
         <AlertTriangle className="h-5 w-5 text-red-500" />
         <h3 className="text-lg font-semibold">Critical Alerts</h3>
@@ -138,6 +142,7 @@ export const CriticalAlertsCard: React.FC<CriticalAlertsCardProps> = ({
           </Button>
         </div>
       )}
-    </Card>
+      </Card>
+    </div>
   );
 };

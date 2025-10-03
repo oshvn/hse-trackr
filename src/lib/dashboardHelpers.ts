@@ -11,6 +11,8 @@ export interface KpiData {
   avg_prep_days: number;
   avg_approval_days: number;
   red_items: number;
+  quality_score?: number | null;
+  speed_score?: number | null;
 }
 
 export interface DocProgressData {
@@ -24,10 +26,67 @@ export interface DocProgressData {
   required_count: number;
   approved_count: number;
   planned_due_date: string | null;
+  planned_date?: string | null;
   status_color: string;
   first_started_at: string | null;
   first_submitted_at: string | null;
   first_approved_at: string | null;
+}
+
+export interface ContractorCategoryProgressItem {
+  contractorId: string;
+  contractorName: string;
+  categoryName: string;
+  completionPercentage: number;
+  approved: number;
+  required: number;
+}
+
+export interface MilestoneProgressItem {
+  id: string;
+  contractorId: string;
+  contractorName: string;
+  docTypeId: string;
+  docTypeName: string;
+  plannedDate: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  completionPercentage: number;
+  statusColor: string;
+  approvedCount: number;
+  requiredCount: number;
+}
+
+export interface CriticalAlertItem {
+  contractorId: string;
+  contractorName: string;
+  docTypeId: string;
+  docTypeName: string;
+  plannedDueDate: string | null;
+  approvedCount: number;
+  requiredCount: number;
+  overdueDays: number;
+  dueInDays: number | null;
+}
+
+export interface ContractorProcessingTimeStats {
+  contractorId: string;
+  contractorName: string;
+  averagePrepDays: number | null;
+  longestPrepDays: number | null;
+  averageApprovalDays: number | null;
+  longestApprovalDays: number | null;
+}
+
+export type ActionSuggestionSeverity = "high" | "medium" | "low";
+
+export interface ActionSuggestion {
+  id: string;
+  contractorId: string;
+  contractorName: string;
+  severity: ActionSuggestionSeverity;
+  message: string;
+  relatedDocuments: string[];
 }
 
 export interface FilterState {
@@ -80,6 +139,285 @@ export const filterData = <T extends { contractor_id: string; category?: string 
   }
 
   return filtered;
+};
+
+export const calculateDetailedProgressByContractor = (
+  data: DocProgressData[]
+): ContractorCategoryProgressItem[] => {
+  const aggregates = new Map<string, {
+    contractorId: string;
+    contractorName: string;
+    categoryName: string;
+    approved: number;
+    required: number;
+  }>();
+
+  data.forEach(item => {
+    const key = `${item.contractor_id}__${item.category}`;
+    const entry = aggregates.get(key);
+
+    if (entry) {
+      entry.approved += item.approved_count;
+      entry.required += item.required_count;
+      return;
+    }
+
+    aggregates.set(key, {
+      contractorId: item.contractor_id,
+      contractorName: item.contractor_name,
+      categoryName: item.category,
+      approved: item.approved_count,
+      required: item.required_count,
+    });
+  });
+
+  return Array.from(aggregates.values())
+    .map(item => ({
+      contractorId: item.contractorId,
+      contractorName: item.contractorName,
+      categoryName: item.categoryName,
+      approved: item.approved,
+      required: item.required,
+      completionPercentage: item.required > 0
+        ? Math.round((item.approved / item.required) * 100)
+        : 0,
+    }))
+    .sort((a, b) => {
+      const byContractor = a.contractorName.localeCompare(b.contractorName);
+      if (byContractor !== 0) {
+        return byContractor;
+      }
+      return a.categoryName.localeCompare(b.categoryName);
+    });
+};
+
+export const calculateMilestoneProgress = (
+  data: DocProgressData[]
+): MilestoneProgressItem[] => {
+  return data
+    .filter(item => (item.planned_date ?? item.planned_due_date) !== null)
+    .map(item => {
+      const plannedDate = item.planned_date ?? item.planned_due_date;
+      const completion = item.required_count > 0
+        ? Math.min(100, Math.round((item.approved_count / item.required_count) * 100))
+        : 0;
+      const startDate = item.first_started_at ?? item.first_submitted_at ?? plannedDate;
+      const endDate = item.first_approved_at ?? plannedDate;
+
+      return {
+        id: `${item.contractor_id}-${item.doc_type_id}`,
+        contractorId: item.contractor_id,
+        contractorName: item.contractor_name,
+        docTypeId: item.doc_type_id,
+        docTypeName: item.doc_type_name,
+        plannedDate,
+        startDate,
+        endDate,
+        completionPercentage: completion,
+        statusColor: item.status_color,
+        approvedCount: item.approved_count,
+        requiredCount: item.required_count,
+      };
+    })
+    .sort((a, b) => {
+      if (!a.plannedDate || !b.plannedDate) {
+        return a.plannedDate ? -1 : b.plannedDate ? 1 : 0;
+      }
+      return parseISO(a.plannedDate).getTime() - parseISO(b.plannedDate).getTime();
+    });
+};
+
+export const extractCriticalAlerts = (
+  data: DocProgressData[],
+  criticalDocTypeIds: Iterable<string> = []
+): CriticalAlertItem[] => {
+  const criticalIds = new Set(Array.from(criticalDocTypeIds));
+  const shouldFallbackToLegacy = criticalIds.size === 0;
+
+  return data
+    .filter(item => {
+      const isCritical = shouldFallbackToLegacy ? item.is_critical : criticalIds.has(item.doc_type_id);
+      if (!isCritical) {
+        return false;
+      }
+
+      return item.required_count > 0 && item.approved_count < item.required_count;
+    })
+    .map(item => {
+      const overdueDays = calculateOverdueDays(item.planned_due_date);
+      const dueInDays = calculateDueInDays(item.planned_due_date);
+
+      return {
+        contractorId: item.contractor_id,
+        contractorName: item.contractor_name,
+        docTypeId: item.doc_type_id,
+        docTypeName: item.doc_type_name,
+        plannedDueDate: item.planned_due_date,
+        approvedCount: item.approved_count,
+        requiredCount: item.required_count,
+        overdueDays,
+        dueInDays,
+      } as CriticalAlertItem;
+    })
+    .sort((a, b) => {
+      if (a.overdueDays !== b.overdueDays) {
+        return b.overdueDays - a.overdueDays;
+      }
+      if (a.dueInDays === null || b.dueInDays === null) {
+        return a.dueInDays === null ? 1 : -1;
+      }
+      return a.dueInDays - b.dueInDays;
+    });
+};
+
+export const calculateProcessingTimes = (
+  data: DocProgressData[]
+): ContractorProcessingTimeStats[] => {
+  const grouped = new Map<string, {
+    contractorId: string;
+    contractorName: string;
+    prepDurations: number[];
+    approvalDurations: number[];
+  }>();
+
+  data.forEach(item => {
+    let bucket = grouped.get(item.contractor_id);
+    if (!bucket) {
+      bucket = {
+        contractorId: item.contractor_id,
+        contractorName: item.contractor_name,
+        prepDurations: [],
+        approvalDurations: [],
+      };
+      grouped.set(item.contractor_id, bucket);
+    }
+
+    if (item.first_started_at && item.first_submitted_at) {
+      const diff = calculateDaysDifference(item.first_started_at, item.first_submitted_at);
+      if (!Number.isNaN(diff)) {
+        bucket.prepDurations.push(Math.max(0, diff));
+      }
+    }
+
+    if (item.first_submitted_at && item.first_approved_at) {
+      const diff = calculateDaysDifference(item.first_submitted_at, item.first_approved_at);
+      if (!Number.isNaN(diff)) {
+        bucket.approvalDurations.push(Math.max(0, diff));
+      }
+    }
+  });
+
+  const average = (vals: number[]): number | null => {
+    if (vals.length === 0) {
+      return null;
+    }
+    const total = vals.reduce((sum, value) => sum + value, 0);
+    return Math.round((total / vals.length) * 10) / 10;
+  };
+
+  const longest = (vals: number[]): number | null => {
+    if (vals.length === 0) {
+      return null;
+    }
+    return Math.max(...vals);
+  };
+
+  return Array.from(grouped.values()).map(item => ({
+    contractorId: item.contractorId,
+    contractorName: item.contractorName,
+    averagePrepDays: average(item.prepDurations),
+    longestPrepDays: longest(item.prepDurations),
+    averageApprovalDays: average(item.approvalDurations),
+    longestApprovalDays: longest(item.approvalDurations),
+  }));
+};
+
+export const generateActionSuggestions = (
+  alerts: CriticalAlertItem[]
+): ActionSuggestion[] => {
+  if (!alerts || alerts.length === 0) {
+    return [];
+  }
+
+  const groups = new Map<string, { contractorName: string; alerts: CriticalAlertItem[] }>();
+
+  alerts.forEach(alert => {
+    const group = groups.get(alert.contractorId);
+    if (group) {
+      group.alerts.push(alert);
+      return;
+    }
+
+    groups.set(alert.contractorId, {
+      contractorName: alert.contractorName,
+      alerts: [alert],
+    });
+  });
+
+  const severityRank: Record<ActionSuggestionSeverity, number> = {
+    high: 3,
+    medium: 2,
+    low: 1,
+  };
+
+  const suggestions: ActionSuggestion[] = [];
+
+  groups.forEach((group, contractorId) => {
+    const contractorName = group.contractorName;
+    const alertsForContractor = group.alerts;
+    const overdueAlerts = alertsForContractor.filter(alert => alert.overdueDays > 0);
+    const overdueHeavy = overdueAlerts.filter(alert => alert.overdueDays >= 7);
+    const dueSoon = alertsForContractor.filter(alert => alert.overdueDays === 0 && alert.dueInDays !== null && alert.dueInDays <= 2);
+
+    if (alertsForContractor.length >= 3) {
+      suggestions.push({
+        id: `${contractorId}-war-room`,
+        contractorId,
+        contractorName,
+        severity: 'high',
+        message: `Schedule an escalation meeting with ${contractorName} to address ${alertsForContractor.length} outstanding critical documents immediately.`,
+        relatedDocuments: alertsForContractor.map(alert => alert.docTypeName),
+      });
+    }
+
+    if (overdueHeavy.length > 0) {
+      const names = overdueHeavy.map(alert => alert.docTypeName).join(', ');
+      suggestions.push({
+        id: `${contractorId}-escalate`,
+        contractorId,
+        contractorName,
+        severity: 'high',
+        message: `Initiate executive escalation for ${names}; these items are over 7 days late.`,
+        relatedDocuments: overdueHeavy.map(alert => alert.docTypeName),
+      });
+    }
+
+    if (dueSoon.length > 0) {
+      const names = dueSoon.map(alert => alert.docTypeName).join(', ');
+      suggestions.push({
+        id: `${contractorId}-daily-followup`,
+        contractorId,
+        contractorName,
+        severity: 'medium',
+        message: `Set up daily progress checkpoints for ${contractorName} on ${names} before the deadline hits.`,
+        relatedDocuments: dueSoon.map(alert => alert.docTypeName),
+      });
+    }
+
+    const remaining = alertsForContractor.length - overdueHeavy.length - dueSoon.length;
+    if (remaining > 0) {
+      suggestions.push({
+        id: `${contractorId}-support`,
+        contractorId,
+        contractorName,
+        severity: 'low',
+        message: `Provide checklist guidance to ${contractorName} for the remaining ${remaining} critical documents in progress.`,
+        relatedDocuments: alertsForContractor.map(alert => alert.docTypeName),
+      });
+    }
+  });
+
+  return suggestions.sort((a, b) => severityRank[b.severity] - severityRank[a.severity]);
 };
 
 // Calculate Overall Completion %

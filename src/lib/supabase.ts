@@ -1,8 +1,32 @@
 import { createClient, type SupabaseClientOptions } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
-const SUPABASE_URL = "https://vsvscnlybsmkkgzgnjdo.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzdnNjbmx5YnNta2tnemduamRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4MDUwNTksImV4cCI6MjA3NDM4MTA1OX0.7sOn7aw3enZOeGbKMIPtpdg0YuEhlNQKCcrnCaFuRtM";
+declare const process: { env?: Record<string, string | undefined> } | undefined;
+
+const resolveEnv = (key: string): string | undefined => {
+  if (typeof import.meta !== "undefined" && import.meta.env) {
+    const value = (import.meta.env as Record<string, string | undefined>)[key];
+    if (value) {
+      return value;
+    }
+  }
+
+  if (typeof process !== "undefined" && process.env) {
+    const value = process.env[key];
+    if (value) {
+      return value;
+    }
+  }
+
+  return undefined;
+};
+
+const SUPABASE_URL = resolveEnv("VITE_SUPABASE_URL");
+const SUPABASE_ANON_KEY = resolveEnv("VITE_SUPABASE_ANON_KEY");
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error("Missing Supabase configuration. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.");
+}
 
 const clientOptions: SupabaseClientOptions<"public"> = {
   auth: {
