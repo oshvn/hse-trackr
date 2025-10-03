@@ -6,6 +6,7 @@ import { FilterBar } from '@/components/dashboard/FilterBar';
 import { ContractorPerformanceRadar } from '@/components/dashboard/ContractorPerformanceRadar';
 import { CompletionByContractorBar } from '@/components/Charts/CompletionByContractorChart';
 import { MilestoneGanttChart } from '@/components/dashboard/MilestoneGanttChart';
+import { MilestoneOverviewCard } from '@/components/dashboard/MilestoneOverviewCard';
 import { ProcessingTimeTable } from '@/components/dashboard/ProcessingTimeTable';
 import { ActionSuggestions } from '@/components/dashboard/ActionSuggestions';
 import { DetailSidePanel } from '@/components/dashboard/DetailSidePanel';
@@ -20,6 +21,7 @@ import { CategoryProgressChart } from '@/components/dashboard/CategoryProgressCh
 import { PlannedVsActualCompact } from '@/components/dashboard/PlannedVsActualCompact';
 import { SnapshotTable } from '@/components/dashboard/SnapshotTable';
 import { CategoryDrilldownPanel } from '@/components/dashboard/CategoryDrilldownPanel';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type {
   FilterState,
   KpiData,
@@ -120,6 +122,7 @@ const DashboardPage: React.FC = () => {
   const [selectedDetail, setSelectedDetail] = useState<{ contractorId: string; docTypeId: string } | null>(null);
   const [planContractorId, setPlanContractorId] = useState<string>('all');
   const [categoryDrilldown, setCategoryDrilldown] = useState<{ category: string; contractorId: string | null; contractorName: string | null } | null>(null);
+  const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
 
   const {
     data: contractors = [],
@@ -508,12 +511,12 @@ const DashboardPage: React.FC = () => {
         <div className="mt-6 space-y-4">
           {isDataLoading ? (
             <div className="grid gap-4 md:grid-cols-2">
-              <Skeleton className="h-[320px]" />
+              <Skeleton className="h-[220px]" />
               <Skeleton className="h-[320px]" />
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2">
-              <MilestoneGanttChart items={milestoneProgressItems} />
+              <MilestoneOverviewCard items={milestoneProgressItems} onViewDetails={() => setIsMilestoneModalOpen(true)} />
               <ProcessingTimeTable data={processingTimeStats} />
             </div>
           )}
@@ -545,6 +548,23 @@ const DashboardPage: React.FC = () => {
             setSelectedDetail({ contractorId, docTypeId });
           }}
         />
+      </div>
+    </div>
+  );
+};
+
+export default Dash
+        <Dialog open={isMilestoneModalOpen} onOpenChange={setIsMilestoneModalOpen}>
+          <DialogContent className="max-w-5xl">
+            <DialogHeader>
+              <DialogTitle>Milestone timeline</DialogTitle>
+            </DialogHeader>
+            <div className="mt-4 space-y-4">
+              <MilestoneGanttChart items={milestoneProgressItems} />
+            </div>
+          </DialogContent>
+        </Dialog>
+
       </div>
     </div>
   );
