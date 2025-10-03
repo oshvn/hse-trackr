@@ -91,7 +91,7 @@ export const MilestoneGanttChart: React.FC<MilestoneGanttChartProps> = ({ items,
           viewMode={ViewMode.Day}
           listCellWidth="220px"
           columnWidth={56}
-          fontSize={12}
+          fontSize="12"
           barBackgroundColor="#bfdbfe"
         />
       </div>

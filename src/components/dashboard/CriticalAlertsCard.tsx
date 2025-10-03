@@ -4,12 +4,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AlertTriangle, Clock, CheckCircle2 } from 'lucide-react';
-import type { DocProgressData } from '@/lib/dashboardHelpers';
+import type { CriticalAlertItem } from '@/lib/dashboardHelpers';
 import { cn } from '@/lib/utils';
 
 interface CriticalAlertsCardProps {
-  redItems: Array<DocProgressData & { overdueDays: number }>;
-  amberItems: Array<DocProgressData & { dueInDays: number }>;
+  redItems: CriticalAlertItem[];
+  amberItems: CriticalAlertItem[];
   onSelect: (contractorId: string, docTypeId: string) => void;
   onViewAll?: () => void;
   className?: string;
@@ -68,19 +68,19 @@ export const CriticalAlertsCard: React.FC<CriticalAlertsCardProps> = ({
         <div className="space-y-3">
           {redVisible.map(item => (
             <button
-              key={`red-${item.contractor_id}-${item.doc_type_id}`}
+              key={`red-${item.contractorId}-${item.docTypeId}`}
               type="button"
               className="w-full text-left p-3 border border-red-200 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
-              onClick={() => onSelect(item.contractor_id, item.doc_type_id)}
+              onClick={() => onSelect(item.contractorId, item.docTypeId)}
             >
               <div className="space-y-2">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0 space-y-1">
                     <div className="text-sm font-semibold truncate text-red-800">
-                      {item.doc_type_name}
+                      {item.docTypeName}
                     </div>
                     <div className="text-xs text-muted-foreground truncate">
-                      Contractor: {item.contractor_name}
+                      Contractor: {item.contractorName}
                     </div>
                   </div>
                 </div>
@@ -92,7 +92,7 @@ export const CriticalAlertsCard: React.FC<CriticalAlertsCardProps> = ({
                     Overdue {item.overdueDays} day{item.overdueDays !== 1 ? 's' : ''}
                   </Badge>
                   <Badge variant="outline" className="text-xs text-muted-foreground">
-                    {item.approved_count}/{item.required_count} approved
+                    {item.approvedCount}/{item.requiredCount} approved
                   </Badge>
                 </div>
               </div>
@@ -101,19 +101,19 @@ export const CriticalAlertsCard: React.FC<CriticalAlertsCardProps> = ({
 
           {amberVisible.map(item => (
             <button
-              key={`amber-${item.contractor_id}-${item.doc_type_id}`}
+              key={`amber-${item.contractorId}-${item.docTypeId}`}
               type="button"
               className="w-full text-left p-3 border border-amber-200 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors"
-              onClick={() => onSelect(item.contractor_id, item.doc_type_id)}
+              onClick={() => onSelect(item.contractorId, item.docTypeId)}
             >
               <div className="space-y-2">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0 space-y-1">
                     <div className="text-sm font-semibold truncate text-amber-800">
-                      {item.doc_type_name}
+                      {item.docTypeName}
                     </div>
                     <div className="text-xs text-muted-foreground truncate">
-                      Contractor: {item.contractor_name}
+                      Contractor: {item.contractorName}
                     </div>
                   </div>
                   <div className="flex items-center gap-1 text-xs text-amber-700">
@@ -126,7 +126,7 @@ export const CriticalAlertsCard: React.FC<CriticalAlertsCardProps> = ({
                     {item.dueInDays === 0 ? 'Due today' : `Due in ${item.dueInDays} day${item.dueInDays !== 1 ? 's' : ''}`}
                   </Badge>
                   <Badge variant="outline" className="text-xs text-muted-foreground">
-                    {item.approved_count}/{item.required_count} approved
+                    {item.approvedCount}/{item.requiredCount} approved
                   </Badge>
                 </div>
               </div>

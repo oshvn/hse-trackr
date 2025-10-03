@@ -20,6 +20,8 @@ interface CategoryDrilldownPanelProps {
 export const CategoryDrilldownPanel: React.FC<CategoryDrilldownPanelProps> = ({
   open,
   category,
+  contractorId,
+  contractorName,
   onClose,
   items,
   onSelectDoc,

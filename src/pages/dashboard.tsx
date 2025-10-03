@@ -198,10 +198,11 @@ const DashboardPage: React.FC = () => {
     queryKey: ['critical_documents'],
     queryFn: async () => {
       const { data, error: queryError } = await supabase
-        .from('critical_documents')
-        .select('doc_type_id');
+        .from('doc_types')
+        .select('id')
+        .eq('is_critical', true);
       if (queryError) throw queryError;
-      return data || [];
+      return (data || []).map(item => ({ doc_type_id: item.id }));
     },
     enabled: !!session,
     retry: 1,
@@ -271,7 +272,7 @@ const DashboardPage: React.FC = () => {
 
   const processingTimeStats = useMemo(() => calculateProcessingTimes(filteredProgressData), [filteredProgressData]);
 
-  const criticalDocTypeIds = useMemo(() => criticalDocuments.map(doc => doc.doc_type_id), [criticalDocuments]);
+  const criticalDocTypeIds = useMemo(() => (criticalDocuments || []).map(doc => doc.doc_type_id), [criticalDocuments]);
 
   const criticalAlerts = useMemo(() => extractCriticalAlerts(filteredProgressData, criticalDocTypeIds), [filteredProgressData, criticalDocTypeIds]);
 
