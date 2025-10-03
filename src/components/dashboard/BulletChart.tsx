@@ -42,7 +42,7 @@ export const BulletChart: React.FC<BulletChartProps> = ({ data, onSelect, classN
         contractorName: item.contractorName,
       }))
       .sort((a, b) => a.actual - b.actual) // Sort by actual progress
-      .slice(0, 6); // Show top 6 categories
+      .slice(0, 5); // Show top 5 categories
   }, [data]);
 
   const getQualitativeColor = (value: number): string => {
@@ -66,15 +66,15 @@ export const BulletChart: React.FC<BulletChartProps> = ({ data, onSelect, classN
   };
 
   return (
-    <Card className={cn('p-6 flex flex-col gap-4', className)}>
+    <Card className={cn('p-4 flex flex-col gap-3', className)}>
       <div>
-        <h3 className="text-lg font-bold">Progress by Category (Bullet View)</h3>
-        <p className="text-sm text-muted-foreground">
-          Performance comparison: Actual vs 100% target
+        <h3 className="text-base font-bold">Progress by Category</h3>
+        <p className="text-xs text-muted-foreground">
+          Actual vs 100% target
         </p>
       </div>
 
-      <div className="flex-1 min-h-0 space-y-3">
+      <div className="flex-1 space-y-2.5">
         {bulletData.length === 0 ? (
           <EmptyState
             icon={Target}
@@ -91,17 +91,17 @@ export const BulletChart: React.FC<BulletChartProps> = ({ data, onSelect, classN
                 onClick={() => handleBarClick(item)}
               >
                 {/* Category name and contractor */}
-                <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center justify-between text-xs">
                   <span className="font-semibold text-foreground group-hover:text-primary transition-colors">
                     {item.category}
                   </span>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-[10px] text-muted-foreground">
                     {item.contractorName}
                   </span>
                 </div>
 
                 {/* Bullet chart */}
-                <div className="relative h-8 w-full">
+                <div className="relative h-7 w-full">
                   {/* Qualitative ranges background */}
                   <div className="absolute inset-0 flex rounded overflow-hidden border border-border">
                     {ranges.map((range, idx) => {
@@ -121,7 +121,7 @@ export const BulletChart: React.FC<BulletChartProps> = ({ data, onSelect, classN
                   <div className="absolute inset-y-0 left-0 flex items-center">
                     <div
                       className={cn(
-                        'h-5 rounded transition-all group-hover:h-6',
+                        'h-4 rounded transition-all group-hover:h-5',
                         getQualitativeColor(item.actual)
                       )}
                       style={{ width: `${item.actual}%` }}
@@ -163,9 +163,9 @@ export const BulletChart: React.FC<BulletChartProps> = ({ data, onSelect, classN
       </div>
 
       {/* Performance zones legend */}
-      <div className="pt-3 border-t">
-        <div className="text-xs font-semibold text-muted-foreground mb-2">Performance Zones:</div>
-        <div className="grid grid-cols-4 gap-2 text-[10px]">
+      <div className="pt-2 border-t">
+        <div className="text-[10px] font-semibold text-muted-foreground mb-1.5">Performance Zones:</div>
+        <div className="grid grid-cols-2 gap-1.5 text-[9px]">
           <div className="flex items-center gap-1">
             <div className="w-3 h-3 rounded bg-status-danger/10 border border-status-danger/20" />
             <span className="text-muted-foreground">0-40% Poor</span>

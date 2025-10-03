@@ -405,8 +405,8 @@ const DashboardPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="space-y-6">
+    <div className="min-h-screen bg-background p-4 lg:p-6">
+      <div className="space-y-4 lg:space-y-6 max-w-[1800px] mx-auto">
         {error && session && (
           <Alert className="mb-4">
             <AlertCircle className="h-4 w-4" />
@@ -449,8 +449,8 @@ const DashboardPage: React.FC = () => {
         )}
 
         {/* Priority Zone */}
-        <div className="rounded-lg border-2 border-status-warning/30 bg-priority-bg p-6 space-y-4">
-          <div className="flex items-center gap-2 mb-2">
+        <div className="rounded-lg border-2 border-status-warning/30 bg-priority-bg p-4 lg:p-6 space-y-3">
+          <div className="flex items-center gap-2">
             <div className="h-1 w-1 rounded-full bg-status-warning animate-pulse" />
             <h2 className="text-xl font-bold text-foreground">Priority Actions</h2>
           </div>
@@ -475,19 +475,19 @@ const DashboardPage: React.FC = () => {
         </div>
 
         {/* Analysis Zone */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           <h2 className="text-xl font-bold text-foreground">Analysis & Insights</h2>
-          <div className="grid gap-4 xl:grid-cols-3 auto-rows-[220px]">
+          <div className="grid gap-4 xl:grid-cols-3">
             {isDataLoading ? (
               <>
-                <Skeleton className="min-h-[220px]" />
-                <Skeleton className="min-h-[220px]" />
-                <Skeleton className="min-h-[220px]" />
+                <Skeleton className="h-[320px]" />
+                <Skeleton className="h-[320px]" />
+                <Skeleton className="h-[320px]" />
               </>
             ) : (
               <>
                 <BulletChart
-                  className="min-h-[220px]"
+                  className="h-auto"
                   data={detailedProgressByContractor}
                   onSelect={(category, contractorId) => {
                     const contractorName = contractors.find(contractor => contractor.id === contractorId)?.name ?? null;
@@ -495,19 +495,19 @@ const DashboardPage: React.FC = () => {
                   }}
                 />
                 <MustHaveSplitChart
-                  className="min-h-[220px]"
+                  className="h-auto"
                   mustHaveCount={mustHaveCount}
                   standardCount={standardCount}
                 />
                 <CompletionByContractorBar
-                  className="min-h-[220px]"
+                  className="h-auto"
                   kpiData={kpiData}
                 />
               </>
             )}
 
             <PlannedVsActualCompact
-              className="min-h-[220px]"
+              className="h-auto"
               contractorId={planContractorId}
               contractorName={planContractorName}
               contractorOptions={planOptions}
@@ -518,7 +518,7 @@ const DashboardPage: React.FC = () => {
             />
 
             <SnapshotTable
-              className="min-h-[220px]"
+              className="h-auto xl:col-span-2"
               items={snapshotItems}
               isLoading={isDataLoading}
               onSelect={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}

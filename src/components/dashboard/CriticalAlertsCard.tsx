@@ -51,47 +51,47 @@ export const CriticalAlertsCard: React.FC<CriticalAlertsCardProps> = ({
   const amberVisible = amberItems.slice(0, remainingSlots);
 
   return (
-    <div className={cn('flex flex-col gap-3', className)}>
-      <div className="rounded-md border border-red-500 bg-red-600/10 px-4 py-2 text-sm font-semibold text-red-600">
-        ⚠️ CẢNH BÁO: Có {totalAlerts} Red Card cần xử lý ngay!
+    <Card className={cn('p-4 flex flex-col', className)}>
+      <div className="rounded-md border border-red-500 bg-red-600/10 px-3 py-1.5 text-xs font-semibold text-red-600 mb-3">
+        ⚠️ {totalAlerts} Red Card cần xử lý!
       </div>
-      <Card className="p-5 flex flex-col flex-1">
+      
       <div className="flex items-center gap-2 mb-3">
-        <AlertTriangle className="h-5 w-5 text-red-500" />
-        <h3 className="text-lg font-semibold">Critical Alerts</h3>
-        <Badge variant="destructive" className="ml-auto">
+        <AlertTriangle className="h-4 w-4 text-red-500" />
+        <h3 className="text-base font-bold">Critical Alerts</h3>
+        <Badge variant="destructive" className="ml-auto text-xs">
           {totalAlerts}
         </Badge>
       </div>
 
-      <ScrollArea className="flex-1 pr-1">
-        <div className="space-y-3">
+      <ScrollArea className="flex-1 max-h-[240px] pr-1">
+        <div className="space-y-2">
           {redVisible.map(item => (
             <button
               key={`red-${item.contractorId}-${item.docTypeId}`}
               type="button"
-              className="w-full text-left p-3 border border-red-200 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+              className="w-full text-left p-2.5 border border-red-200 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
               onClick={() => onSelect(item.contractorId, item.docTypeId)}
             >
-              <div className="space-y-2">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <div className="text-sm font-semibold truncate text-red-800">
+              <div className="space-y-1.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0 space-y-0.5">
+                    <div className="text-xs font-semibold truncate text-red-800">
                       {item.docTypeName}
                     </div>
-                    <div className="text-xs text-muted-foreground truncate">
+                    <div className="text-[10px] text-muted-foreground truncate">
                       Contractor: {item.contractorName}
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Badge variant="destructive" className="text-xs uppercase tracking-wide">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <Badge variant="destructive" className="text-[10px] uppercase tracking-wide">
                     Must-have
                   </Badge>
-                  <Badge variant="outline" className="text-xs border-red-500 text-red-700">
+                  <Badge variant="outline" className="text-[10px] border-red-500 text-red-700">
                     Overdue {item.overdueDays} day{item.overdueDays !== 1 ? 's' : ''}
                   </Badge>
-                  <Badge variant="outline" className="text-xs text-muted-foreground">
+                  <Badge variant="outline" className="text-[10px] text-muted-foreground">
                     {item.approvedCount}/{item.requiredCount} approved
                   </Badge>
                 </div>
@@ -103,10 +103,10 @@ export const CriticalAlertsCard: React.FC<CriticalAlertsCardProps> = ({
             <button
               key={`amber-${item.contractorId}-${item.docTypeId}`}
               type="button"
-              className="w-full text-left p-3 border border-amber-200 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors"
+              className="w-full text-left p-2.5 border border-amber-200 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors"
               onClick={() => onSelect(item.contractorId, item.docTypeId)}
             >
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0 space-y-1">
                     <div className="text-sm font-semibold truncate text-amber-800">
@@ -142,7 +142,6 @@ export const CriticalAlertsCard: React.FC<CriticalAlertsCardProps> = ({
           </Button>
         </div>
       )}
-      </Card>
-    </div>
+    </Card>
   );
 };
