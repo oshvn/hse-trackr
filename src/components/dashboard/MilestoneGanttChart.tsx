@@ -85,7 +85,7 @@ export const MilestoneGanttChart: React.FC<MilestoneGanttChartProps> = ({ items,
         ) : null}
       </div>
 
-      <div className="rounded-md border bg-white">
+      <div className="rounded-md border bg-white overflow-x-auto" style={{ minWidth: 600 }}>
         <Gantt
           tasks={tasks}
           viewMode={ViewMode.Day}
