@@ -505,23 +505,25 @@ const DashboardPage: React.FC = () => {
           />
         </div>
 
-        {isDataLoading ? (
-          <div className="grid gap-4 md:grid-cols-2">
-            <Skeleton className="h-[320px]" />
-            <Skeleton className="h-[320px]" />
-          </div>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2">
-            <MilestoneGanttChart className="h-full" items={milestoneProgressItems} />
-            <ProcessingTimeTable className="h-full" data={processingTimeStats} />
-          </div>
-        )}
+        <div className="mt-6 space-y-4">
+          {isDataLoading ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              <Skeleton className="h-[320px]" />
+              <Skeleton className="h-[320px]" />
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              <MilestoneGanttChart items={milestoneProgressItems} />
+              <ProcessingTimeTable data={processingTimeStats} />
+            </div>
+          )}
 
-        {isDataLoading ? (
-          <Skeleton className="h-[200px] w-full" />
-        ) : (
-          <ActionSuggestions suggestions={actionSuggestions} />
-        )}
+          {isDataLoading ? (
+            <Skeleton className="h-[200px] w-full" />
+          ) : (
+            <ActionSuggestions suggestions={actionSuggestions} />
+          )}
+        </div>
 
         <DetailSidePanel
           open={!!selectedDetail}
