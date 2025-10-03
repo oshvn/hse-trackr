@@ -13,7 +13,8 @@ import { DetailSidePanel } from '@/components/dashboard/DetailSidePanel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, ChevronDown } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { MustHaveSplitChart } from '@/components/dashboard/MustHaveSplitChart';
 import { CriticalAlertsCard } from '@/components/dashboard/CriticalAlertsCard';
@@ -123,6 +124,7 @@ const DashboardPage: React.FC = () => {
   const [planContractorId, setPlanContractorId] = useState<string>('all');
   const [categoryDrilldown, setCategoryDrilldown] = useState<{ category: string; contractorId: string | null; contractorName: string | null } | null>(null);
   const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
   const {
     data: contractors = [],
@@ -429,11 +431,11 @@ const DashboardPage: React.FC = () => {
           onSearchChange={value => setFilters(prev => ({ ...prev, search: value }))}
         />
 
+        {/* KPI Zone */}
         {isDataLoading ? (
-          <Skeleton className="h-[280px] w-full" />
+          <Skeleton className="h-[380px] w-full" />
         ) : (
           <ContractorPerformanceRadar
-            className="mb-4"
             data={kpiData}
             summary={{
               overallCompletion,
@@ -445,88 +447,113 @@ const DashboardPage: React.FC = () => {
           />
         )}
 
-        <div className="grid gap-4 xl:grid-cols-3 auto-rows-[220px]">
-          {isDataLoading ? (
-            <Skeleton className="min-h-[220px]" />
-          ) : (
-            <CriticalAlertsCard
+        {/* Priority Zone */}
+        <div className="rounded-lg border-2 border-status-warning/30 bg-priority-bg p-6 space-y-4">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="h-1 w-1 rounded-full bg-status-warning animate-pulse" />
+            <h2 className="text-xl font-bold text-foreground">Priority Actions</h2>
+          </div>
+          
+          <div className="grid gap-4 lg:grid-cols-2">
+            {isDataLoading ? (
+              <>
+                <Skeleton className="h-[220px]" />
+                <Skeleton className="h-[220px]" />
+              </>
+            ) : (
+              <>
+                <CriticalAlertsCard
+                  redItems={redAlerts}
+                  amberItems={amberAlerts}
+                  onSelect={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
+                />
+                <ActionSuggestions suggestions={actionSuggestions} />
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Analysis Zone */}
+        <div className="space-y-4">
+          <h2 className="text-xl font-bold text-foreground">Analysis & Insights</h2>
+          <div className="grid gap-4 xl:grid-cols-3 auto-rows-[220px]">
+            {isDataLoading ? (
+              <>
+                <Skeleton className="min-h-[220px]" />
+                <Skeleton className="min-h-[220px]" />
+                <Skeleton className="min-h-[220px]" />
+              </>
+            ) : (
+              <>
+                <CategoryProgressChart
+                  className="min-h-[220px]"
+                  data={detailedProgressByContractor}
+                  onSelect={(category, contractorId) => {
+                    const contractorName = contractors.find(contractor => contractor.id === contractorId)?.name ?? null;
+                    setCategoryDrilldown({ category, contractorId, contractorName });
+                  }}
+                />
+                <MustHaveSplitChart
+                  className="min-h-[220px]"
+                  mustHaveCount={mustHaveCount}
+                  standardCount={standardCount}
+                />
+                <CompletionByContractorBar
+                  className="min-h-[220px]"
+                  kpiData={kpiData}
+                />
+              </>
+            )}
+
+            <PlannedVsActualCompact
               className="min-h-[220px]"
-              redItems={redAlerts}
-              amberItems={amberAlerts}
+              contractorId={planContractorId}
+              contractorName={planContractorName}
+              contractorOptions={planOptions}
+              requirements={planRequirements}
+              submissions={planSubmissions}
+              onContractorChange={setPlanContractorId}
+              isLoading={planContractorId !== 'all' ? (planRequirementsLoading || planSubmissionsLoading) : false}
+            />
+
+            <SnapshotTable
+              className="min-h-[220px]"
+              items={snapshotItems}
+              isLoading={isDataLoading}
               onSelect={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
             />
-          )}
-
-          {isDataLoading ? (
-            <Skeleton className="min-h-[220px]" />
-          ) : (
-            <CategoryProgressChart
-              className="min-h-[220px]"
-              data={detailedProgressByContractor}
-              onSelect={(category, contractorId) => {
-                const contractorName = contractors.find(contractor => contractor.id === contractorId)?.name ?? null;
-                setCategoryDrilldown({ category, contractorId, contractorName });
-              }}
-            />
-          )}
-
-          {isDataLoading ? (
-            <Skeleton className="min-h-[220px]" />
-          ) : (
-            <MustHaveSplitChart
-              className="min-h-[220px]"
-              mustHaveCount={mustHaveCount}
-              standardCount={standardCount}
-            />
-          )}
-
-          <PlannedVsActualCompact
-            className="min-h-[220px]"
-            contractorId={planContractorId}
-            contractorName={planContractorName}
-            contractorOptions={planOptions}
-            requirements={planRequirements}
-            submissions={planSubmissions}
-            onContractorChange={setPlanContractorId}
-            isLoading={planContractorId !== 'all' ? (planRequirementsLoading || planSubmissionsLoading) : false}
-          />
-
-          {isDataLoading ? (
-            <Skeleton className="min-h-[220px]" />
-          ) : (
-            <CompletionByContractorBar
-              className="min-h-[220px]"
-              kpiData={kpiData}
-            />
-          )}
-
-          <SnapshotTable
-            className="min-h-[220px]"
-            items={snapshotItems}
-            isLoading={isDataLoading}
-            onSelect={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
-          />
+          </div>
         </div>
 
-        <div className="mt-6 space-y-4">
-          {isDataLoading ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              <Skeleton className="h-[220px]" />
-              <Skeleton className="h-[320px]" />
-            </div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2">
-              <MilestoneOverviewCard items={milestoneProgressItems} onViewDetails={() => setIsMilestoneModalOpen(true)} />
-              <ProcessingTimeTable data={processingTimeStats} />
-            </div>
-          )}
-
-          {isDataLoading ? (
-            <Skeleton className="h-[200px] w-full" />
-          ) : (
-            <ActionSuggestions suggestions={actionSuggestions} />
-          )}
-        </div>
+        {/* Details Zone - Collapsible */}
+        <Collapsible open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+          <div className="rounded-lg border bg-card">
+            <CollapsibleTrigger asChild>
+              <Button
+                variant="ghost"
+                className="w-full flex items-center justify-between p-4 hover:bg-accent"
+              >
+                <h2 className="text-xl font-bold text-foreground">Detailed Analytics</h2>
+                <ChevronDown className={`h-5 w-5 transition-transform ${isDetailsOpen ? 'rotate-180' : ''}`} />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="p-4 pt-0 space-y-4">
+                {isDataLoading ? (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Skeleton className="h-[220px]" />
+                    <Skeleton className="h-[320px]" />
+                  </div>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <MilestoneOverviewCard items={milestoneProgressItems} onViewDetails={() => setIsMilestoneModalOpen(true)} />
+                    <ProcessingTimeTable data={processingTimeStats} />
+                  </div>
+                )}
+              </div>
+            </CollapsibleContent>
+          </div>
+        </Collapsible>
 
         <Dialog open={isMilestoneModalOpen} onOpenChange={setIsMilestoneModalOpen}>
           <DialogContent className="max-w-5xl">

@@ -1,8 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend, Tooltip } from 'recharts';
 import type { KpiData } from '@/lib/dashboardHelpers';
 import { cn } from '@/lib/utils';
+import { BarChart3, Radar as RadarIcon } from 'lucide-react';
+import { PerformanceBarCharts } from './PerformanceBarCharts';
 
 interface PerformanceSummary {
   overallCompletion: number;
@@ -29,6 +32,8 @@ const toPercent = (value: number | null | undefined): number => {
 };
 
 export const ContractorPerformanceRadar: React.FC<ContractorPerformanceRadarProps> = ({ data, summary, className }) => {
+  const [viewMode, setViewMode] = useState<'radar' | 'bars'>('radar');
+
   const { radarData, contractors } = useMemo(() => {
     if (!data?.length) {
       return { radarData: [] as Record<string, number | string>[], contractors: [] as { id: string; name: string }[] };
@@ -88,9 +93,27 @@ export const ContractorPerformanceRadar: React.FC<ContractorPerformanceRadarProp
   return (
     <Card className={cn('p-5 space-y-4', className)}>
       <div className="flex flex-col gap-2">
-        <div>
-          <h3 className="text-lg font-semibold">Performance Radar</h3>
-          <p className="text-sm text-muted-foreground">Compare contractors across quality and speed indicators</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold">Performance Overview</h3>
+            <p className="text-sm text-muted-foreground">Compare contractors across quality and speed indicators</p>
+          </div>
+          <div className="flex gap-1">
+            <Button
+              variant={viewMode === 'radar' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode('radar')}
+            >
+              <RadarIcon className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'bars' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode('bars')}
+            >
+              <BarChart3 className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
         {summary ? (
           <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs text-muted-foreground">
@@ -117,26 +140,30 @@ export const ContractorPerformanceRadar: React.FC<ContractorPerformanceRadarProp
           </div>
         ) : null}
       </div>
-      <div className="h-[280px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <RadarChart data={radarData} outerRadius="65%">
-            <PolarGrid />
-            <PolarAngleAxis dataKey="metric" tick={{ fontSize: 12 }} />
-            <PolarRadiusAxis angle={45} domain={[0, 100]} tick={{ fontSize: 10 }} />
-            <Tooltip formatter={(value: number) => [`${value}%`, 'Score']} />
-            <Legend />
-            {contractors.map((contractor, index) => (
-              <Radar
-                key={contractor.id}
-                dataKey={contractor.name}
-                stroke={RADAR_COLORS[index % RADAR_COLORS.length]}
-                fill={RADAR_COLORS[index % RADAR_COLORS.length]}
-                fillOpacity={0.2}
-              />
-            ))}
-          </RadarChart>
-        </ResponsiveContainer>
-      </div>
+      {viewMode === 'radar' ? (
+        <div className="h-[280px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <RadarChart data={radarData} outerRadius="65%">
+              <PolarGrid />
+              <PolarAngleAxis dataKey="metric" tick={{ fontSize: 12 }} />
+              <PolarRadiusAxis angle={45} domain={[0, 100]} tick={{ fontSize: 10 }} />
+              <Tooltip formatter={(value: number) => [`${value}%`, 'Score']} />
+              <Legend />
+              {contractors.map((contractor, index) => (
+                <Radar
+                  key={contractor.id}
+                  dataKey={contractor.name}
+                  stroke={RADAR_COLORS[index % RADAR_COLORS.length]}
+                  fill={RADAR_COLORS[index % RADAR_COLORS.length]}
+                  fillOpacity={0.2}
+                />
+              ))}
+            </RadarChart>
+          </ResponsiveContainer>
+        </div>
+      ) : (
+        <PerformanceBarCharts data={data} />
+      )}
     </Card>
   );
 };

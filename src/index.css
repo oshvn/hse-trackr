@@ -53,6 +53,19 @@ All colors MUST be HSL.
     --sidebar-border: 220 13% 91%;
 
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Status semantic colors */
+    --status-success: 142 76% 36%;
+    --status-success-light: 142 76% 96%;
+    --status-warning: 38 92% 50%;
+    --status-warning-light: 48 96% 89%;
+    --status-danger: 0 84% 60%;
+    --status-danger-light: 0 86% 97%;
+    --status-info: 217 91% 60%;
+    --status-info-light: 214 95% 93%;
+
+    /* Priority zone background */
+    --priority-bg: 210 40% 98%;
   }
 
   .dark {
@@ -91,6 +104,19 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Status semantic colors - dark mode */
+    --status-success: 142 71% 45%;
+    --status-success-light: 142 76% 15%;
+    --status-warning: 48 96% 53%;
+    --status-warning-light: 48 96% 20%;
+    --status-danger: 0 72% 51%;
+    --status-danger-light: 0 84% 20%;
+    --status-info: 217 91% 60%;
+    --status-info-light: 217 91% 20%;
+
+    /* Priority zone background */
+    --priority-bg: 217.2 32.6% 12%;
   }
 }
 
