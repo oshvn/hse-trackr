@@ -25,6 +25,7 @@ import { SnapshotTable } from '@/components/dashboard/SnapshotTable';
 import { CategoryDrilldownPanel } from '@/components/dashboard/CategoryDrilldownPanel';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ActionSuggestions } from '@/components/dashboard/ActionSuggestions';
+import { CriticalAlertsModal } from '@/components/dashboard/CriticalAlertsModal';
 import type {
   FilterState,
   KpiData,
@@ -126,6 +127,7 @@ const DashboardPage: React.FC = () => {
   const [categoryDrilldown, setCategoryDrilldown] = useState<{ category: string; contractorId: string | null; contractorName: string | null } | null>(null);
   const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isCriticalAlertsModalOpen, setIsCriticalAlertsModalOpen] = useState(false);
 
   const {
     data: contractors = [],
@@ -457,11 +459,12 @@ const DashboardPage: React.FC = () => {
           {isDataLoading ? (
             <Skeleton className="h-[220px]" />
           ) : (
-            <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <CriticalAlertsCard
                 redItems={redAlerts}
                 amberItems={amberAlerts}
                 onSelect={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
+                onViewAll={() => setIsCriticalAlertsModalOpen(true)}
               />
 
               <ActionSuggestions
@@ -470,7 +473,7 @@ const DashboardPage: React.FC = () => {
                 contractorId={filters.contractor}
                 onRefresh={() => window.location.reload()}
               />
-            </>
+            </div>
           )}
         </div>
 
@@ -586,6 +589,14 @@ const DashboardPage: React.FC = () => {
             setCategoryDrilldown(null);
             setSelectedDetail({ contractorId, docTypeId });
           }}
+        />
+
+        <CriticalAlertsModal
+          open={isCriticalAlertsModalOpen}
+          onClose={() => setIsCriticalAlertsModalOpen(false)}
+          redItems={redAlerts}
+          amberItems={amberAlerts}
+          onSelect={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
         />
       </div>
     </div>

@@ -3,7 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { AlertTriangle, Clock, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, Clock, CheckCircle2, List } from 'lucide-react';
 import type { CriticalAlertItem } from '@/lib/dashboardHelpers';
 import { cn } from '@/lib/utils';
 
@@ -22,7 +22,7 @@ export const CriticalAlertsCard: React.FC<CriticalAlertsCardProps> = ({
   onSelect,
   onViewAll,
   className,
-  maxItems = 4,
+  maxItems = 3,
 }) => {
   const totalAlerts = redItems.length + amberItems.length;
 
@@ -49,6 +49,7 @@ export const CriticalAlertsCard: React.FC<CriticalAlertsCardProps> = ({
   const redVisible = redItems.slice(0, maxItems);
   const remainingSlots = Math.max(0, maxItems - redVisible.length);
   const amberVisible = amberItems.slice(0, remainingSlots);
+  const hasMoreItems = redItems.length > maxItems || amberItems.length > remainingSlots;
 
   return (
     <Card className={cn('p-4 flex flex-col', className)}>
@@ -64,7 +65,7 @@ export const CriticalAlertsCard: React.FC<CriticalAlertsCardProps> = ({
         </Badge>
       </div>
 
-      <ScrollArea className="flex-1 max-h-[240px] pr-1">
+      <ScrollArea className="flex-1 max-h-[180px] pr-1">
         <div className="space-y-2">
           {redVisible.map(item => (
             <button
@@ -135,10 +136,11 @@ export const CriticalAlertsCard: React.FC<CriticalAlertsCardProps> = ({
         </div>
       </ScrollArea>
 
-      {onViewAll && (
+      {hasMoreItems && onViewAll && (
         <div className="mt-3 flex justify-end">
           <Button variant="ghost" size="sm" onClick={onViewAll} className="text-primary">
-            View full list
+            <List className="h-4 w-4 mr-1" />
+            View all ({totalAlerts})
           </Button>
         </div>
       )}
