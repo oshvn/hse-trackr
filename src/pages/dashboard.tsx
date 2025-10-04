@@ -596,6 +596,7 @@ const DashboardPage: React.FC = () => {
           onClose={() => setIsCriticalAlertsModalOpen(false)}
           redItems={redAlerts}
           amberItems={amberAlerts}
+          docProgressData={enrichedProgressData}
           onSelect={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
         />
       </div>

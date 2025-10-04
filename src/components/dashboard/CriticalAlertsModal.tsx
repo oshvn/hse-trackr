@@ -11,16 +11,20 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card } from '@/components/ui/card';
-import { AlertTriangle, Clock, Search, Filter, ArrowUpDown, Eye } from 'lucide-react';
-import type { CriticalAlertItem } from '@/lib/dashboardHelpers';
+import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { AlertTriangle, Clock, Search, Filter, ArrowUpDown, Eye, X } from 'lucide-react';
+import type { CriticalAlertItem, DocProgressData } from '@/lib/dashboardHelpers';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { DetailSidePanel } from './DetailSidePanel';
 
 interface CriticalAlertsModalProps {
   open: boolean;
   onClose: () => void;
   redItems: CriticalAlertItem[];
   amberItems: CriticalAlertItem[];
+  docProgressData: DocProgressData[];
   onSelect: (contractorId: string, docTypeId: string) => void;
 }
 
@@ -32,6 +36,7 @@ export const CriticalAlertsModal: React.FC<CriticalAlertsModalProps> = ({
   onClose,
   redItems,
   amberItems,
+  docProgressData,
   onSelect,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -39,6 +44,7 @@ export const CriticalAlertsModal: React.FC<CriticalAlertsModalProps> = ({
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sortField, setSortField] = useState<SortField>('overdueDays');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [selectedDetail, setSelectedDetail] = useState<{ contractorId: string; docTypeId: string } | null>(null);
 
   const allItems = useMemo(() => [...redItems, ...amberItems], [redItems, amberItems]);
 
@@ -300,8 +306,7 @@ export const CriticalAlertsModal: React.FC<CriticalAlertsModalProps> = ({
                           variant="ghost"
                           size="sm"
                           onClick={() => {
-                            onSelect(item.contractorId, item.docTypeId);
-                            onClose();
+                            setSelectedDetail({ contractorId: item.contractorId, docTypeId: item.docTypeId });
                           }}
                           className="h-8 w-8 p-0"
                         >
@@ -335,6 +340,15 @@ export const CriticalAlertsModal: React.FC<CriticalAlertsModalProps> = ({
           </Card>
         </div>
       </DialogContent>
+      
+      {/* Detail Side Panel */}
+      <DetailSidePanel
+        open={!!selectedDetail}
+        onClose={() => setSelectedDetail(null)}
+        contractorId={selectedDetail?.contractorId || null}
+        docTypeId={selectedDetail?.docTypeId || null}
+        docProgressData={docProgressData}
+      />
     </Dialog>
   );
 };
