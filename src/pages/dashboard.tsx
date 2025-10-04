@@ -24,6 +24,7 @@ import { PlannedVsActualCompact } from '@/components/dashboard/PlannedVsActualCo
 import { SnapshotTable } from '@/components/dashboard/SnapshotTable';
 import { CategoryDrilldownPanel } from '@/components/dashboard/CategoryDrilldownPanel';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ActionSuggestions } from '@/components/dashboard/ActionSuggestions';
 import type {
   FilterState,
   KpiData,
@@ -455,11 +456,20 @@ const DashboardPage: React.FC = () => {
           {isDataLoading ? (
             <Skeleton className="h-[220px]" />
           ) : (
-            <CriticalAlertsCard
-              redItems={redAlerts}
-              amberItems={amberAlerts}
-              onSelect={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
-            />
+            <>
+              <CriticalAlertsCard
+                redItems={redAlerts}
+                amberItems={amberAlerts}
+                onSelect={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
+              />
+
+              <ActionSuggestions
+                suggestions={[]} // Sẽ được cập nhật sau
+                criticalIssues={[...redAlerts, ...amberAlerts]}
+                contractorId={filters.contractor}
+                onRefresh={() => window.location.reload()}
+              />
+            </>
           )}
         </div>
 
