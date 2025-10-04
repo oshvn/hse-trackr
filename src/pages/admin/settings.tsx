@@ -42,7 +42,17 @@ interface AIConfig {
   temperature: number;
   max_tokens: number;
   enabled: boolean;
-  is_default: boolean;
+}
+
+interface AIProvider {
+  id: string;
+  name: string;
+  models: {
+    id: string;
+    name: string;
+    isFree: boolean;
+  }[];
+  defaultEndpoint: string;
 }
 
 const requirementKey = (docTypeId: string, contractorId: string) => `${docTypeId}__${contractorId}`;
@@ -65,6 +75,49 @@ const AdminSettings: React.FC = () => {
     code: "",
     is_critical: false,
   });
+  const [aiConfig, setAIConfig] = useState<AIConfig>({
+    id: 'main',
+    provider: 'GLM',
+    model: 'glm-4.5-flash',
+    api_key: '',
+    api_endpoint: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+    temperature: 0.3,
+    max_tokens: 1000,
+    enabled: false,
+  });
+
+  const aiProviders: AIProvider[] = [
+    {
+      id: 'GLM',
+      name: 'GLM (Zhipu AI)',
+      models: [
+        { id: 'glm-4.5-flash', name: 'GLM-4.5-Flash', isFree: true },
+        { id: 'glm-4', name: 'GLM-4', isFree: false },
+        { id: 'glm-4-air', name: 'GLM-4-Air', isFree: true },
+      ],
+      defaultEndpoint: 'https://open.bigmodel.cn/api/paas/v4/chat/completions'
+    },
+    {
+      id: 'Gemini',
+      name: 'Google Gemini',
+      models: [
+        { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', isFree: true },
+        { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', isFree: false },
+        { id: 'gemini-pro', name: 'Gemini Pro', isFree: true },
+      ],
+      defaultEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent'
+    },
+    {
+      id: 'OpenAI',
+      name: 'OpenAI',
+      models: [
+        { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', isFree: false },
+        { id: 'gpt-4', name: 'GPT-4', isFree: false },
+        { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', isFree: false },
+      ],
+      defaultEndpoint: 'https://api.openai.com/v1/chat/completions'
+    }
+  ];
 
   const requirementMap = useMemo(() => {
     const map = new Map<string, RequirementRow>();
@@ -74,25 +127,25 @@ const AdminSettings: React.FC = () => {
     return map;
   }, [requirements]);
 
-  // Load AI configs from localStorage
-  const loadAIConfigs = useCallback(() => {
+  // Load AI config from localStorage
+  const loadAIConfig = useCallback(() => {
     try {
-      const savedConfigs = localStorage.getItem('ai_configs');
-      if (savedConfigs) {
-        const configs = JSON.parse(savedConfigs);
-        setAIConfigs(configs);
+      const savedConfig = localStorage.getItem('ai_config');
+      if (savedConfig) {
+        const config = JSON.parse(savedConfig);
+        setAIConfig(config);
       }
     } catch (error) {
-      console.error('Failed to load AI configs from localStorage:', error);
+      console.error('Failed to load AI config from localStorage:', error);
     }
   }, []);
 
-  // Save AI configs to localStorage
-  const saveAIConfigs = useCallback((configs: AIConfig[]) => {
+  // Save AI config to localStorage
+  const saveAIConfig = useCallback((config: AIConfig) => {
     try {
-      localStorage.setItem('ai_configs', JSON.stringify(configs));
+      localStorage.setItem('ai_config', JSON.stringify(config));
     } catch (error) {
-      console.error('Failed to save AI configs to localStorage:', error);
+      console.error('Failed to save AI config to localStorage:', error);
     }
   }, []);
 
@@ -120,8 +173,8 @@ const AdminSettings: React.FC = () => {
         planned_due_date: row.planned_due_date,
       })));
       
-      // Load AI configs from localStorage
-      loadAIConfigs();
+      // Load AI config from localStorage
+      loadAIConfig();
     } catch (error) {
       console.error("Failed to load admin settings", error);
       toast({
@@ -132,7 +185,7 @@ const AdminSettings: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [toast, loadAIConfigs]);
+  }, [toast, loadAIConfig]);
 
   useEffect(() => {
     loadSettings();
@@ -325,43 +378,34 @@ const AdminSettings: React.FC = () => {
     }
   };
 
-  const handleAIConfigFieldChange = (configId: string, field: keyof AIConfig, value: string | number | boolean) => {
-    setAIConfigs((prev) => {
-      const updated = prev.map((config) =>
-        config.id === configId
-          ? {
-              ...config,
-              [field]: value,
-            }
-          : config
-      );
-      
-      // Save to localStorage
-      saveAIConfigs(updated);
-      
-      return updated;
-    });
+  const handleAIConfigFieldChange = (field: keyof AIConfig, value: string | number | boolean) => {
+    const updated = {
+      ...aiConfig,
+      [field]: value,
+    };
+    
+    // Update endpoint when provider changes
+    if (field === 'provider') {
+      const provider = aiProviders.find(p => p.id === value);
+      if (provider) {
+        updated.api_endpoint = provider.defaultEndpoint;
+        // Set first model as default
+        updated.model = provider.models[0].id;
+      }
+    }
+    
+    setAIConfig(updated);
+    saveAIConfig(updated);
   };
 
-  const handleSaveAIConfig = async (configId: string) => {
-    const config = aiConfigs.find((item) => item.id === configId);
-    if (!config) return;
-
-    setSavingAIConfigId(configId);
+  const handleSaveAIConfig = async () => {
+    setSavingAIConfigId('main');
     try {
-      // If this is set as default, unset all other defaults
-      if (config.is_default) {
-        const updated = aiConfigs.map((c) => ({
-          ...c,
-          is_default: c.id === configId
-        }));
-        setAIConfigs(updated);
-        saveAIConfigs(updated);
-      }
+      saveAIConfig(aiConfig);
 
       toast({
         title: "Đã lưu cấu hình AI",
-        description: `${config.provider} - ${config.model} được cập nhật thành công`,
+        description: `${aiConfig.provider} - ${aiConfig.model} được cập nhật thành công`,
       });
     } catch (error) {
       console.error("Failed to update AI config", error);
@@ -375,19 +419,16 @@ const AdminSettings: React.FC = () => {
     }
   };
 
-  const handleTestAIConfig = async (configId: string) => {
-    const config = aiConfigs.find((item) => item.id === configId);
-    if (!config) return;
-
-    setTestingAIConfigId(configId);
+  const handleTestAIConfig = async () => {
+    setTestingAIConfigId('main');
     try {
       let testUrl = '';
       let testPayload = {};
       
-      if (config.provider === 'GLM') {
-        testUrl = config.api_endpoint;
+      if (aiConfig.provider === 'GLM') {
+        testUrl = aiConfig.api_endpoint;
         testPayload = {
-          model: config.model,
+          model: aiConfig.model,
           messages: [
             {
               role: 'system',
@@ -398,15 +439,15 @@ const AdminSettings: React.FC = () => {
               content: 'Hello, this is a test message. Please respond with "Test successful".'
             }
           ],
-          temperature: config.temperature,
-          max_tokens: config.max_tokens,
+          temperature: aiConfig.temperature,
+          max_tokens: aiConfig.max_tokens,
         };
         
         const response = await fetch(testUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${config.api_key}`
+            'Authorization': `Bearer ${aiConfig.api_key}`
           },
           body: JSON.stringify(testPayload)
         });
@@ -419,8 +460,8 @@ const AdminSettings: React.FC = () => {
         if (!data.choices || !data.choices[0] || !data.choices[0].message) {
           throw new Error('Invalid response from GLM API');
         }
-      } else if (config.provider === 'Gemini') {
-        testUrl = `${config.api_endpoint}?key=${config.api_key}`;
+      } else if (aiConfig.provider === 'Gemini') {
+        testUrl = `${aiConfig.api_endpoint}?key=${aiConfig.api_key}`;
         testPayload = {
           contents: [
             {
@@ -449,11 +490,46 @@ const AdminSettings: React.FC = () => {
         if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
           throw new Error('Invalid response from Gemini API');
         }
+      } else if (aiConfig.provider === 'OpenAI') {
+        testUrl = aiConfig.api_endpoint;
+        testPayload = {
+          model: aiConfig.model,
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a helpful assistant.'
+            },
+            {
+              role: 'user',
+              content: 'Hello, this is a test message. Please respond with "Test successful".'
+            }
+          ],
+          temperature: aiConfig.temperature,
+          max_tokens: aiConfig.max_tokens,
+        };
+        
+        const response = await fetch(testUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${aiConfig.api_key}`
+          },
+          body: JSON.stringify(testPayload)
+        });
+        
+        if (!response.ok) {
+          throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+          throw new Error('Invalid response from OpenAI API');
+        }
       }
       
       toast({
         title: "Kết nối AI thành công",
-        description: `${config.provider} - ${config.model} đã sẵn sàng sử dụng`,
+        description: `${aiConfig.provider} - ${aiConfig.model} đã sẵn sàng sử dụng`,
       });
     } catch (error) {
       console.error("Failed to test AI config", error);
@@ -464,44 +540,6 @@ const AdminSettings: React.FC = () => {
       });
     } finally {
       setTestingAIConfigId(null);
-    }
-  };
-
-  const handleCreateAIConfig = async (provider: string, model: string) => {
-    try {
-      const defaultEndpoints: Record<string, string> = {
-        'GLM': 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
-        'Gemini': 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent',
-        'OpenAI': 'https://api.openai.com/v1/chat/completions',
-      };
-
-      const newConfig: AIConfig = {
-        id: `ai-${Date.now()}`,
-        provider,
-        model,
-        api_key: '',
-        api_endpoint: defaultEndpoints[provider] || '',
-        temperature: 0.3,
-        max_tokens: 1000,
-        enabled: false,
-        is_default: aiConfigs.length === 0, // Set as default if it's the first config
-      };
-
-      const updated = [...aiConfigs, newConfig];
-      setAIConfigs(updated);
-      saveAIConfigs(updated);
-
-      toast({
-        title: "Đã tạo cấu hình AI",
-        description: `${provider} - ${model}`,
-      });
-    } catch (error) {
-      console.error("Failed to create AI config", error);
-      toast({
-        title: "Không thể tạo",
-        description: error.message || "Vui lòng thử lại",
-        variant: "destructive",
-      });
     }
   };
 
@@ -762,150 +800,148 @@ const AdminSettings: React.FC = () => {
                 Cấu hình AI Recommendation
               </CardTitle>
               <CardDescription>
-                Thiết lập các dịch vụ AI để tạo đề xuất hành động thông minh
+                Thiết lập dịch vụ AI để tạo đề xuất hành động thông minh
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <Button 
-                  variant="outline" 
-                  onClick={() => handleCreateAIConfig("GLM", "glm-4.5-flash")}
-                  className="flex items-center gap-2"
-                >
-                  <Cpu className="h-4 w-4" />
-                  Thêm GLM-4.5-Flash
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => handleCreateAIConfig("Gemini", "gemini-pro")}
-                  className="flex items-center gap-2"
-                >
-                  <Cpu className="h-4 w-4" />
-                  Thêm Gemini Pro
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => handleCreateAIConfig("OpenAI", "gpt-3.5-turbo")}
-                  className="flex items-center gap-2"
-                >
-                  <Cpu className="h-4 w-4" />
-                  Thêm OpenAI GPT
-                </Button>
+            <CardContent className="space-y-6">
+              <div className="border rounded-lg p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold">Cấu hình AI</h3>
+                    {aiConfig.enabled ? (
+                      <Badge variant="default">Đã kích hoạt</Badge>
+                    ) : (
+                      <Badge variant="secondary">Chưa kích hoạt</Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleTestAIConfig}
+                      disabled={testingAIConfigId === 'main' || !aiConfig.api_key}
+                    >
+                      <TestTube className="h-4 w-4 mr-2" />
+                      {testingAIConfigId === 'main' ? "Đang test..." : "Test"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={handleSaveAIConfig}
+                      disabled={savingAIConfigId === 'main'}
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      {savingAIConfigId === 'main' ? "Đang lưu..." : "Lưu"}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>API Provider</Label>
+                    <select
+                      value={aiConfig.provider}
+                      onChange={(event) => handleAIConfigFieldChange("provider", event.target.value)}
+                      className="w-full p-2 border rounded-md"
+                    >
+                      {aiProviders.map((provider) => (
+                        <option key={provider.id} value={provider.id}>
+                          {provider.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Model</Label>
+                    <select
+                      value={aiConfig.model}
+                      onChange={(event) => handleAIConfigFieldChange("model", event.target.value)}
+                      className="w-full p-2 border rounded-md"
+                    >
+                      {aiProviders
+                        .find((p) => p.id === aiConfig.provider)
+                        ?.models.map((model) => (
+                          <option key={model.id} value={model.id}>
+                            {model.name} {model.isFree && "(Miễn phí)"}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>API Key</Label>
+                    <div className="flex items-center gap-2">
+                      <Key className="h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="password"
+                        value={aiConfig.api_key}
+                        placeholder="Nhập API key"
+                        onChange={(event) => handleAIConfigFieldChange("api_key", event.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>API Endpoint</Label>
+                    <Input
+                      value={aiConfig.api_endpoint}
+                      placeholder="https://api.example.com/v1/chat/completions"
+                      onChange={(event) => handleAIConfigFieldChange("api_endpoint", event.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Temperature (0-1)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={aiConfig.temperature}
+                      onChange={(event) => handleAIConfigFieldChange("temperature", parseFloat(event.target.value))}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Max Tokens</Label>
+                    <Input
+                      type="number"
+                      min="100"
+                      max="4000"
+                      step="100"
+                      value={aiConfig.max_tokens}
+                      onChange={(event) => handleAIConfigFieldChange("max_tokens", parseInt(event.target.value))}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      checked={aiConfig.enabled}
+                      onCheckedChange={(checked) => handleAIConfigFieldChange("enabled", checked)}
+                    />
+                    <Label>Kích hoạt</Label>
+                  </div>
+                </div>
               </div>
 
-              {aiConfigs.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Brain className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Chưa có cấu hình AI nào</p>
-                  <p className="text-sm">Thêm cấu hình để bắt đầu sử dụng đề xuất AI</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {aiConfigs.map((config) => (
-                    <div key={config.id} className="border rounded-lg p-4 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-lg font-semibold">{config.provider}</h3>
-                          <Badge variant="outline">{config.model}</Badge>
-                          {config.enabled ? (
-                            <Badge variant="default">Đã kích hoạt</Badge>
-                          ) : (
-                            <Badge variant="secondary">Chưa kích hoạt</Badge>
-                          )}
-                          {config.is_default && (
-                            <Badge variant="destructive">Mặc định</Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleTestAIConfig(config.id)}
-                            disabled={testingAIConfigId === config.id || !config.api_key}
-                          >
-                            <TestTube className="h-4 w-4 mr-2" />
-                            {testingAIConfigId === config.id ? "Đang test..." : "Test"}
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() => handleSaveAIConfig(config.id)}
-                            disabled={savingAIConfigId === config.id}
-                          >
-                            <Save className="h-4 w-4 mr-2" />
-                            {savingAIConfigId === config.id ? "Đang lưu..." : "Lưu"}
-                          </Button>
-                        </div>
+              <div className="bg-muted/50 p-4 rounded-lg">
+                <h4 className="font-semibold mb-2">Thông tin về các nhà cung cấp</h4>
+                <div className="space-y-2 text-sm">
+                  {aiProviders.map((provider) => (
+                    <div key={provider.id} className="border-b pb-2">
+                      <div className="font-medium">{provider.name}</div>
+                      <div className="text-muted-foreground">
+                        Các model có sẵn: {provider.models.map(m => m.name).join(", ")}
                       </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label>API Key</Label>
-                          <div className="flex items-center gap-2">
-                            <Key className="h-4 w-4 text-muted-foreground" />
-                            <Input
-                              type="password"
-                              value={config.api_key}
-                              placeholder="Nhập API key"
-                              onChange={(event) => handleAIConfigFieldChange(config.id, "api_key", event.target.value)}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>API Endpoint</Label>
-                          <Input
-                            value={config.api_endpoint}
-                            placeholder="https://api.example.com/v1/chat/completions"
-                            onChange={(event) => handleAIConfigFieldChange(config.id, "api_endpoint", event.target.value)}
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>Temperature (0-1)</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            max="1"
-                            step="0.1"
-                            value={config.temperature}
-                            onChange={(event) => handleAIConfigFieldChange(config.id, "temperature", parseFloat(event.target.value))}
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>Max Tokens</Label>
-                          <Input
-                            type="number"
-                            min="100"
-                            max="4000"
-                            step="100"
-                            value={config.max_tokens}
-                            onChange={(event) => handleAIConfigFieldChange(config.id, "max_tokens", parseInt(event.target.value))}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center space-x-2">
-                          <Switch
-                            checked={config.enabled}
-                            onCheckedChange={(checked) => handleAIConfigFieldChange(config.id, "enabled", checked)}
-                          />
-                          <Label>Kích hoạt</Label>
-                        </div>
-
-                        <div className="flex items-center space-x-2">
-                          <Switch
-                            checked={config.is_default}
-                            onCheckedChange={(checked) => handleAIConfigFieldChange(config.id, "is_default", checked)}
-                          />
-                          <Label>Sử dụng làm mặc định</Label>
-                        </div>
+                      <div className="text-muted-foreground">
+                        Model miễn phí: {provider.models.filter(m => m.isFree).map(m => m.name).join(", ") || "Không có"}
                       </div>
                     </div>
                   ))}
                 </div>
-              )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

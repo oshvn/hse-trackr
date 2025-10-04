@@ -10,7 +10,6 @@ interface AIConfig {
   temperature: number;
   max_tokens: number;
   enabled: boolean;
-  is_default: boolean;
 }
 
 export interface ProjectContext {
@@ -41,19 +40,13 @@ export interface AIRecommendation {
 class AIRecommendationService {
   private getActiveConfig(): AIConfig | null {
     try {
-      const savedConfigs = localStorage.getItem('ai_configs');
-      if (savedConfigs) {
-        const configs: AIConfig[] = JSON.parse(savedConfigs);
-        // Find enabled config, prioritize default config
-        const defaultConfig = configs.find(c => c.enabled && c.is_default);
-        if (defaultConfig) return defaultConfig;
-        
-        // If no default config, return any enabled config
-        const enabledConfig = configs.find(c => c.enabled);
-        if (enabledConfig) return enabledConfig;
+      const savedConfig = localStorage.getItem('ai_config');
+      if (savedConfig) {
+        const config: AIConfig = JSON.parse(savedConfig);
+        if (config.enabled) return config;
       }
     } catch (error) {
-      console.error('Failed to load AI configs from localStorage:', error);
+      console.error('Failed to load AI config from localStorage:', error);
     }
     
     // Fallback to environment variables
@@ -66,7 +59,6 @@ class AIRecommendationService {
       temperature: 0.3,
       max_tokens: 1000,
       enabled: true,
-      is_default: true,
     };
     
     return fallbackConfig;

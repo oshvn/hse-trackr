@@ -45,43 +45,55 @@ const actionTypeIcons = {
   training: BookOpen,
 };
 
-export const ActionSuggestions: React.FC<ActionSuggestionsProps> = ({ 
-  suggestions, 
-  criticalIssues = [], 
+export const ActionSuggestions: React.FC<ActionSuggestionsProps> = ({
+  suggestions,
+  criticalIssues = [],
   contractorId = 'all',
-  className, 
-  onRefresh 
+  className,
+  onRefresh
 }) => {
   const [aiSuggestions, setAiSuggestions] = useState<AIRecommendation[]>([]);
-  const [isAIEnabled, setIsAIEnabled] = useState(false);
+  const [isAIEnabled, setIsAIEnabled] = useState(() => {
+    // Lấy trạng thái AI mode từ localStorage
+    const saved = localStorage.getItem('ai-mode-enabled');
+    return saved ? JSON.parse(saved) : false;
+  });
   const [isLoadingAI, setIsLoadingAI] = useState(false);
+  const [isAIConfigured, setIsAIConfigured] = useState<boolean | null>(null);
   const hasSuggestions = suggestions.length > 0 || aiSuggestions.length > 0;
   const allSuggestions = isAIEnabled ? [...suggestions, ...aiSuggestions] : suggestions;
 
+  // Lưu trạng thái AI mode vào localStorage khi thay đổi
+  useEffect(() => {
+    localStorage.setItem('ai-mode-enabled', JSON.stringify(isAIEnabled));
+  }, [isAIEnabled]);
+
+  // Kiểm tra cấu hình AI khi component mount
+  useEffect(() => {
+    const checkAIConfiguration = async () => {
+      try {
+        const connectionTest = await aiRecommendationService.testConnection();
+        setIsAIConfigured(connectionTest.success);
+      } catch (error) {
+        setIsAIConfigured(false);
+      }
+    };
+    
+    checkAIConfiguration();
+  }, []);
+
   // Lấy đề xuất từ AI khi được bật
   useEffect(() => {
-    if (isAIEnabled && criticalIssues.length > 0) {
+    if (isAIEnabled && criticalIssues.length > 0 && isAIConfigured) {
       fetchAIRecommendations();
-    } else {
+    } else if (!isAIEnabled) {
       setAiSuggestions([]);
     }
-  }, [isAIEnabled, criticalIssues, contractorId]);
+  }, [isAIEnabled, criticalIssues, contractorId, isAIConfigured]);
 
   const fetchAIRecommendations = async () => {
     setIsLoadingAI(true);
     try {
-      // Check if AI is configured
-      const connectionTest = await aiRecommendationService.testConnection();
-      if (!connectionTest.success) {
-        toast({
-          title: "AI Not Configured",
-          description: "Please configure AI in Admin Settings first",
-          variant: "destructive",
-        });
-        setIsLoadingAI(false);
-        return;
-      }
-      
       const recommendations = await aiRecommendationService.getRecommendations({
         contractorId,
         contractorName: criticalIssues[0]?.contractorName || 'Unknown',
@@ -109,6 +121,27 @@ export const ActionSuggestions: React.FC<ActionSuggestionsProps> = ({
     }
   };
 
+  const handleRefresh = () => {
+    if (onRefresh) {
+      onRefresh();
+    }
+    if (isAIEnabled && isAIConfigured) {
+      fetchAIRecommendations();
+    }
+  };
+
+  const handleToggleAI = (enabled: boolean) => {
+    if (enabled && !isAIConfigured) {
+      toast({
+        title: "AI Not Configured",
+        description: "Please configure AI in Admin Settings first",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsAIEnabled(enabled);
+  };
+
   return (
     <Card className={cn('p-6 space-y-4', className)}>
       <div className="flex items-center justify-between">
@@ -123,15 +156,21 @@ export const ActionSuggestions: React.FC<ActionSuggestionsProps> = ({
             <Switch
               id="ai-mode"
               checked={isAIEnabled}
-              onCheckedChange={setIsAIEnabled}
+              onCheckedChange={handleToggleAI}
+              disabled={isAIConfigured === false}
             />
             <Label htmlFor="ai-mode" className="text-sm flex items-center gap-1">
               <Sparkles className="h-3 w-3" />
               AI Mode
             </Label>
+            {isAIConfigured === false && (
+              <Badge variant="destructive" className="text-xs">
+                Not Configured
+              </Badge>
+            )}
           </div>
           {onRefresh ? (
-            <Button variant="outline" size="sm" onClick={onRefresh} className="hover:bg-accent">
+            <Button variant="outline" size="sm" onClick={handleRefresh} className="hover:bg-accent">
               Refresh
             </Button>
           ) : null}
@@ -145,11 +184,23 @@ export const ActionSuggestions: React.FC<ActionSuggestionsProps> = ({
           description="No critical follow-up actions required right now"
           className="py-8 bg-status-success-light/20 rounded-lg"
         />
-      ) : isLoadingAI ? (
+      ) : isAIEnabled && isLoadingAI ? (
         <div className="flex items-center justify-center py-8">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Sparkles className="h-4 w-4 animate-pulse" />
-            Generating AI recommendations...
+          <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 animate-pulse" />
+              Generating AI recommendations...
+            </div>
+            <div className="w-64 bg-secondary rounded-full h-2">
+              <div className="bg-primary h-2 rounded-full animate-pulse" style={{ width: '70%' }}></div>
+            </div>
+          </div>
+        </div>
+      ) : isAIEnabled && aiSuggestions.length === 0 && !isLoadingAI ? (
+        <div className="flex items-center justify-center py-8">
+          <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground">
+            <Sparkles className="h-4 w-4" />
+            No AI recommendations available for current issues
           </div>
         </div>
       ) : (
