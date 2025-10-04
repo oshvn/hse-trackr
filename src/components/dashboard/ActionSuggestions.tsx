@@ -60,6 +60,7 @@ export const ActionSuggestions: React.FC<ActionSuggestionsProps> = ({
   });
   const [isLoadingAI, setIsLoadingAI] = useState(false);
   const [isAIConfigured, setIsAIConfigured] = useState<boolean | null>(null);
+  const [showAISkeleton, setShowAISkeleton] = useState(false);
   const hasSuggestions = suggestions.length > 0 || aiSuggestions.length > 0;
   const allSuggestions = isAIEnabled ? [...suggestions, ...aiSuggestions] : suggestions;
 
@@ -85,14 +86,28 @@ export const ActionSuggestions: React.FC<ActionSuggestionsProps> = ({
   // Lấy đề xuất từ AI khi được bật
   useEffect(() => {
     if (isAIEnabled && criticalIssues.length > 0 && isAIConfigured) {
+      // Show skeleton immediately while loading AI recommendations
+      setShowAISkeleton(true);
       fetchAIRecommendations();
     } else if (!isAIEnabled) {
       setAiSuggestions([]);
+      setShowAISkeleton(false);
     }
   }, [isAIEnabled, criticalIssues, contractorId, isAIConfigured]);
 
-  const fetchAIRecommendations = async () => {
-    setIsLoadingAI(true);
+  // Preload AI recommendations if AI mode was previously enabled
+  useEffect(() => {
+    const wasAIEnabled = localStorage.getItem('ai-mode-enabled') === 'true';
+    if (wasAIEnabled && criticalIssues.length > 0 && isAIConfigured && !isAIEnabled) {
+      // Preload in background without showing skeleton
+      fetchAIRecommendations(true);
+    }
+  }, [criticalIssues, isAIConfigured]);
+
+  const fetchAIRecommendations = async (isBackground = false) => {
+    if (!isBackground) {
+      setIsLoadingAI(true);
+    }
     try {
       const recommendations = await aiRecommendationService.getRecommendations({
         contractorId,
@@ -105,19 +120,26 @@ export const ActionSuggestions: React.FC<ActionSuggestionsProps> = ({
         }
       });
       setAiSuggestions(recommendations);
-      toast({
-        title: "AI Recommendations Loaded",
-        description: `Generated ${recommendations.length} AI-powered suggestions`,
-      });
+      if (!isBackground) {
+        toast({
+          title: "AI Recommendations Loaded",
+          description: `Generated ${recommendations.length} AI-powered suggestions`,
+        });
+      }
     } catch (error) {
       console.error('Error fetching AI recommendations:', error);
-      toast({
-        title: "AI Service Error",
-        description: "Failed to load AI recommendations, using rule-based suggestions",
-        variant: "destructive",
-      });
+      if (!isBackground) {
+        toast({
+          title: "AI Service Error",
+          description: "Failed to load AI recommendations, using rule-based suggestions",
+          variant: "destructive",
+        });
+      }
     } finally {
-      setIsLoadingAI(false);
+      if (!isBackground) {
+        setIsLoadingAI(false);
+        setShowAISkeleton(false);
+      }
     }
   };
 
@@ -140,6 +162,11 @@ export const ActionSuggestions: React.FC<ActionSuggestionsProps> = ({
       return;
     }
     setIsAIEnabled(enabled);
+    
+    // If enabling AI and we have preloaded suggestions, show them immediately
+    if (enabled && aiSuggestions.length > 0) {
+      setShowAISkeleton(false);
+    }
   };
 
   return (
@@ -184,28 +211,10 @@ export const ActionSuggestions: React.FC<ActionSuggestionsProps> = ({
           description="No critical follow-up actions required right now"
           className="py-8 bg-status-success-light/20 rounded-lg"
         />
-      ) : isAIEnabled && isLoadingAI ? (
-        <div className="flex items-center justify-center py-8">
-          <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 animate-pulse" />
-              Generating AI recommendations...
-            </div>
-            <div className="w-64 bg-secondary rounded-full h-2">
-              <div className="bg-primary h-2 rounded-full animate-pulse" style={{ width: '70%' }}></div>
-            </div>
-          </div>
-        </div>
-      ) : isAIEnabled && aiSuggestions.length === 0 && !isLoadingAI ? (
-        <div className="flex items-center justify-center py-8">
-          <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground">
-            <Sparkles className="h-4 w-4" />
-            No AI recommendations available for current issues
-          </div>
-        </div>
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
-          {allSuggestions.map(suggestion => {
+          {/* Show regular suggestions first */}
+          {suggestions.map(suggestion => {
             const meta = severityMeta[suggestion.severity];
             const Icon = meta.icon;
             const isAI = (suggestion as any).aiGenerated;
@@ -253,6 +262,93 @@ export const ActionSuggestions: React.FC<ActionSuggestionsProps> = ({
               </div>
             );
           })}
+          
+          {/* Show AI suggestions or skeleton */}
+          {isAIEnabled && (
+            <>
+              {isLoadingAI && showAISkeleton ? (
+                // Show skeleton loading for AI suggestions
+                Array.from({ length: 3 }).map((_, index) => (
+                  <div key={`skeleton-${index}`} className="rounded-lg border p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="h-4 w-4 bg-muted animate-pulse rounded"></div>
+                        <div className="h-4 w-24 bg-muted animate-pulse rounded"></div>
+                        <div className="h-5 w-8 bg-muted animate-pulse rounded"></div>
+                      </div>
+                      <div className="h-5 w-12 bg-muted animate-pulse rounded"></div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="h-4 w-full bg-muted animate-pulse rounded"></div>
+                      <div className="h-4 w-3/4 bg-muted animate-pulse rounded"></div>
+                    </div>
+                    <div className="flex justify-between">
+                      <div className="h-3 w-32 bg-muted animate-pulse rounded"></div>
+                      <div className="h-3 w-16 bg-muted animate-pulse rounded"></div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                // Show actual AI recommendations
+                aiSuggestions.map(suggestion => {
+                  const meta = severityMeta[suggestion.severity];
+                  const Icon = meta.icon;
+                  const isAI = true;
+                  const actionType = (suggestion as any).actionType;
+                  const ActionIcon = actionType ? actionTypeIcons[actionType] : null;
+                  const contractorName = (suggestion as any).contractorName || 'Unknown';
+                  
+                  return (
+                    <div key={suggestion.id} className="rounded-lg border p-4 space-y-3 hover:bg-accent/30 transition-colors cursor-default border-blue-200 bg-blue-50/20">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Icon className={cn('h-4 w-4', suggestion.severity === 'high' ? 'text-red-600' : suggestion.severity === 'medium' ? 'text-amber-600' : 'text-blue-600')} />
+                          <span className="text-sm font-semibold text-foreground">{contractorName}</span>
+                          <Badge variant="outline" className="text-xs ml-1 bg-blue-100 text-blue-800">
+                            <Sparkles className="h-3 w-3 mr-1" />
+                            AI
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {ActionIcon && (
+                            <ActionIcon className="h-3 w-3 text-muted-foreground mr-1" />
+                          )}
+                          <Badge variant={meta.badgeVariant}>{meta.label}</Badge>
+                        </div>
+                      </div>
+                      <p className="text-sm leading-relaxed text-muted-foreground">
+                        {suggestion.message}
+                      </p>
+                      <div className="flex items-center justify-between">
+                        {suggestion.relatedDocuments.length > 0 ? (
+                          <div className="text-xs text-muted-foreground">
+                            Affecting: {suggestion.relatedDocuments.join(', ')}
+                          </div>
+                        ) : (
+                          <div></div>
+                        )}
+                        {(suggestion as any).aiConfidence && (
+                          <div className="text-xs text-muted-foreground">
+                            Confidence: {(suggestion as any).aiConfidence}%
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Show loading state for AI recommendations */}
+      {isAIEnabled && isLoadingAI && !showAISkeleton && (
+        <div className="flex items-center justify-center py-4">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Sparkles className="h-4 w-4 animate-pulse" />
+            Loading AI recommendations...
+          </div>
         </div>
       )}
     </Card>

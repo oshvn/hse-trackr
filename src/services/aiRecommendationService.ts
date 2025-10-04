@@ -12,6 +12,12 @@ interface AIConfig {
   enabled: boolean;
 }
 
+interface AICache {
+  data: AIRecommendation[];
+  timestamp: number;
+  hash: string;
+}
+
 export interface ProjectContext {
   projectPhase: 'planning' | 'execution' | 'closeout';
   deadlinePressure: 'low' | 'medium' | 'high';
@@ -38,6 +44,8 @@ export interface AIRecommendation {
 }
 
 class AIRecommendationService {
+  private CACHE_DURATION = 60 * 60 * 1000; // 1 hour in milliseconds
+  
   private getActiveConfig(): AIConfig | null {
     try {
       const savedConfig = localStorage.getItem('ai_config');
@@ -63,12 +71,71 @@ class AIRecommendationService {
     
     return fallbackConfig;
   }
+  
+  private generateRequestHash(request: AIRecommendationRequest): string {
+    // Create a hash based on the critical issues and context
+    const issuesString = request.criticalIssues.map(issue =>
+      `${issue.contractorId}-${issue.docTypeId}`
+    ).sort().join('|');
+    
+    const contextString = `${request.context.projectPhase}-${request.context.deadlinePressure}-${request.context.stakeholderVisibility}`;
+    
+    return btoa(issuesString + contextString).replace(/[^a-zA-Z0-9]/g, '').substring(0, 16);
+  }
+  
+  private getCache(hash: string): AIRecommendation[] | null {
+    try {
+      const cacheKey = `ai_cache_${hash}`;
+      const cachedData = localStorage.getItem(cacheKey);
+      
+      if (!cachedData) return null;
+      
+      const cache: AICache = JSON.parse(cachedData);
+      const now = Date.now();
+      
+      // Check if cache is still valid
+      if (now - cache.timestamp > this.CACHE_DURATION) {
+        localStorage.removeItem(cacheKey);
+        return null;
+      }
+      
+      return cache.data;
+    } catch (error) {
+      console.error('Failed to get AI cache:', error);
+      return null;
+    }
+  }
+  
+  private setCache(hash: string, data: AIRecommendation[]): void {
+    try {
+      const cacheKey = `ai_cache_${hash}`;
+      const cache: AICache = {
+        data,
+        timestamp: Date.now(),
+        hash
+      };
+      
+      localStorage.setItem(cacheKey, JSON.stringify(cache));
+    } catch (error) {
+      console.error('Failed to set AI cache:', error);
+    }
+  }
 
   async getRecommendations(request: AIRecommendationRequest): Promise<AIRecommendation[]> {
     const config = this.getActiveConfig();
     if (!config || !config.api_key) {
       console.warn('No active AI configuration found, using fallback recommendations');
       return this.generateFallbackRecommendations(request.criticalIssues);
+    }
+    
+    // Generate hash for caching
+    const requestHash = this.generateRequestHash(request);
+    
+    // Check cache first
+    const cachedRecommendations = this.getCache(requestHash);
+    if (cachedRecommendations) {
+      console.log('Using cached AI recommendations');
+      return cachedRecommendations;
     }
     
     try {
@@ -89,6 +156,9 @@ class AIRecommendationService {
       
       // Parse response từ AI
       const recommendations = this.parseAIResponse(aiResponse, request.criticalIssues);
+      
+      // Cache the results
+      this.setCache(requestHash, recommendations);
       
       return recommendations;
     } catch (error) {
