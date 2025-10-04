@@ -1,14 +1,4 @@
-// Type declarations for Deno environment
-declare global {
-  const Deno: {
-    env: {
-      get(key: string): string | undefined;
-    };
-  };
-}
-
-// Import serve function with type assertion to avoid TypeScript errors
-// @ts-ignore
+// Import serve function
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 
 const corsHeaders = {
