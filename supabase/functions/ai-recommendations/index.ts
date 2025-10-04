@@ -1,4 +1,20 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+// Type declarations for Deno environment
+declare global {
+  const Deno: {
+    env: {
+      get(key: string): string | undefined;
+    };
+  };
+}
+
+// Import serve function with type assertion to avoid TypeScript errors
+// @ts-ignore
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
 
 interface CriticalIssue {
   docTypeName: string;
@@ -33,8 +49,28 @@ interface AIRecommendation {
 }
 
 serve(async (req: Request) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders })
+  }
+
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
   try {
     const requestData: AIRecommendationRequest = await req.json();
+    
+    // Validate request data
+    if (!requestData.contractorId || !requestData.contractorName || !requestData.criticalIssues || !requestData.context) {
+      return new Response(JSON.stringify({ error: 'Missing required fields in request' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
     
     // Tạo prompt cho GLM-4.5-Flash
     const prompt = generatePrompt(requestData.criticalIssues, requestData.context, requestData.contractorName);
@@ -46,14 +82,15 @@ serve(async (req: Request) => {
     const recommendations = parseAIResponse(aiResponse, requestData.criticalIssues);
     
     return new Response(JSON.stringify({ recommendations }), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200
     });
   } catch (error) {
     console.error('Error in AI recommendations:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     return new Response(JSON.stringify({ error: errorMessage }), {
-      status: 500
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
 });
@@ -101,12 +138,20 @@ TRẢ LỜI THEO ĐỊNH DẠNG JSON NHƯ SAU:
 
 async function callGLMAPI(prompt: string): Promise<any> {
   try {
+    const apiKey = Deno.env.get('GLM_API_KEY');
+    if (!apiKey || apiKey === 'your-glm-api-key') {
+      console.warn('GLM_API_KEY is not configured properly');
+      throw new Error('GLM API key is not configured');
+    }
+
+    console.log('Calling GLM API with prompt length:', prompt.length);
+    
     // Sử dụng GLM-4.5-Flash API từ z.ai
     const response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${Deno.env.get('GLM_API_KEY') || 'your-glm-api-key'}`
+        'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
         model: 'glm-4.5-flash',
@@ -126,10 +171,18 @@ async function callGLMAPI(prompt: string): Promise<any> {
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`GLM API error: ${response.status} ${response.statusText}`, errorText);
       throw new Error(`GLM API error: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
+    
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      console.error('Invalid response structure from GLM API:', data);
+      throw new Error('Invalid response from GLM API');
+    }
+    
     return data.choices[0].message.content;
   } catch (error) {
     console.error('Error calling GLM API:', error);
@@ -138,21 +191,27 @@ async function callGLMAPI(prompt: string): Promise<any> {
 }
 
 function parseAIResponse(aiResponse: string, criticalIssues: CriticalIssue[]): AIRecommendation[] {
+  console.log('Parsing AI response, length:', aiResponse.length);
+  
   try {
     // Thử parse JSON response
     const parsed = JSON.parse(aiResponse);
     
     if (parsed.recommendations && Array.isArray(parsed.recommendations)) {
+      console.log(`Successfully parsed ${parsed.recommendations.length} recommendations from AI`);
+      
       return parsed.recommendations.map((rec: any, index: number) => ({
         id: `ai-${Date.now()}-${index}`,
-        severity: rec.severity || 'medium',
+        severity: validateSeverity(rec.severity) ? rec.severity : 'medium',
         message: rec.message || 'Hành động được đề xuất',
-        actionType: rec.actionType || 'support',
-        estimatedImpact: rec.estimatedImpact || 'medium',
+        actionType: validateActionType(rec.actionType) ? rec.actionType : 'support',
+        estimatedImpact: validateSeverity(rec.estimatedImpact) ? rec.estimatedImpact : 'medium',
         timeToImplement: rec.timeToImplement || '1-3 ngày',
         relatedDocuments: criticalIssues.map(issue => issue.docTypeName),
-        aiConfidence: rec.aiConfidence || 75
+        aiConfidence: typeof rec.aiConfidence === 'number' ? rec.aiConfidence : 75
       }));
+    } else {
+      console.warn('AI response does not contain valid recommendations array:', parsed);
     }
   } catch (error) {
     console.error('Error parsing AI response:', error);
@@ -160,7 +219,17 @@ function parseAIResponse(aiResponse: string, criticalIssues: CriticalIssue[]): A
   }
   
   // Fallback nếu parse JSON thất bại
+  console.log('Using fallback recommendations due to parsing failure');
   return generateFallbackRecommendations(criticalIssues);
+}
+
+// Helper functions to validate enum values
+function validateSeverity(value: string): boolean {
+  return ['high', 'medium', 'low'].includes(value);
+}
+
+function validateActionType(value: string): boolean {
+  return ['meeting', 'email', 'escalation', 'support', 'training'].includes(value);
 }
 
 function generateFallbackRecommendations(criticalIssues: CriticalIssue[]): AIRecommendation[] {
