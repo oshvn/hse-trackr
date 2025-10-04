@@ -61,6 +61,7 @@ export const ActionSuggestions: React.FC<ActionSuggestionsProps> = ({
   const [isLoadingAI, setIsLoadingAI] = useState(false);
   const [isAIConfigured, setIsAIConfigured] = useState<boolean | null>(null);
   const [showAISkeleton, setShowAISkeleton] = useState(false);
+  const [hasShownToast, setHasShownToast] = useState(false);
   const hasSuggestions = suggestions.length > 0 || aiSuggestions.length > 0;
   const allSuggestions = isAIEnabled ? [...suggestions, ...aiSuggestions] : suggestions;
 
@@ -104,6 +105,54 @@ export const ActionSuggestions: React.FC<ActionSuggestionsProps> = ({
     }
   }, [criticalIssues, isAIConfigured]);
 
+  // Check if we already have cached AI recommendations and load them immediately
+  useEffect(() => {
+    if (isAIEnabled && criticalIssues.length > 0 && isAIConfigured) {
+      try {
+        // Generate request hash to check cache
+        const requestHash = generateRequestHash({
+          contractorId,
+          contractorName: criticalIssues[0]?.contractorName || 'Unknown',
+          criticalIssues,
+          context: {
+            projectPhase: 'execution',
+            deadlinePressure: 'medium',
+            stakeholderVisibility: 'client'
+          }
+        });
+        
+        // Check if we have cached recommendations
+        const cacheKey = `ai_cache_${requestHash}`;
+        const cachedData = localStorage.getItem(cacheKey);
+        
+        if (cachedData) {
+          const cache = JSON.parse(cachedData);
+          const now = Date.now();
+          
+          // Check if cache is still valid (1 hour)
+          if (now - cache.timestamp < 60 * 60 * 1000) {
+            // Use cached data immediately
+            setAiSuggestions(cache.data);
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('Error checking AI cache:', error);
+      }
+    }
+  }, [isAIEnabled, criticalIssues, isAIConfigured]);
+
+  // Helper function to generate request hash
+  const generateRequestHash = (request: any): string => {
+    const issuesString = request.criticalIssues.map((issue: any) =>
+      `${issue.contractorId}-${issue.docTypeId}`
+    ).sort().join('|');
+    
+    const contextString = `${request.context.projectPhase}-${request.context.deadlinePressure}-${request.context.stakeholderVisibility}`;
+    
+    return btoa(issuesString + contextString).replace(/[^a-zA-Z0-9]/g, '').substring(0, 16);
+  };
+
   const fetchAIRecommendations = async (isBackground = false) => {
     if (!isBackground) {
       setIsLoadingAI(true);
@@ -120,11 +169,12 @@ export const ActionSuggestions: React.FC<ActionSuggestionsProps> = ({
         }
       });
       setAiSuggestions(recommendations);
-      if (!isBackground) {
+      if (!isBackground && !hasShownToast) {
         toast({
           title: "AI Recommendations Loaded",
           description: `Generated ${recommendations.length} AI-powered suggestions`,
         });
+        setHasShownToast(true);
       }
     } catch (error) {
       console.error('Error fetching AI recommendations:', error);
@@ -161,6 +211,12 @@ export const ActionSuggestions: React.FC<ActionSuggestionsProps> = ({
       });
       return;
     }
+    
+    // Reset toast flag when toggling AI
+    if (!enabled) {
+      setHasShownToast(false);
+    }
+    
     setIsAIEnabled(enabled);
     
     // If enabling AI and we have preloaded suggestions, show them immediately
