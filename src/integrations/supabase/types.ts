@@ -57,32 +57,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "contractor_requirements_contractor_id_fkey"
-            columns: ["contractor_id"]
-            isOneToOne: false
-            referencedRelation: "v_contractor_kpi"
-            referencedColumns: ["contractor_id"]
-          },
-          {
-            foreignKeyName: "contractor_requirements_contractor_id_fkey"
-            columns: ["contractor_id"]
-            isOneToOne: false
-            referencedRelation: "v_doc_progress"
-            referencedColumns: ["contractor_id"]
-          },
-          {
             foreignKeyName: "contractor_requirements_doc_type_id_fkey"
             columns: ["doc_type_id"]
             isOneToOne: false
             referencedRelation: "doc_types"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "contractor_requirements_doc_type_id_fkey"
-            columns: ["doc_type_id"]
-            isOneToOne: false
-            referencedRelation: "v_doc_progress"
-            referencedColumns: ["doc_type_id"]
           },
         ]
       }
@@ -179,20 +158,6 @@ export type Database = {
             referencedRelation: "contractors"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "profiles_contractor_id_fkey"
-            columns: ["contractor_id"]
-            isOneToOne: false
-            referencedRelation: "v_contractor_kpi"
-            referencedColumns: ["contractor_id"]
-          },
-          {
-            foreignKeyName: "profiles_contractor_id_fkey"
-            columns: ["contractor_id"]
-            isOneToOne: false
-            referencedRelation: "v_doc_progress"
-            referencedColumns: ["contractor_id"]
-          },
         ]
       }
       submissions: {
@@ -238,32 +203,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "submissions_contractor_id_fkey"
-            columns: ["contractor_id"]
-            isOneToOne: false
-            referencedRelation: "v_contractor_kpi"
-            referencedColumns: ["contractor_id"]
-          },
-          {
-            foreignKeyName: "submissions_contractor_id_fkey"
-            columns: ["contractor_id"]
-            isOneToOne: false
-            referencedRelation: "v_doc_progress"
-            referencedColumns: ["contractor_id"]
-          },
-          {
             foreignKeyName: "submissions_doc_type_id_fkey"
             columns: ["doc_type_id"]
             isOneToOne: false
             referencedRelation: "doc_types"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "submissions_doc_type_id_fkey"
-            columns: ["doc_type_id"]
-            isOneToOne: false
-            referencedRelation: "v_doc_progress"
-            referencedColumns: ["doc_type_id"]
           },
         ]
       }
@@ -279,7 +223,15 @@ export type Database = {
           must_have_ready_ratio: number | null
           red_items: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "contractor_requirements_contractor_id_fkey"
+            columns: ["contractor_id"]
+            isOneToOne: false
+            referencedRelation: "contractors"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       v_doc_progress: {
         Row: {
@@ -297,7 +249,22 @@ export type Database = {
           required_count: number | null
           status_color: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "contractor_requirements_contractor_id_fkey"
+            columns: ["contractor_id"]
+            isOneToOne: false
+            referencedRelation: "contractors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contractor_requirements_doc_type_id_fkey"
+            columns: ["doc_type_id"]
+            isOneToOne: false
+            referencedRelation: "doc_types"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Functions: {

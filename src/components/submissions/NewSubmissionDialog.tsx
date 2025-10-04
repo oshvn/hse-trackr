@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { z } from 'zod';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -6,7 +7,34 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Upload, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { mapErrorToUserMessage } from '@/lib/errorUtils';
 import type { ContractorRequirement } from '@/pages/my-submissions';
+
+// Input validation schema
+const submissionSchema = z.object({
+  docTypeId: z.string().uuid('Invalid document type'),
+  note: z.string().max(1000, 'Note must be less than 1000 characters').optional(),
+  file: z.custom<File>((file) => {
+    if (!(file instanceof File)) return false;
+    // Validate file type
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'image/jpeg',
+      'image/jpg',
+      'image/png'
+    ];
+    return allowedTypes.includes(file.type);
+  }, {
+    message: 'Invalid file type. Allowed: PDF, DOC, DOCX, JPG, PNG'
+  }).refine((file) => {
+    // Validate file size (10MB max)
+    return file instanceof File && file.size <= 10 * 1024 * 1024;
+  }, {
+    message: 'File size must be less than 10MB'
+  })
+});
 
 interface NewSubmissionDialogProps {
   open: boolean;
@@ -32,15 +60,20 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Check file size (limit to 10MB)
-      if (file.size > 10 * 1024 * 1024) {
+      // Validate file immediately
+      const fileValidation = submissionSchema.shape.file.safeParse(file);
+      
+      if (!fileValidation.success) {
         toast({
-          title: "File too large",
-          description: "Please select a file smaller than 10MB",
+          title: "File không hợp lệ",
+          description: fileValidation.error.issues[0].message,
           variant: "destructive"
         });
+        // Reset file input
+        event.target.value = '';
         return;
       }
+      
       setSelectedFile(file);
     }
   };
@@ -48,8 +81,8 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
   const handleSubmit = async () => {
     if (!selectedDocTypeId || !selectedFile) {
       toast({
-        title: "Missing information",
-        description: "Please select a document type and file",
+        title: "Thiếu thông tin",
+        description: "Vui lòng chọn loại tài liệu và file",
         variant: "destructive"
       });
       return;
@@ -57,7 +90,29 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
 
     try {
       setUploading(true);
-      await onSubmit(selectedDocTypeId, selectedFile, note);
+
+      // Validate all input data
+      const validationResult = submissionSchema.safeParse({
+        docTypeId: selectedDocTypeId,
+        note: note.trim() || undefined,
+        file: selectedFile
+      });
+
+      if (!validationResult.success) {
+        const firstError = validationResult.error.issues[0];
+        toast({
+          title: "Dữ liệu không hợp lệ",
+          description: firstError.message,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      await onSubmit(
+        validationResult.data.docTypeId,
+        validationResult.data.file,
+        validationResult.data.note || ''
+      );
 
       // Reset form
       setSelectedDocTypeId('');
@@ -66,14 +121,13 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
       onClose();
       
       toast({
-        title: "Success",
-        description: "Document submitted successfully"
+        title: "Thành công",
+        description: "Tài liệu đã được nộp thành công"
       });
     } catch (error) {
-      console.error('Error submitting document:', error);
       toast({
-        title: "Error",
-        description: "Failed to submit document",
+        title: "Lỗi",
+        description: mapErrorToUserMessage(error),
         variant: "destructive"
       });
     } finally {
@@ -177,8 +231,12 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
               placeholder="Thêm ghi chú cho quản trị viên (tùy chọn)"
               value={note}
               onChange={(event) => setNote(event.target.value)}
+              maxLength={1000}
               rows={3}
             />
+            <p className="text-xs text-muted-foreground">
+              {note.length}/1000 characters
+            </p>
           </div>
 
           <div className="flex gap-2 pt-4">

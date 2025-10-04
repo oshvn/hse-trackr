@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Edit, Trash2 } from "lucide-react";
+import { z } from "zod";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -24,6 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { UserProfile } from "@/hooks/useSessionRole";
+import { mapErrorToUserMessage } from "@/lib/errorUtils";
 
 interface Contractor {
   id: string;
@@ -49,6 +51,27 @@ const STATUS_LABEL: Record<UserProfile["status"], string> = {
   active: "Active",
   deactivated: "Deactivated",
 };
+
+// Input validation schema
+const editUserSchema = z.object({
+  role: z.union([z.literal('admin'), z.literal('contractor')]),
+  status: z.union([
+    z.literal('invited'),
+    z.literal('active'),
+    z.literal('deactivated')
+  ]),
+  contractor_id: z.string().uuid('Invalid contractor ID').optional().nullable(),
+  note: z.string().max(500, 'Note must be less than 500 characters').optional(),
+}).refine((data) => {
+  // Validate contractor_id is required for contractor role
+  if (data.role === 'contractor' && !data.contractor_id) {
+    return false;
+  }
+  return true;
+}, {
+  message: 'Contractor ID required for contractor role',
+  path: ['contractor_id']
+});
 
 export const EditUserDialog = ({
   open,
@@ -86,24 +109,33 @@ export const EditUserDialog = ({
       return;
     }
 
-    if (role === "contractor" && !contractorId) {
-      toast({
-        title: "Missing information",
-        description: "Select a contractor for this account before saving.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
       setLoading(true);
 
-      const updatePayload: Record<string, unknown> = {
+      // Validate input data
+      const validationResult = editUserSchema.safeParse({
         role,
         status,
+        contractor_id: contractorId || null,
+        note: note.trim() || undefined,
+      });
+
+      if (!validationResult.success) {
+        const firstError = validationResult.error.issues[0];
+        toast({
+          title: "Dữ liệu không hợp lệ",
+          description: firstError.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const updatePayload: Record<string, unknown> = {
+        role: validationResult.data.role,
+        status: validationResult.data.status,
         updated_at: new Date().toISOString(),
-        contractor_id: role === "contractor" ? contractorId : null,
-        note: note.trim() ? note.trim() : null,
+        contractor_id: validationResult.data.role === "contractor" ? validationResult.data.contractor_id : null,
+        note: validationResult.data.note || null,
       };
 
       const { error } = await supabase
@@ -116,17 +148,16 @@ export const EditUserDialog = ({
       }
 
       toast({
-        title: "Update successful",
-        description: "User information has been saved.",
+        title: "Cập nhật thành công",
+        description: "Thông tin người dùng đã được lưu.",
       });
 
       onUserUpdated();
       onOpenChange(false);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unable to update user.";
       toast({
-        title: "Update failed",
-        description: message,
+        title: "Cập nhật thất bại",
+        description: mapErrorToUserMessage(error),
         variant: "destructive",
       });
     } finally {
@@ -156,17 +187,16 @@ export const EditUserDialog = ({
       }
 
       toast({
-        title: "Account deactivated",
-        description: "The user account has been deactivated.",
+        title: "Đã vô hiệu hóa tài khoản",
+        description: "Tài khoản người dùng đã được vô hiệu hóa.",
       });
 
       setShowDeactivateDialog(false);
       onUserUpdated();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unable to deactivate user.";
       toast({
-        title: "Deactivation failed",
-        description: message,
+        title: "Vô hiệu hóa thất bại",
+        description: mapErrorToUserMessage(error),
         variant: "destructive",
       });
     } finally {
@@ -261,9 +291,13 @@ export const EditUserDialog = ({
                 placeholder="Add a note about this change (optional)"
                 value={note}
                 onChange={(event) => setNote(event.target.value)}
+                maxLength={500}
                 rows={3}
                 disabled={readOnly}
               />
+              <p className="text-xs text-muted-foreground">
+                {note.length}/500 characters
+              </p>
             </div>
 
             <div className="flex gap-2">
