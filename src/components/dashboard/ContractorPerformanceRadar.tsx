@@ -178,14 +178,14 @@ export const ContractorPerformanceRadar: React.FC<ContractorPerformanceRadarProp
           <Filter className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm text-muted-foreground">Filter contractors:</span>
           <Select
-            value={selectedContractors.join(',')}
-            onValueChange={(value) => setSelectedContractors(value ? value.split(',') : [])}
+            value={selectedContractors.join(',') || 'all'}
+            onValueChange={(value) => setSelectedContractors(value === 'all' ? [] : value.split(','))}
           >
             <SelectTrigger className="w-full max-w-xs">
               <SelectValue placeholder="Select contractors to compare" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All contractors</SelectItem>
+              <SelectItem value="all">All contractors</SelectItem>
               {allContractors.map((contractor) => (
                 <SelectItem key={contractor.id} value={contractor.id}>
                   {contractor.name}
