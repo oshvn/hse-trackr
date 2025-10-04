@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend, Tooltip } from 'recharts';
-import type { KpiData } from '@/lib/dashboardHelpers';
+import type { KpiData, DocProgressData } from '@/lib/dashboardHelpers';
 import { cn } from '@/lib/utils';
-import { BarChart3, Radar as RadarIcon } from 'lucide-react';
+import { BarChart3, Radar as RadarIcon, Filter } from 'lucide-react';
 import { PerformanceBarCharts } from './PerformanceBarCharts';
 
 interface PerformanceSummary {
@@ -17,6 +18,7 @@ interface PerformanceSummary {
 
 interface ContractorPerformanceRadarProps {
   data: KpiData[];
+  docProgressData?: DocProgressData[];
   summary?: PerformanceSummary;
   className?: string;
 }
@@ -31,36 +33,91 @@ const toPercent = (value: number | null | undefined): number => {
   return Math.max(0, Math.min(100, Math.round(normalized)));
 };
 
-export const ContractorPerformanceRadar: React.FC<ContractorPerformanceRadarProps> = ({ data, summary, className }) => {
-  const [viewMode, setViewMode] = useState<'radar' | 'bars'>('radar');
+// Calculate KPIs according to the specified formulas
+const calculateKPIs = (kpiData: KpiData, docProgressData?: DocProgressData[]) => {
+  // 1. Completion: (Số hồ sơ đã duyệt / Tổng số hồ sơ yêu cầu) * 100
+  const completion = toPercent(kpiData.completion_ratio);
+  
+  // 2. Must-have Ready: 100 - (Số "Điểm đỏ" / Tổng số hồ sơ bắt buộc) * 100
+  // Where "Điểm đỏ" = hồ sơ có is_critical = True AND (status = 'Rejected' OR due_date đã qua)
+  let mustHaveReady = 100;
+  if (kpiData.red_items > 0 && docProgressData) {
+    const contractorDocs = docProgressData.filter(doc => doc.contractor_id === kpiData.contractor_id);
+    const criticalDocs = contractorDocs.filter(doc => doc.is_critical);
+    const totalCritical = criticalDocs.reduce((sum, doc) => sum + doc.required_count, 0);
+    
+    if (totalCritical > 0) {
+      mustHaveReady = Math.max(0, 100 - (kpiData.red_items / totalCritical) * 100);
+    }
+  }
+  
+  // 3. Quality: (Số hồ sơ đã duyệt / Tổng số hồ sơ đã nộp) * 100
+  // This is the same as completion_ratio in KpiData
+  const quality = toPercent(kpiData.completion_ratio);
+  
+  // 4. Speed: 100 / (Thời gian phê duyệt trung bình tính bằng ngày + 1)
+  const speed = kpiData.avg_approval_days > 0
+    ? Math.min(100, Math.round(100 / (kpiData.avg_approval_days + 1)))
+    : 100;
+  
+  return {
+    completion,
+    mustHaveReady: Math.round(mustHaveReady),
+    quality,
+    speed
+  };
+};
 
-  const { radarData, contractors } = useMemo(() => {
+export const ContractorPerformanceRadar: React.FC<ContractorPerformanceRadarProps> = ({
+  data,
+  docProgressData = [],
+  summary,
+  className
+}) => {
+  const [viewMode, setViewMode] = useState<'radar' | 'bars'>('radar');
+  const [selectedContractors, setSelectedContractors] = useState<string[]>([]);
+
+  const { radarData, contractors, allContractors } = useMemo(() => {
     if (!data?.length) {
-      return { radarData: [] as Record<string, number | string>[], contractors: [] as { id: string; name: string }[] };
+      return {
+        radarData: [] as Record<string, number | string>[],
+        contractors: [] as { id: string; name: string }[],
+        allContractors: [] as { id: string; name: string }[]
+      };
     }
 
-    const contractors = data.slice(0, 3).map(item => ({ id: item.contractor_id, name: item.contractor_name }));
+    // Get all contractors for the filter dropdown
+    const allContractors = data.map(item => ({ id: item.contractor_id, name: item.contractor_name }));
+    
+    // Filter contractors based on selection
+    let filteredContractors = allContractors;
+    if (selectedContractors.length > 0) {
+      filteredContractors = allContractors.filter(c => selectedContractors.includes(c.id));
+    }
+    
+    // Limit to 5 contractors for better visibility
+    const contractors = filteredContractors.slice(0, 5);
 
     const metrics = [
       {
         key: 'completion',
         label: 'Completion',
-        accessor: (kpi: KpiData) => toPercent(kpi.completion_ratio),
+        accessor: (kpi: KpiData) => calculateKPIs(kpi, docProgressData).completion,
       },
       {
         key: 'mustHave',
         label: 'Must-have Ready',
-        accessor: (kpi: KpiData) => toPercent(kpi.must_have_ready_ratio),
+        accessor: (kpi: KpiData) => calculateKPIs(kpi, docProgressData).mustHaveReady,
       },
       {
         key: 'quality',
         label: 'Quality',
-        accessor: (kpi: KpiData) => toPercent(kpi.quality_score ?? 0),
+        accessor: (kpi: KpiData) => calculateKPIs(kpi, docProgressData).quality,
       },
       {
         key: 'speed',
         label: 'Speed',
-        accessor: (kpi: KpiData) => toPercent(kpi.speed_score ?? 0),
+        accessor: (kpi: KpiData) => calculateKPIs(kpi, docProgressData).speed,
       },
     ];
 
@@ -73,8 +130,8 @@ export const ContractorPerformanceRadar: React.FC<ContractorPerformanceRadarProp
       return row;
     });
 
-    return { radarData: radarRows, contractors };
-  }, [data]);
+    return { radarData: radarRows, contractors, allContractors };
+  }, [data, docProgressData, selectedContractors]);
 
   if (!radarData.length || contractors.length === 0) {
     return (
@@ -95,8 +152,8 @@ export const ContractorPerformanceRadar: React.FC<ContractorPerformanceRadarProp
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-semibold">Performance Overview</h3>
-            <p className="text-sm text-muted-foreground">Compare contractors across quality and speed indicators</p>
+            <h3 className="text-lg font-semibold">Contractor Performance Comparison</h3>
+            <p className="text-sm text-muted-foreground">Compare contractors across completion, quality, and speed indicators</p>
           </div>
           <div className="flex gap-1">
             <Button
@@ -114,6 +171,37 @@ export const ContractorPerformanceRadar: React.FC<ContractorPerformanceRadarProp
               <BarChart3 className="h-4 w-4" />
             </Button>
           </div>
+        </div>
+        
+        {/* Contractor Filter */}
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">Filter contractors:</span>
+          <Select
+            value={selectedContractors.join(',')}
+            onValueChange={(value) => setSelectedContractors(value ? value.split(',') : [])}
+          >
+            <SelectTrigger className="w-full max-w-xs">
+              <SelectValue placeholder="Select contractors to compare" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All contractors</SelectItem>
+              {allContractors.map((contractor) => (
+                <SelectItem key={contractor.id} value={contractor.id}>
+                  {contractor.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {selectedContractors.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedContractors([])}
+            >
+              Clear
+            </Button>
+          )}
         </div>
         {summary ? (
           <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs text-muted-foreground">
@@ -162,7 +250,9 @@ export const ContractorPerformanceRadar: React.FC<ContractorPerformanceRadarProp
           </ResponsiveContainer>
         </div>
       ) : (
-        <PerformanceBarCharts data={data} />
+        <PerformanceBarCharts data={data.filter(kpi =>
+          selectedContractors.length === 0 || selectedContractors.includes(kpi.contractor_id)
+        )} />
       )}
     </Card>
   );

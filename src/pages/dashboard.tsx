@@ -436,6 +436,7 @@ const DashboardPage: React.FC = () => {
         ) : (
           <ContractorPerformanceRadar
             data={kpiData}
+            docProgressData={enrichedProgressData}
             summary={{
               overallCompletion,
               mustHaveReady,
