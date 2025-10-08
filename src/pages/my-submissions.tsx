@@ -59,18 +59,20 @@ const MySubmissionsPage: React.FC = () => {
   const [requirements, setRequirements] = useState<ContractorRequirement[]>([]);
   const [docProgress, setDocProgress] = useState<DocProgress[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [contractors, setContractors] = useState<{ id: string; name: string }[]>([]);
+  const [selectedContractorId, setSelectedContractorId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   const { profile, role } = useSessionRole();
-  const contractorId = profile?.contractor_id;
+  const contractorId = role === 'admin' ? selectedContractorId : profile?.contractor_id;
 
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
 
-      // Skip loading if no contractor ID (admin users don't have contractor_id)
-      if (role === 'admin') {
+      // Admin needs to select a contractor first
+      if (role === 'admin' && !selectedContractorId) {
         setLoading(false);
         return;
       }
@@ -142,13 +144,36 @@ const MySubmissionsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [role, contractorId, toast]);
+  }, [role, contractorId, selectedContractorId, toast]);
+
+  // Load contractors list for admin
+  useEffect(() => {
+    const loadContractors = async () => {
+      if (role === 'admin') {
+        const { data, error } = await supabase
+          .from('contractors')
+          .select('id, name')
+          .order('name');
+        
+        if (error) {
+          console.error('Error loading contractors:', error);
+        } else {
+          setContractors(data || []);
+          // Auto-select first contractor if available
+          if (data && data.length > 0 && !selectedContractorId) {
+            setSelectedContractorId(data[0].id);
+          }
+        }
+      }
+    };
+    loadContractors();
+  }, [role, selectedContractorId]);
 
   useEffect(() => {
-    if (contractorId || role === 'admin') {
+    if (contractorId) {
       loadData();
     }
-  }, [loadData, contractorId, role]);
+  }, [loadData, contractorId]);
 
   const handleNewSubmission = async (docTypeId: string, documentLink: string, note: string, checklist: string[]) => {
     try {
@@ -208,18 +233,51 @@ const MySubmissionsPage: React.FC = () => {
       <div className="space-y-2">
         <h1 className="text-3xl font-bold">My Submissions</h1>
         <p className="text-muted-foreground">
-          Track and manage your document submissions by category
+          {role === 'admin' 
+            ? 'View and track contractor document submissions by category'
+            : 'Track and manage your document submissions by category'}
         </p>
       </div>
 
-      <SubmissionsTabs
-        categories={categories}
-        requirements={requirements}
-        docProgress={docProgress}
-        submissions={submissions}
-        onNewSubmission={handleNewSubmission}
-        onRefresh={loadData}
-      />
+      {role === 'admin' && (
+        <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
+          <label htmlFor="contractor-select" className="font-medium">
+            Select Contractor:
+          </label>
+          <select
+            id="contractor-select"
+            value={selectedContractorId}
+            onChange={(e) => setSelectedContractorId(e.target.value)}
+            className="flex-1 max-w-md px-3 py-2 border rounded-md bg-background"
+          >
+            <option value="">-- Choose a contractor --</option>
+            {contractors.map(contractor => (
+              <option key={contractor.id} value={contractor.id}>
+                {contractor.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {contractorId ? (
+        <SubmissionsTabs
+          categories={categories}
+          requirements={requirements}
+          docProgress={docProgress}
+          submissions={submissions}
+          onNewSubmission={handleNewSubmission}
+          onRefresh={loadData}
+        />
+      ) : (
+        <div className="text-center p-12 border rounded-lg bg-muted/30">
+          <p className="text-muted-foreground">
+            {role === 'admin' 
+              ? 'Please select a contractor to view their submissions'
+              : 'No contractor assigned to your account'}
+          </p>
+        </div>
+      )}
     </div>
   );
 };

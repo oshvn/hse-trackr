@@ -36,7 +36,7 @@ const navigationItems: NavItem[] = [
     title: "My Submissions",
     url: "/my-submissions",
     icon: FileText,
-    roles: ["contractor"],
+    roles: ["contractor", "admin"],
   },
   {
     title: "Approvals Queue",
