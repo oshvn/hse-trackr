@@ -69,6 +69,22 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
   
   // Get detailed category info
   const selectedCategoryInfo = DETAILED_CATEGORIES.find(cat => cat.id === docTypeCode);
+  
+  // Extract roles from appliesTo field
+  const extractRoles = (appliesTo: string) => {
+    if (!appliesTo) return [];
+    
+    // Handle special cases
+    if (appliesTo.includes('toàn dự án') || appliesTo.includes('từng')) {
+      return [];
+    }
+    
+    // Extract roles from the appliesTo text
+    const roles = appliesTo.split(',').map(role => role.trim());
+    return roles;
+  };
+  
+  const roles = selectedCategoryInfo ? extractRoles(selectedCategoryInfo.appliesTo) : [];
 
   const handleCheckboxChange = (itemId: string, checked: boolean) => {
     const newChecked = new Set(checkedItems);
@@ -191,16 +207,22 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
                 <SelectValue placeholder="Select document type" />
               </SelectTrigger>
               <SelectContent>
-                {availableRequirements.map(req => (
-                  <SelectItem key={req.id} value={req.doc_type_id}>
-                    <div className="flex items-center gap-2">
-                      <span>{req.doc_type.name}</span>
-                      {req.doc_type.is_critical && (
-                        <span className="text-red-500 text-xs">🔴</span>
-                      )}
-                    </div>
-                  </SelectItem>
-                ))}
+                {availableRequirements.length > 0 ? (
+                  availableRequirements.map(req => (
+                    <SelectItem key={req.id} value={req.doc_type_id}>
+                      <div className="flex items-center gap-2">
+                        <span>{req.doc_type.name}</span>
+                        {req.doc_type.is_critical && (
+                          <span className="text-red-500 text-xs">🔴</span>
+                        )}
+                      </div>
+                    </SelectItem>
+                  ))
+                ) : (
+                  <div className="p-2 text-center text-sm text-muted-foreground">
+                    No document types available for this category
+                  </div>
+                )}
               </SelectContent>
             </Select>
             {category && (
@@ -222,6 +244,15 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
                 <CardDescription>
                   <div className="space-y-1">
                     <p><strong>Applies to:</strong> {selectedCategoryInfo?.appliesTo}</p>
+                    {roles.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {roles.map((role, index) => (
+                          <Badge key={index} variant="secondary" className="text-xs">
+                            {role}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </CardDescription>
               </CardHeader>
