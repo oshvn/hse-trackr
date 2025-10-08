@@ -11,7 +11,6 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AlertTriangle, Clock, Search, Filter, ArrowUpDown, Eye, X } from 'lucide-react';
 import type { CriticalAlertItem, DocProgressData } from '@/lib/dashboardHelpers';
@@ -152,7 +151,7 @@ export const CriticalAlertsModal: React.FC<CriticalAlertsModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[80vh] overflow-hidden">
+      <DialogContent className="max-w-5xl w-full sm:max-h-[85vh] sm:p-6 flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-red-500" />
@@ -160,7 +159,7 @@ export const CriticalAlertsModal: React.FC<CriticalAlertsModalProps> = ({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-col space-y-4 overflow-hidden">
+        <div className="flex-1 flex flex-col gap-4 overflow-hidden min-h-0">
           {/* Filters */}
           <Card className="p-4">
             <div className="flex flex-col sm:flex-row gap-4">
@@ -205,119 +204,121 @@ export const CriticalAlertsModal: React.FC<CriticalAlertsModalProps> = ({
           </Card>
 
           {/* Table */}
-          <div className="flex-1 overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleSort('docTypeName')}
-                      className="p-0 h-auto font-semibold"
-                    >
-                      Document
-                      <ArrowUpDown className="ml-1 h-3 w-3" />
-                    </Button>
-                  </TableHead>
-                  <TableHead>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleSort('contractorName')}
-                      className="p-0 h-auto font-semibold"
-                    >
-                      Contractor
-                      <ArrowUpDown className="ml-1 h-3 w-3" />
-                    </Button>
-                  </TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleSort('plannedDueDate')}
-                      className="p-0 h-auto font-semibold"
-                    >
-                      Due Date
-                      <ArrowUpDown className="ml-1 h-3 w-3" />
-                    </Button>
-                  </TableHead>
-                  <TableHead>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleSort('overdueDays')}
-                      className="p-0 h-auto font-semibold"
-                    >
-                      Overdue/Due
-                      <ArrowUpDown className="ml-1 h-3 w-3" />
-                    </Button>
-                  </TableHead>
-                  <TableHead>Progress</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredAndSortedItems.length === 0 ? (
+          <div className="flex-1 overflow-hidden rounded-lg border">
+            <ScrollArea className="h-full">
+              <Table className="min-w-full">
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      No critical alerts match your filters.
-                    </TableCell>
+                    <TableHead>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleSort('docTypeName')}
+                        className="p-0 h-auto font-semibold"
+                      >
+                        Document
+                        <ArrowUpDown className="ml-1 h-3 w-3" />
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleSort('contractorName')}
+                        className="p-0 h-auto font-semibold"
+                      >
+                        Contractor
+                        <ArrowUpDown className="ml-1 h-3 w-3" />
+                      </Button>
+                    </TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleSort('plannedDueDate')}
+                        className="p-0 h-auto font-semibold"
+                      >
+                        Due Date
+                        <ArrowUpDown className="ml-1 h-3 w-3" />
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleSort('overdueDays')}
+                        className="p-0 h-auto font-semibold"
+                      >
+                        Overdue/Due
+                        <ArrowUpDown className="ml-1 h-3 w-3" />
+                      </Button>
+                    </TableHead>
+                    <TableHead>Progress</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ) : (
-                  filteredAndSortedItems.map((item) => (
-                    <TableRow key={`${item.contractorId}-${item.docTypeId}`} className="hover:bg-muted/50">
-                      <TableCell className="font-medium">{item.docTypeName}</TableCell>
-                      <TableCell>{item.contractorName}</TableCell>
-                      <TableCell>{getStatusBadge(item)}</TableCell>
-                      <TableCell>
-                        {item.plannedDueDate ? (
-                          format(new Date(item.plannedDueDate), 'MMM dd, yyyy')
-                        ) : (
-                          'Not set'
-                        )}
-                      </TableCell>
-                      <TableCell>{getOverdueText(item)}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div className="w-16 bg-gray-200 rounded-full h-2">
-                            <div
-                              className={cn(
-                                'h-2 rounded-full',
-                                item.approvedCount >= item.requiredCount
-                                  ? 'bg-green-500'
-                                  : item.overdueDays > 0
-                                  ? 'bg-red-500'
-                                  : 'bg-amber-500'
-                              )}
-                              style={{
-                                width: `${Math.min(100, (item.approvedCount / item.requiredCount) * 100)}%`,
-                              }}
-                            ></div>
-                          </div>
-                          <span className="text-xs text-muted-foreground">
-                            {item.approvedCount}/{item.requiredCount}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedDetail({ contractorId: item.contractorId, docTypeId: item.docTypeId });
-                          }}
-                          className="h-8 w-8 p-0"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                </TableHeader>
+                <TableBody>
+                  {filteredAndSortedItems.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        No critical alerts match your filters.
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : (
+                    filteredAndSortedItems.map((item) => (
+                      <TableRow key={`${item.contractorId}-${item.docTypeId}`} className="hover:bg-muted/50">
+                        <TableCell className="font-medium">{item.docTypeName}</TableCell>
+                        <TableCell>{item.contractorName}</TableCell>
+                        <TableCell>{getStatusBadge(item)}</TableCell>
+                        <TableCell>
+                          {item.plannedDueDate ? (
+                            format(new Date(item.plannedDueDate), 'MMM dd, yyyy')
+                          ) : (
+                            'Not set'
+                          )}
+                        </TableCell>
+                        <TableCell>{getOverdueText(item)}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div className="w-16 bg-gray-200 rounded-full h-2">
+                              <div
+                                className={cn(
+                                  'h-2 rounded-full',
+                                  item.approvedCount >= item.requiredCount
+                                    ? 'bg-green-500'
+                                    : item.overdueDays > 0
+                                    ? 'bg-red-500'
+                                    : 'bg-amber-500'
+                                )}
+                                style={{
+                                  width: `${Math.min(100, (item.approvedCount / item.requiredCount) * 100)}%`,
+                                }}
+                              ></div>
+                            </div>
+                            <span className="text-xs text-muted-foreground">
+                              {item.approvedCount}/{item.requiredCount}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedDetail({ contractorId: item.contractorId, docTypeId: item.docTypeId });
+                            }}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </ScrollArea>
           </div>
 
           {/* Summary */}
