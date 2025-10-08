@@ -42,12 +42,31 @@ export const SubmissionsTabs: React.FC<SubmissionsTabsProps> = ({
     // Filter by major category (e.g., "1.1" matches "1.1", "1.1.1", "1.1.2", etc.)
     const filteredRequirements = requirements.filter(req => {
       const reqCategory = req.doc_type.category;
-      return reqCategory === category || reqCategory?.startsWith(category + '.');
+      const reqCode = req.doc_type.code;
+      // Check if category matches either the category field or the code field
+      return reqCategory === category ||
+             reqCategory?.startsWith(category + '.') ||
+             reqCode === category ||
+             reqCode?.startsWith(category + '.');
     });
     const filteredProgress = docProgress.filter(prog => {
       const progCategory = prog.category;
       return progCategory === category || progCategory?.startsWith(category + '.');
     });
+    
+    // Debug log
+    if (process.env.NODE_ENV === 'development') {
+      console.log('SubmissionsTabs Debug:', {
+        category,
+        totalRequirements: requirements.length,
+        filteredRequirements: filteredRequirements.length,
+        reqCodes: requirements.map(req => ({
+          name: req.doc_type.name,
+          category: req.doc_type.category,
+          code: req.doc_type.code
+        }))
+      });
+    }
     
     return {
       requirements: filteredRequirements,
