@@ -163,9 +163,31 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
   const availableRequirements = category
     ? requirements.filter(req => {
         const code = req.doc_type.code || extractNumericCode(req.doc_type.category);
-        return !!code && (code === category || code.startsWith(category + '.'));
+        const result = !!code && (code === category || code.startsWith(category + '.'));
+        // Debug log
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Filtering requirement:', {
+            docTypeName: req.doc_type.name,
+            docTypeCode: req.doc_type.code,
+            docTypeCategory: req.doc_type.category,
+            extractedCode: code,
+            category,
+            matches: result
+          });
+        }
+        return result;
       })
     : requirements;
+    
+  // Debug log
+  if (process.env.NODE_ENV === 'development') {
+    console.log('NewSubmissionDialog Debug:', {
+      category,
+      totalRequirements: requirements.length,
+      availableRequirements: availableRequirements.length,
+      availableRequirementNames: availableRequirements.map(req => req.doc_type.name)
+    });
+  }
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>

@@ -110,6 +110,46 @@ export const DETAILED_CATEGORIES: ChecklistCategory[] = [
     items: HSE_CHECKLISTS["1.1.1"]
   },
   {
+    id: "1.1.1.1",
+    title: "1.1.1.1 Construction Manager",
+    description: "Hồ sơ Construction Manager",
+    appliesTo: "Construction Manager",
+    format: "Định dạng: PDF/JPG",
+    items: HSE_CHECKLISTS["1.1.1"]
+  },
+  {
+    id: "1.1.1.2",
+    title: "1.1.1.2 HSE Manager",
+    description: "Hồ sơ HSE Manager",
+    appliesTo: "HSE Manager",
+    format: "Định dạng: PDF/JPG",
+    items: HSE_CHECKLISTS["1.1.1"]
+  },
+  {
+    id: "1.1.1.3",
+    title: "1.1.1.3 Project Manager",
+    description: "Hồ sơ Project Manager",
+    appliesTo: "Project Manager",
+    format: "Định dạng: PDF/JPG",
+    items: HSE_CHECKLISTS["1.1.1"]
+  },
+  {
+    id: "1.1.1.4",
+    title: "1.1.1.4 Site Manager",
+    description: "Hồ sơ Site Manager",
+    appliesTo: "Site Manager",
+    format: "Định dạng: PDF/JPG",
+    items: HSE_CHECKLISTS["1.1.1"]
+  },
+  {
+    id: "1.1.1.5",
+    title: "1.1.1.5 Supervisors",
+    description: "Hồ sơ Supervisors",
+    appliesTo: "Supervisors",
+    format: "Định dạng: PDF/JPG",
+    items: HSE_CHECKLISTS["1.1.1"]
+  },
+  {
     id: "1.1.2",
     title: "1.1.2 Management Plan",
     description: "Kế hoạch quản lý dự án",
@@ -179,6 +219,11 @@ export const DETAILED_CATEGORIES: ChecklistCategory[] = [
 export const SUB_CATEGORIES = {
   "1.1": [
     { id: "1.1.1", label: "1.1.1 Management Teams" },
+    { id: "1.1.1.1", label: "1.1.1.1 Construction Manager" },
+    { id: "1.1.1.2", label: "1.1.1.2 HSE Manager" },
+    { id: "1.1.1.3", label: "1.1.1.3 Project Manager" },
+    { id: "1.1.1.4", label: "1.1.1.4 Site Manager" },
+    { id: "1.1.1.5", label: "1.1.1.5 Supervisors" },
     { id: "1.1.2", label: "1.1.2 Management Plan" },
     { id: "1.1.3", label: "1.1.3 Equipments" },
     { id: "1.1.4", label: "1.1.4 Internal Training & Workers" }
