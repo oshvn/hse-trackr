@@ -65,14 +65,15 @@ const MySubmissionsPage: React.FC = () => {
   const { toast } = useToast();
 
   const { profile, role } = useSessionRole();
-  const contractorId = role === 'admin' ? selectedContractorId : profile?.contractor_id;
+  const isAdmin = role === 'admin' || role === 'super_admin';
+  const contractorId = isAdmin ? selectedContractorId : profile?.contractor_id;
 
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
 
       // Admin needs to select a contractor first
-      if (role === 'admin' && !selectedContractorId) {
+      if (isAdmin && !selectedContractorId) {
         setLoading(false);
         return;
       }
@@ -149,7 +150,7 @@ const MySubmissionsPage: React.FC = () => {
   // Load contractors list for admin
   useEffect(() => {
     const loadContractors = async () => {
-      if (role === 'admin') {
+      if (isAdmin) {
         const { data, error } = await supabase
           .from('contractors')
           .select('id, name')
@@ -233,13 +234,13 @@ const MySubmissionsPage: React.FC = () => {
       <div className="space-y-2">
         <h1 className="text-3xl font-bold">My Submissions</h1>
         <p className="text-muted-foreground">
-          {role === 'admin' 
+          {isAdmin 
             ? 'View and track contractor document submissions by category'
             : 'Track and manage your document submissions by category'}
         </p>
       </div>
 
-      {role === 'admin' && (
+      {isAdmin && (
         <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
           <label htmlFor="contractor-select" className="font-medium">
             Select Contractor:
@@ -272,7 +273,7 @@ const MySubmissionsPage: React.FC = () => {
       ) : (
         <div className="text-center p-12 border rounded-lg bg-muted/30">
           <p className="text-muted-foreground">
-            {role === 'admin' 
+            {isAdmin 
               ? 'Please select a contractor to view their submissions'
               : 'No contractor assigned to your account'}
           </p>

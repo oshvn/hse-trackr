@@ -42,10 +42,16 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
   const [note, setNote] = useState('');
   const { toast } = useToast();
 
-  // Get selected doc type code to show appropriate checklist
+  // Get selected doc type category to show appropriate checklist
   const selectedDocType = requirements.find(req => req.doc_type_id === selectedDocTypeId);
-  const docTypeCode = selectedDocType?.doc_type?.code || '';
-  const checklistItems = HSE_CHECKLISTS[docTypeCode] || [];
+  const docTypeCategory = selectedDocType?.doc_type?.category || '';
+  const categoryKey = (() => {
+    if (!docTypeCategory) return '';
+    const parts = docTypeCategory.split('.');
+    if (parts.length >= 3) return parts.slice(0,3).join('.');
+    return docTypeCategory;
+  })();
+  const checklistItems = HSE_CHECKLISTS[categoryKey] || [];
 
   const handleCheckboxChange = (itemId: string, checked: boolean) => {
     const newChecked = new Set(checkedItems);

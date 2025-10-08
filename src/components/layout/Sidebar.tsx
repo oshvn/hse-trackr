@@ -15,14 +15,14 @@ import {
 } from "@/components/ui/sidebar";
 
 interface SidebarProps {
-  userRole: "admin" | "contractor" | "guest";
+  userRole: "admin" | "super_admin" | "contractor" | "guest";
 }
 
 interface NavItem {
   title: string;
   url: string;
   icon: typeof BarChart3;
-  roles: ("admin" | "contractor" | "guest")[];
+  roles: ("admin" | "super_admin" | "contractor" | "guest")[];
 }
 
 const navigationItems: NavItem[] = [
@@ -42,19 +42,19 @@ const navigationItems: NavItem[] = [
     title: "Approvals Queue",
     url: "/admin/approvals",
     icon: CheckSquare,
-    roles: ["admin"],
+    roles: ["admin", "super_admin"],
   },
   {
     title: "Users & Roles",
     url: "/admin/users",
     icon: Users,
-    roles: ["admin"],
+    roles: ["admin", "super_admin"],
   },
   {
     title: "Admin Settings",
     url: "/admin/settings",
     icon: Settings,
-    roles: ["admin"],
+    roles: ["admin", "super_admin"],
   },
 ];
 
