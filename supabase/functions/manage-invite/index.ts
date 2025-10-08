@@ -279,9 +279,10 @@ serve(async (req) => {
       user_id: newUser.user.id,
       email,
       role,
-      status: 'invited',
+      status: 'active',
       invited_by: user.id,
       invited_at: new Date().toISOString(),
+      activated_at: new Date().toISOString(),
     }
 
     if (role === 'contractor' && contractor_id) {
