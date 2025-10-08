@@ -13,7 +13,7 @@ export const CategoryProgress: React.FC<CategoryProgressProps> = ({
   docProgress
 }) => {
   const getCategoryStats = (category: string) => {
-    const codeFromCategory = (s?: string | null) => (s?.trim() || '').split(' ')[0];
+    const codeFromCategory = (s?: string | null) => (s?.trim() || '').split(' ')[0]?.replace(/[^\d.]/g, '').replace(/\.$/, '');
     const categoryProgress = docProgress.filter(prog => {
       const progCategory = prog.category;
       const progCode = codeFromCategory(progCategory);

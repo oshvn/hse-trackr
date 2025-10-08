@@ -13,7 +13,7 @@ export const SummaryHeader: React.FC<SummaryHeaderProps> = ({
   docProgress,
   category
 }) => {
-  const codeFromCategory = (s?: string | null) => (s?.trim() || '').split(' ')[0];
+  const codeFromCategory = (s?: string | null) => (s?.trim() || '').split(' ')[0]?.replace(/[^\d.]/g, '').replace(/\.$/, '');
   const filteredProgress = category 
     ? docProgress.filter(prog => {
         const progCategory = prog.category;

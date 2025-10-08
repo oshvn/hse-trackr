@@ -40,7 +40,7 @@ export const SubmissionsTabs: React.FC<SubmissionsTabsProps> = ({
     }
 
     // Filter by major category with robust matching (handles '1.5', '1.5.1', and '1.5 Emergency ...')
-    const codeFromCategory = (s?: string | null) => (s?.trim() || '').split(' ')[0];
+    const codeFromCategory = (s?: string | null) => (s?.trim() || '').split(' ')[0]?.replace(/[^\d.]/g, '').replace(/\.$/, '');
     const filteredRequirements = requirements.filter(req => {
       const reqCategory = req.doc_type.category;
       const reqCode = req.doc_type.code;

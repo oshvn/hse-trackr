@@ -205,7 +205,8 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
   const availableRequirements = category
     ? requirements.filter(req => {
         const code = req.doc_type.code || extractNumericCode(req.doc_type.category);
-        const result = !!code && (code === category || code.startsWith(category + '.'));
+        const normalizedCategory = (category || '').replace(/\.$/, '');
+        const result = !!code && (code === normalizedCategory || code.startsWith(normalizedCategory + '.'));
         // Debug log
         if (process.env.NODE_ENV === 'development') {
           console.log('Filtering requirement:', {
@@ -213,7 +214,7 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
             docTypeCode: req.doc_type.code,
             docTypeCategory: req.doc_type.category,
             extractedCode: code,
-            category,
+            category: normalizedCategory,
             matches: result
           });
         }
@@ -271,6 +272,11 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
             {category && (
               <p className="text-xs text-muted-foreground">
                 Showing {category} documents only
+              </p>
+            )}
+            {availableRequirements.length === 0 && (
+              <p className="text-xs text-destructive mt-1">
+                Không có loại tài liệu trong mục này. Vui lòng chọn tab khác hoặc liên hệ quản trị viên để được gán yêu cầu.
               </p>
             )}
           </div>
