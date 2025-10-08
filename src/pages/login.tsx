@@ -157,7 +157,27 @@ const LoginPage = () => {
 
           clearTimeout(timeoutId);
 
-          if (!profileData) {
+          // Try to auto-activate profile if missing or not active
+          let resolvedProfile = profileData;
+          if (!resolvedProfile || resolvedProfile.status !== "active") {
+            try {
+              const { data: activation, error: activationError } = await supabase.functions.invoke('activate-profile', {
+                body: {}
+              });
+              if (!activationError && activation?.success) {
+                const { data: refreshed } = await supabase
+                  .from('profiles')
+                  .select('role, status, contractor_id')
+                  .eq('user_id', data.user.id)
+                  .maybeSingle();
+                resolvedProfile = refreshed || resolvedProfile;
+              }
+            } catch {
+              // ignore activation failure and fall back to existing checks
+            }
+          }
+
+          if (!resolvedProfile) {
             toast({
               title: "Tài khoản chưa được cấp quyền",
               description: "Liên hệ quản trị viên để được cấp quyền truy cập.",
@@ -167,7 +187,7 @@ const LoginPage = () => {
             return;
           }
 
-          if (profileData.status !== "active") {
+          if (resolvedProfile.status !== "active") {
             toast({
               title: "Tài khoản chưa được kích hoạt", 
               description: "Liên hệ quản trị viên để kích hoạt tài khoản.",
@@ -189,8 +209,8 @@ const LoginPage = () => {
           }
 
           // Role-based redirect
-          if (profileData.role === "admin" || profileData.role === "contractor") {
-            const redirectPath = getRedirectTarget(profileData.role);
+          if (resolvedProfile.role === "admin" || resolvedProfile.role === "contractor") {
+            const redirectPath = getRedirectTarget(resolvedProfile.role);
             navigate(redirectPath, { replace: true });
           } else {
             toast({

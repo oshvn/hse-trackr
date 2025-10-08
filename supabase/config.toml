@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.manage-invite]
 verify_jwt = true
+
+[functions.activate-profile]
+verify_jwt = true

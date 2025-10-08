@@ -97,7 +97,8 @@ const upsertProfileRecord = async (user: User, role: UserProfile["role"], status
         email: user.email ?? "",
         role,
         status,
-        contractor_id: null
+        contractor_id: null,
+        activated_at: status === 'active' ? new Date().toISOString() : null,
       }],
       { onConflict: "user_id", ignoreDuplicates: false }
     )
@@ -117,12 +118,27 @@ const upsertProfileRecord = async (user: User, role: UserProfile["role"], status
 const ensureProfileForUser = async (user: User): Promise<UserProfile> => {
   const metadataRole = normalizeRole(user.user_metadata?.role);
   const derivedRole: UserProfile["role"] = metadataRole ?? "contractor";
-  const derivedStatus: UserProfile["status"] = derivedRole === "admin" ? "active" : "invited";
 
   let profileRecord = await fetchProfileRecord(user.id);
 
   if (!profileRecord) {
-    profileRecord = await upsertProfileRecord(user, derivedRole, derivedStatus);
+    // Determine activation based on allowed email list
+    const emailLower = (user.email ?? "").toLowerCase();
+    let statusToSet: UserProfile["status"] = derivedRole === "admin" ? "active" : "invited";
+    try {
+      const { data: allowed } = await supabase
+        .from('allowed_users_email')
+        .select('email')
+        .eq('email', emailLower)
+        .maybeSingle();
+      if (allowed) {
+        statusToSet = 'active';
+      }
+    } catch {
+      // ignore and fallback to derived status
+    }
+
+    profileRecord = await upsertProfileRecord(user, derivedRole, statusToSet);
   } else if (metadataRole === "admin" && normalizeRole(profileRecord.role) !== "admin") {
     const { data, error } = await supabase
       .from("profiles")
