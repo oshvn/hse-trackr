@@ -4,42 +4,26 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Upload, FileText } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { mapErrorToUserMessage } from '@/lib/errorUtils';
+import { HSE_CHECKLISTS } from '@/lib/checklistData';
 import type { ContractorRequirement } from '@/pages/my-submissions';
 
 // Input validation schema
 const submissionSchema = z.object({
   docTypeId: z.string().uuid('Invalid document type'),
   note: z.string().max(1000, 'Note must be less than 1000 characters').optional(),
-  file: z.custom<File>((file) => {
-    if (!(file instanceof File)) return false;
-    // Validate file type
-    const allowedTypes = [
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'image/jpeg',
-      'image/jpg',
-      'image/png'
-    ];
-    return allowedTypes.includes(file.type);
-  }, {
-    message: 'Invalid file type. Allowed: PDF, DOC, DOCX, JPG, PNG'
-  }).refine((file) => {
-    // Validate file size (10MB max)
-    return file instanceof File && file.size <= 10 * 1024 * 1024;
-  }, {
-    message: 'File size must be less than 10MB'
-  })
+  documentLink: z.string().url('Link không hợp lệ. Vui lòng nhập link đầy đủ (bắt đầu với http:// hoặc https://)').min(1, 'Vui lòng nhập link hồ sơ'),
+  checklist: z.array(z.string()).min(1, 'Vui lòng chọn ít nhất một mục trong checklist')
 });
 
 interface NewSubmissionDialogProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (docTypeId: string, file: File, note: string) => Promise<void>;
+  onSubmit: (docTypeId: string, documentLink: string, note: string, checklist: string[]) => Promise<void>;
   requirements: ContractorRequirement[];
   category: string | null;
 }
@@ -52,37 +36,41 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
   category
 }) => {
   const [selectedDocTypeId, setSelectedDocTypeId] = useState<string>('');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [documentLink, setDocumentLink] = useState('');
+  const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
   const [uploading, setUploading] = useState(false);
   const [note, setNote] = useState('');
   const { toast } = useToast();
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      // Validate file immediately
-      const fileValidation = submissionSchema.shape.file.safeParse(file);
-      
-      if (!fileValidation.success) {
-        toast({
-          title: "File không hợp lệ",
-          description: fileValidation.error.issues[0].message,
-          variant: "destructive"
-        });
-        // Reset file input
-        event.target.value = '';
-        return;
-      }
-      
-      setSelectedFile(file);
+  // Get selected doc type code to show appropriate checklist
+  const selectedDocType = requirements.find(req => req.doc_type_id === selectedDocTypeId);
+  const docTypeCode = selectedDocType?.doc_type?.code || '';
+  const checklistItems = HSE_CHECKLISTS[docTypeCode] || [];
+
+  const handleCheckboxChange = (itemId: string, checked: boolean) => {
+    const newChecked = new Set(checkedItems);
+    if (checked) {
+      newChecked.add(itemId);
+    } else {
+      newChecked.delete(itemId);
     }
+    setCheckedItems(newChecked);
   };
 
   const handleSubmit = async () => {
-    if (!selectedDocTypeId || !selectedFile) {
+    if (!selectedDocTypeId || !documentLink.trim()) {
       toast({
         title: "Thiếu thông tin",
-        description: "Vui lòng chọn loại tài liệu và file",
+        description: "Vui lòng chọn loại tài liệu và nhập link hồ sơ",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (checkedItems.size === 0) {
+      toast({
+        title: "Thiếu thông tin",
+        description: "Vui lòng chọn ít nhất một mục trong checklist",
         variant: "destructive"
       });
       return;
@@ -95,7 +83,8 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
       const validationResult = submissionSchema.safeParse({
         docTypeId: selectedDocTypeId,
         note: note.trim() || undefined,
-        file: selectedFile
+        documentLink: documentLink.trim(),
+        checklist: Array.from(checkedItems)
       });
 
       if (!validationResult.success) {
@@ -110,13 +99,15 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
 
       await onSubmit(
         validationResult.data.docTypeId,
-        validationResult.data.file,
-        validationResult.data.note || ''
+        validationResult.data.documentLink,
+        validationResult.data.note || '',
+        validationResult.data.checklist
       );
 
       // Reset form
       setSelectedDocTypeId('');
-      setSelectedFile(null);
+      setDocumentLink('');
+      setCheckedItems(new Set());
       setNote('');
       onClose();
       
@@ -138,7 +129,8 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
   const handleClose = () => {
     if (!uploading) {
       setSelectedDocTypeId('');
-      setSelectedFile(null);
+      setDocumentLink('');
+      setCheckedItems(new Set());
       setNote('');
       onClose();
     }
@@ -146,12 +138,15 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
 
   // Filter requirements based on category
   const availableRequirements = category 
-    ? requirements.filter(req => req.doc_type.category === category)
+    ? requirements.filter(req => {
+        const reqCategory = req.doc_type.category;
+        return reqCategory === category || reqCategory?.startsWith(category + '.');
+      })
     : requirements;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>New Submission</DialogTitle>
         </DialogHeader>
@@ -161,7 +156,10 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
             <Label htmlFor="docType">Document Type</Label>
             <Select
               value={selectedDocTypeId}
-              onValueChange={setSelectedDocTypeId}
+              onValueChange={(value) => {
+                setSelectedDocTypeId(value);
+                setCheckedItems(new Set()); // Reset checklist when changing doc type
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select document type" />
@@ -186,42 +184,44 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
             )}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="file">Upload Document</Label>
-            <div className="relative border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
-              {selectedFile ? (
-                <div className="space-y-2">
-                  <FileText className="h-8 w-8 text-primary mx-auto" />
-                  <div className="text-sm font-medium">{selectedFile.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+          {selectedDocTypeId && checklistItems.length > 0 && (
+            <div className="space-y-3 border rounded-lg p-4 bg-muted/30">
+              <Label className="text-base font-semibold">Checklist hồ sơ yêu cầu</Label>
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {checklistItems.map((item) => (
+                  <div key={item.id} className="flex items-start gap-2">
+                    <Checkbox
+                      id={item.id}
+                      checked={checkedItems.has(item.id)}
+                      onCheckedChange={(checked) => handleCheckboxChange(item.id, checked as boolean)}
+                    />
+                    <label
+                      htmlFor={item.id}
+                      className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                    >
+                      {item.label}
+                    </label>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSelectedFile(null)}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <Upload className="h-8 w-8 text-muted-foreground mx-auto" />
-                  <div className="text-sm text-muted-foreground">
-                    Click to select a file or drag and drop
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    PDF, DOC, DOCX up to 10MB
-                  </div>
-                </div>
-              )}
-              <input
-                type="file"
-                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                onChange={handleFileChange}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-              />
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Đã chọn: {checkedItems.size}/{checklistItems.length} mục
+              </p>
             </div>
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="documentLink">Link hồ sơ (đã chia sẻ)</Label>
+            <Input
+              id="documentLink"
+              type="url"
+              placeholder="https://drive.google.com/... hoặc https://..."
+              value={documentLink}
+              onChange={(e) => setDocumentLink(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Nhập link Google Drive, OneDrive hoặc link chia sẻ khác (đảm bảo đã bật chia sẻ)
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -250,10 +250,10 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={!selectedDocTypeId || !selectedFile || uploading}
+              disabled={!selectedDocTypeId || !documentLink.trim() || checkedItems.size === 0 || uploading}
               className="flex-1"
             >
-              {uploading ? 'Uploading...' : 'Submit'}
+              {uploading ? 'Submitting...' : 'Submit'}
             </Button>
           </div>
         </div>

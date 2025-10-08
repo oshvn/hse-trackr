@@ -5,6 +5,7 @@ import { SummaryHeader } from './SummaryHeader';
 import { CategoryProgress } from './CategoryProgress';
 import { NewSubmissionDialog } from './NewSubmissionDialog';
 import { SubmissionHistorySheet } from './SubmissionHistorySheet';
+import { MAJOR_CATEGORIES } from '@/lib/checklistData';
 import type { ContractorRequirement, DocProgress, Submission } from '@/pages/my-submissions';
 
 interface SubmissionsTabsProps {
@@ -12,7 +13,7 @@ interface SubmissionsTabsProps {
   requirements: ContractorRequirement[];
   docProgress: DocProgress[];
   submissions: Submission[];
-  onNewSubmission: (docTypeId: string, file: File, note: string) => Promise<void>;
+  onNewSubmission: (docTypeId: string, documentLink: string, note: string, checklist: string[]) => Promise<void>;
   onRefresh: () => void;
 }
 
@@ -38,9 +39,15 @@ export const SubmissionsTabs: React.FC<SubmissionsTabsProps> = ({
       };
     }
 
-    // Filter by category
-    const filteredRequirements = requirements.filter(req => req.doc_type.category === category);
-    const filteredProgress = docProgress.filter(prog => prog.category === category);
+    // Filter by major category (e.g., "1.1" matches "1.1", "1.1.1", "1.1.2", etc.)
+    const filteredRequirements = requirements.filter(req => {
+      const reqCategory = req.doc_type.category;
+      return reqCategory === category || reqCategory?.startsWith(category + '.');
+    });
+    const filteredProgress = docProgress.filter(prog => {
+      const progCategory = prog.category;
+      return progCategory === category || progCategory?.startsWith(category + '.');
+    });
     
     return {
       requirements: filteredRequirements,
@@ -60,11 +67,11 @@ export const SubmissionsTabs: React.FC<SubmissionsTabsProps> = ({
   return (
     <>
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full" style={{gridTemplateColumns: `repeat(${categories.length + 1}, minmax(0, 1fr))`}}>
+        <TabsList className="grid w-full" style={{gridTemplateColumns: `repeat(${MAJOR_CATEGORIES.length + 1}, minmax(0, 1fr))`}}>
           <TabsTrigger value="all">All</TabsTrigger>
-          {categories.map(category => (
-            <TabsTrigger key={category} value={category}>
-              {category}
+          {MAJOR_CATEGORIES.map(cat => (
+            <TabsTrigger key={cat.value} value={cat.value}>
+              {cat.label}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -76,7 +83,7 @@ export const SubmissionsTabs: React.FC<SubmissionsTabsProps> = ({
           />
           
           <CategoryProgress
-            categories={categories}
+            categories={MAJOR_CATEGORIES.map(c => c.value)}
             docProgress={docProgress}
           />
 
@@ -89,15 +96,15 @@ export const SubmissionsTabs: React.FC<SubmissionsTabsProps> = ({
           />
         </TabsContent>
 
-        {categories.map(category => (
-          <TabsContent key={category} value={category} className="space-y-6">
+        {MAJOR_CATEGORIES.map(cat => (
+          <TabsContent key={cat.value} value={cat.value} className="space-y-6">
             <SummaryHeader
               docProgress={docProgress}
-              category={category}
+              category={cat.value}
             />
 
             <CategoryTable
-              {...getTabData(category)}
+              {...getTabData(cat.value)}
               submissions={submissions}
               onRowClick={handleRowClick}
               onNewSubmission={handleNewSubmissionClick}

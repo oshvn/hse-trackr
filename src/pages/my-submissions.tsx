@@ -150,27 +150,17 @@ const MySubmissionsPage: React.FC = () => {
     }
   }, [loadData, contractorId, role]);
 
-  const handleNewSubmission = async (docTypeId: string, file: File, note: string) => {
+  const handleNewSubmission = async (docTypeId: string, documentLink: string, note: string, checklist: string[]) => {
     try {
       if (!contractorId) {
         throw new Error('Missing contractor context');
       }
 
-      const sanitizedName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-      const storagePath = `${contractorId}/${docTypeId}/${Date.now()}_${sanitizedName}`;
-
-      const { error: uploadError } = await supabase
-        .storage
-        .from(STORAGE_BUCKET)
-        .upload(storagePath, file, {
-          cacheControl: '3600',
-          upsert: false,
-          contentType: file.type,
-        });
-
-      if (uploadError) {
-        throw uploadError;
-      }
+      // Create note with checklist
+      const checklistText = checklist.map(item => `✓ ${item}`).join('\n');
+      const fullNote = note 
+        ? `${note}\n\nChecklist:\n${checklistText}\n\nLink: ${documentLink}`
+        : `Checklist:\n${checklistText}\n\nLink: ${documentLink}`;
 
       const { error: insertError } = await supabase
         .from('submissions')
@@ -180,10 +170,10 @@ const MySubmissionsPage: React.FC = () => {
           status: 'submitted',
           submitted_at: new Date().toISOString(),
           cnt: 1,
-          note: note ? note.trim() : null,
-          file_name: sanitizedName,
-          file_size: file.size,
-          storage_path: storagePath,
+          note: fullNote,
+          file_name: null,
+          file_size: null,
+          storage_path: null,
         });
 
       if (insertError) throw insertError;
