@@ -40,6 +40,7 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
   category
 }) => {
   const [selectedDocTypeId, setSelectedDocTypeId] = useState<string>('');
+  const [selectedSubCategory, setSelectedSubCategory] = useState<string>('');
   const [documentLink, setDocumentLink] = useState('');
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
   const [uploading, setUploading] = useState(false);
@@ -56,6 +57,7 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
   useEffect(() => {
     if (open) {
       setSelectedDocTypeId('');
+      setSelectedSubCategory('');
       setDocumentLink('');
       setCheckedItems(new Set());
       setNote('');
@@ -65,10 +67,16 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
   // Get selected doc type to show appropriate checklist by code (fallback to numeric prefix of category)
   const selectedDocType = requirements.find(req => req.doc_type_id === selectedDocTypeId);
   const docTypeCode = selectedDocType?.doc_type?.code || extractNumericCode(selectedDocType?.doc_type?.category);
-  const checklistItems = HSE_CHECKLISTS[docTypeCode || ''] || [];
+  
+  // Check if this doc type has sub-categories (like 1.1.1 Management Teams)
+  const hasSubCategories = docTypeCode === '1.1.1';
+  
+  // Use sub-category if selected, otherwise use main doc type code
+  const displayCode = selectedSubCategory || docTypeCode;
+  const checklistItems = HSE_CHECKLISTS[displayCode || ''] || [];
   
   // Get detailed category info
-  const selectedCategoryInfo = DETAILED_CATEGORIES.find(cat => cat.id === docTypeCode);
+  const selectedCategoryInfo = DETAILED_CATEGORIES.find(cat => cat.id === displayCode);
   
   // Extract positions from appliesTo field
   const extractPositions = (appliesTo: string) => {
@@ -92,6 +100,15 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
   };
   
   const positions = selectedCategoryInfo ? extractPositions(selectedCategoryInfo.appliesTo) : [];
+  
+  // Get sub-category options for 1.1.1 Management Teams
+  const subCategoryOptions = hasSubCategories ? [
+    { id: "1.1.1.1", label: "1.1.1.1 Construction Manager" },
+    { id: "1.1.1.2", label: "1.1.1.2 HSE Manager" },
+    { id: "1.1.1.3", label: "1.1.1.3 Project Manager" },
+    { id: "1.1.1.4", label: "1.1.1.4 Site Manager" },
+    { id: "1.1.1.5", label: "1.1.1.5 Supervisors" }
+  ] : [];
 
   const handleCheckboxChange = (itemId: string, checked: boolean) => {
     const newChecked = new Set(checkedItems);
@@ -152,6 +169,7 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
 
       // Reset form
       setSelectedDocTypeId('');
+      setSelectedSubCategory('');
       setDocumentLink('');
       setCheckedItems(new Set());
       setNote('');
@@ -175,6 +193,7 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
   const handleClose = () => {
     if (!uploading) {
       setSelectedDocTypeId('');
+      setSelectedSubCategory('');
       setDocumentLink('');
       setCheckedItems(new Set());
       setNote('');
@@ -229,6 +248,7 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
               value={selectedDocTypeId}
               onValueChange={(value) => {
                 setSelectedDocTypeId(value);
+                setSelectedSubCategory(''); // Reset sub-category when changing doc type
                 setCheckedItems(new Set()); // Reset checklist when changing doc type
               }}
             >
@@ -255,7 +275,31 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
             )}
           </div>
 
-          {selectedDocTypeId && checklistItems.length > 0 && (
+          {hasSubCategories && selectedDocTypeId && (
+            <div className="space-y-2">
+              <Label htmlFor="subCategory">Position / Sub-category</Label>
+              <Select
+                value={selectedSubCategory}
+                onValueChange={(value) => {
+                  setSelectedSubCategory(value);
+                  setCheckedItems(new Set()); // Reset checklist when changing sub-category
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select position" />
+                </SelectTrigger>
+                <SelectContent>
+                  {subCategoryOptions.map(option => (
+                    <SelectItem key={option.id} value={option.id}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {selectedDocTypeId && checklistItems.length > 0 && (!hasSubCategories || selectedSubCategory) && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
