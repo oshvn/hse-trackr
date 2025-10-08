@@ -18,7 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 
 interface HeaderBarProps {
   user: User | null;
-  userRole: "admin" | "contractor" | "guest";
+  userRole: "admin" | "super_admin" | "contractor" | "guest";
 }
 
 export const HeaderBar = ({ user, userRole }: HeaderBarProps) => {
@@ -53,6 +53,8 @@ export const HeaderBar = ({ user, userRole }: HeaderBarProps) => {
     switch (userRole) {
       case "admin":
         return "Administrator";
+      case "super_admin":
+        return "Super Administrator";
       case "contractor":
         return "Contractor";
       default:
@@ -65,7 +67,7 @@ export const HeaderBar = ({ user, userRole }: HeaderBarProps) => {
       <div className="flex items-center gap-4">
         <SidebarTrigger className="md:hidden" />
         <h1 className="text-lg font-semibold text-foreground">
-          {userRole === "admin" ? "Admin Dashboard" : "Contractor Portal"}
+          {(userRole === "admin" || userRole === "super_admin") ? "Admin Dashboard" : "Contractor Portal"}
         </h1>
       </div>
 

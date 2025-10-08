@@ -6,7 +6,7 @@ export interface UserProfile {
   id: string;
   user_id: string;
   email: string;
-  role: "admin" | "contractor";
+  role: "admin" | "super_admin" | "contractor";
   contractor_id?: string;
   status: "invited" | "active" | "deactivated";
   contractor_name?: string;
@@ -26,7 +26,7 @@ const normalizeRole = (value: unknown): UserProfile["role"] | null => {
   }
 
   const normalized = value.trim().toLowerCase();
-  if (normalized === "admin" || normalized === "contractor") {
+  if (normalized === "admin" || normalized === "super_admin" || normalized === "contractor") {
     return normalized;
   }
 
@@ -124,7 +124,7 @@ const ensureProfileForUser = async (user: User): Promise<UserProfile> => {
   if (!profileRecord) {
     // Determine activation based on allowed email list
     const emailLower = (user.email ?? "").toLowerCase();
-    let statusToSet: UserProfile["status"] = derivedRole === "admin" ? "active" : "invited";
+    let statusToSet: UserProfile["status"] = (derivedRole === "admin" || derivedRole === "super_admin") ? "active" : "invited";
     try {
       const { data: allowed } = await supabase
         .from('allowed_users_email')
@@ -139,10 +139,10 @@ const ensureProfileForUser = async (user: User): Promise<UserProfile> => {
     }
 
     profileRecord = await upsertProfileRecord(user, derivedRole, statusToSet);
-  } else if (metadataRole === "admin" && normalizeRole(profileRecord.role) !== "admin") {
+  } else if ((metadataRole === "admin" || metadataRole === "super_admin") && normalizeRole(profileRecord.role) !== metadataRole) {
     const { data, error } = await supabase
       .from("profiles")
-      .update({ role: "admin", status: "active" })
+      .update({ role: metadataRole, status: "active" })
       .eq("user_id", user.id)
       .select(`
         *,
@@ -160,7 +160,7 @@ const ensureProfileForUser = async (user: User): Promise<UserProfile> => {
   return mapProfile(profileRecord);
 };
 
-const resolveRole = (state: AuthState): "admin" | "contractor" | "guest" => {
+const resolveRole = (state: AuthState): "admin" | "super_admin" | "contractor" | "guest" => {
   if (!state.session || !state.profile) {
     return "guest";
   }
@@ -330,7 +330,7 @@ export const useSessionRole = () => {
     loading: authState.loading,
     error: authState.error,
     role,
-    isAdmin: () => role === "admin",
+    isAdmin: () => role === "admin" || role === "super_admin",
     isContractor: () => role === "contractor",
     isGuest: () => role === "guest",
     retry

@@ -43,6 +43,7 @@ interface EditUserDialogProps {
 
 const ROLE_LABEL: Record<UserProfile["role"], string> = {
   admin: "Administrator",
+  super_admin: "Super Administrator",
   contractor: "Contractor",
 };
 

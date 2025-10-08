@@ -30,7 +30,7 @@ const isSafeInternalPath = (path: string) => {
   return !disallowed.some(entry => path === entry || path.startsWith(`${entry}?`));
 };
 
-const isAllowedForRole = (role: "admin" | "contractor", path: string) => {
+const isAllowedForRole = (role: "admin" | "super_admin" | "contractor", path: string) => {
   if (!isSafeInternalPath(path)) {
     return false;
   }
@@ -63,7 +63,7 @@ const LoginPage = () => {
     return isSafeInternalPath(candidate) ? candidate : null;
   }, [location.search]);
 
-  const getRedirectTarget = (role: "admin" | "contractor") => {
+  const getRedirectTarget = (role: "admin" | "super_admin" | "contractor") => {
     const state = location.state as { from?: { pathname?: string; search?: string } } | null;
     const fromLocation = state?.from;
     const statePath = fromLocation?.pathname

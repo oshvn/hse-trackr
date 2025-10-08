@@ -2,7 +2,7 @@ import { ComponentType } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useSessionRole } from "@/hooks/useSessionRole";
 
-type Role = "admin" | "contractor" | "guest";
+type Role = "admin" | "super_admin" | "contractor" | "guest";
 
 interface WithRoleOptions {
   redirectTo?: string;

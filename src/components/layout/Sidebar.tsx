@@ -101,7 +101,7 @@ export const Sidebar = ({ userRole }: SidebarProps) => {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>
-            {userRole === "admin" ? "Admin Panel" : "Contractor Portal"}
+            {(userRole === "admin" || userRole === "super_admin") ? "Admin Panel" : "Contractor Portal"}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
