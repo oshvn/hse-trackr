@@ -13,8 +13,19 @@ export const SummaryHeader: React.FC<SummaryHeaderProps> = ({
   docProgress,
   category
 }) => {
+  const codeFromCategory = (s?: string | null) => (s?.trim() || '').split(' ')[0];
   const filteredProgress = category 
-    ? docProgress.filter(prog => prog.category === category)
+    ? docProgress.filter(prog => {
+        const progCategory = prog.category;
+        const progCode = codeFromCategory(progCategory);
+        const c = category;
+        return (
+          progCategory === c ||
+          progCategory?.startsWith(c + ' ') ||
+          progCode === c ||
+          progCode?.startsWith(c + '.')
+        );
+      })
     : docProgress;
 
   const totalRequired = filteredProgress.reduce((sum, prog) => sum + prog.required_count, 0);

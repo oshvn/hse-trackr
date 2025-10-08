@@ -13,9 +13,20 @@ export const CategoryProgress: React.FC<CategoryProgressProps> = ({
   docProgress
 }) => {
   const getCategoryStats = (category: string) => {
-    const categoryProgress = docProgress.filter(prog => prog.category === category);
-    const totalRequired = categoryProgress.reduce((sum, prog) => sum + prog.required_count, 0);
-    const totalApproved = categoryProgress.reduce((sum, prog) => sum + prog.approved_count, 0);
+    const codeFromCategory = (s?: string | null) => (s?.trim() || '').split(' ')[0];
+    const categoryProgress = docProgress.filter(prog => {
+      const progCategory = prog.category;
+      const progCode = codeFromCategory(progCategory);
+      const c = category;
+      return (
+        progCategory === c ||
+        progCategory?.startsWith(c + ' ') ||
+        progCode === c ||
+        progCode?.startsWith(c + '.')
+      );
+    });
+    const totalRequired = categoryProgress.reduce((sum, prog) => sum + (prog.required_count || 0), 0);
+    const totalApproved = categoryProgress.reduce((sum, prog) => sum + (prog.approved_count || 0), 0);
     const percentage = totalRequired > 0 ? Math.round((totalApproved / totalRequired) * 100) : 0;
     
     return {

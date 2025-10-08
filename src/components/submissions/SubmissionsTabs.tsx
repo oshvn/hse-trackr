@@ -39,19 +39,32 @@ export const SubmissionsTabs: React.FC<SubmissionsTabsProps> = ({
       };
     }
 
-    // Filter by major category (e.g., "1.1" matches "1.1", "1.1.1", "1.1.2", etc.)
+    // Filter by major category with robust matching (handles '1.5', '1.5.1', and '1.5 Emergency ...')
+    const codeFromCategory = (s?: string | null) => (s?.trim() || '').split(' ')[0];
     const filteredRequirements = requirements.filter(req => {
       const reqCategory = req.doc_type.category;
       const reqCode = req.doc_type.code;
-      // Check if category matches either the category field or the code field
-      return reqCategory === category ||
-             reqCategory?.startsWith(category + '.') ||
-             reqCode === category ||
-             reqCode?.startsWith(category + '.');
+      const reqCategoryCode = codeFromCategory(reqCategory);
+      const c = category;
+      return (
+        reqCategory === c ||
+        reqCode === c ||
+        reqCategoryCode === c ||
+        reqCode?.startsWith(c + '.') ||
+        reqCategoryCode?.startsWith(c + '.') ||
+        reqCategory?.startsWith(c + ' ')
+      );
     });
     const filteredProgress = docProgress.filter(prog => {
       const progCategory = prog.category;
-      return progCategory === category || progCategory?.startsWith(category + '.');
+      const progCategoryCode = codeFromCategory(progCategory);
+      const c = category;
+      return (
+        progCategory === c ||
+        progCategoryCode === c ||
+        progCategory?.startsWith(c + ' ') ||
+        progCategoryCode?.startsWith(c + '.')
+      );
     });
     
     // Debug log
@@ -60,7 +73,8 @@ export const SubmissionsTabs: React.FC<SubmissionsTabsProps> = ({
         category,
         totalRequirements: requirements.length,
         filteredRequirements: filteredRequirements.length,
-        reqCodes: requirements.map(req => ({
+        filteredProgress: filteredProgress.length,
+        sampleReq: requirements.slice(0, 5).map(req => ({
           name: req.doc_type.name,
           category: req.doc_type.category,
           code: req.doc_type.code
