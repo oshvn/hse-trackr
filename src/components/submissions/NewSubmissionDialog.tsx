@@ -42,16 +42,16 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
   const [note, setNote] = useState('');
   const { toast } = useToast();
 
-  // Get selected doc type category to show appropriate checklist
+  const extractNumericCode = (value?: string | null) => {
+    if (!value) return '';
+    const m = value.match(/^(\d+(?:\.\d+)+)/);
+    return m ? m[1] : '';
+  };
+
+  // Get selected doc type to show appropriate checklist by code (fallback to numeric prefix of category)
   const selectedDocType = requirements.find(req => req.doc_type_id === selectedDocTypeId);
-  const docTypeCategory = selectedDocType?.doc_type?.category || '';
-  const categoryKey = (() => {
-    if (!docTypeCategory) return '';
-    const parts = docTypeCategory.split('.');
-    if (parts.length >= 3) return parts.slice(0,3).join('.');
-    return docTypeCategory;
-  })();
-  const checklistItems = HSE_CHECKLISTS[categoryKey] || [];
+  const docTypeCode = selectedDocType?.doc_type?.code || extractNumericCode(selectedDocType?.doc_type?.category);
+  const checklistItems = HSE_CHECKLISTS[docTypeCode || ''] || [];
 
   const handleCheckboxChange = (itemId: string, checked: boolean) => {
     const newChecked = new Set(checkedItems);
@@ -145,8 +145,8 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
   // Filter requirements based on category
   const availableRequirements = category 
     ? requirements.filter(req => {
-        const reqCategory = req.doc_type.category;
-        return reqCategory === category || reqCategory?.startsWith(category + '.');
+        const code = req.doc_type.code || extractNumericCode(req.doc_type.category);
+        return !!code && (code === category || code.startsWith(category + '.'));
       })
     : requirements;
 
