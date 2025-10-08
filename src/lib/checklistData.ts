@@ -112,40 +112,40 @@ export const DETAILED_CATEGORIES: ChecklistCategory[] = [
   {
     id: "1.1.1.1",
     title: "1.1.1.1 Construction Manager",
-    description: "Hồ sơ Construction Manager",
-    appliesTo: "Construction Manager",
+    description: "Bộ hồ sơ Construction Manager",
+    appliesTo: "Vị trí Construction Manager",
     format: "Định dạng: PDF/JPG",
     items: HSE_CHECKLISTS["1.1.1"]
   },
   {
     id: "1.1.1.2",
     title: "1.1.1.2 HSE Manager",
-    description: "Hồ sơ HSE Manager",
-    appliesTo: "HSE Manager",
+    description: "Bộ hồ sơ HSE Manager",
+    appliesTo: "Vị trí HSE Manager",
     format: "Định dạng: PDF/JPG",
     items: HSE_CHECKLISTS["1.1.1"]
   },
   {
     id: "1.1.1.3",
     title: "1.1.1.3 Project Manager",
-    description: "Hồ sơ Project Manager",
-    appliesTo: "Project Manager",
+    description: "Bộ hồ sơ Project Manager",
+    appliesTo: "Vị trí Project Manager",
     format: "Định dạng: PDF/JPG",
     items: HSE_CHECKLISTS["1.1.1"]
   },
   {
     id: "1.1.1.4",
     title: "1.1.1.4 Site Manager",
-    description: "Hồ sơ Site Manager",
-    appliesTo: "Site Manager",
+    description: "Bộ hồ sơ Site Manager",
+    appliesTo: "Vị trí Site Manager",
     format: "Định dạng: PDF/JPG",
     items: HSE_CHECKLISTS["1.1.1"]
   },
   {
     id: "1.1.1.5",
     title: "1.1.1.5 Supervisors",
-    description: "Hồ sơ Supervisors",
-    appliesTo: "Supervisors",
+    description: "Bộ hồ sơ Supervisors",
+    appliesTo: "Vị trí Supervisors",
     format: "Định dạng: PDF/JPG",
     items: HSE_CHECKLISTS["1.1.1"]
   },

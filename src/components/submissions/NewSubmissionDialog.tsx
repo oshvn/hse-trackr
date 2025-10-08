@@ -69,6 +69,29 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
   
   // Get detailed category info
   const selectedCategoryInfo = DETAILED_CATEGORIES.find(cat => cat.id === docTypeCode);
+  
+  // Extract positions from appliesTo field
+  const extractPositions = (appliesTo: string) => {
+    if (!appliesTo) return [];
+    
+    // Handle special cases
+    if (appliesTo.includes('toàn dự án') || appliesTo.includes('từng')) {
+      return [];
+    }
+    
+    // Extract positions from the appliesTo text
+    if (appliesTo.includes('Vị trí')) {
+      // Extract position name from "Vị trí [Position Name]"
+      const positionMatch = appliesTo.match(/Vị trí (.+)/);
+      return positionMatch ? [positionMatch[1]] : [];
+    }
+    
+    // Extract positions from comma-separated list
+    const positions = appliesTo.split(',').map(pos => pos.trim());
+    return positions;
+  };
+  
+  const positions = selectedCategoryInfo ? extractPositions(selectedCategoryInfo.appliesTo) : [];
 
   const handleCheckboxChange = (itemId: string, checked: boolean) => {
     const newChecked = new Set(checkedItems);
@@ -244,6 +267,16 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
                 <CardDescription>
                   <div className="space-y-1">
                     <p><strong>Applies to:</strong> {selectedCategoryInfo?.appliesTo}</p>
+                    {positions.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        <span className="text-xs text-muted-foreground">Vị trí:</span>
+                        {positions.map((position, index) => (
+                          <Badge key={index} variant="secondary" className="text-xs">
+                            {position}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </CardDescription>
               </CardHeader>
