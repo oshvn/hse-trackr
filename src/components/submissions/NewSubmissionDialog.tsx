@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { z } from 'zod';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,29 @@ const submissionSchema = z.object({
   checklist: z.array(z.string()).min(1, 'Vui lòng chọn ít nhất một mục trong checklist')
 });
 
+// Helper function to extract numeric code
+const extractNumericCode = (value?: string | null) => {
+  if (!value) return '';
+  const m = value.match(/^(\d+(?:\.\d+)+)/);
+  return m ? m[1] : '';
+};
+
+// Helper function to check if a doc type has sub-categories
+const hasSubCategories = (code: string) => {
+  // Check if the code exists as a main category with sub-categories
+  return Object.keys(HSE_CHECKLISTS).some(key => key.startsWith(code + '.'));
+};
+
+// Helper function to get sub-category options for a given code
+const getSubCategoryOptions = (code: string) => {
+  return Object.keys(HSE_CHECKLISTS)
+    .filter(key => key.startsWith(code + '.'))
+    .map(key => ({
+      id: key,
+      label: key
+    }));
+};
+
 interface NewSubmissionDialogProps {
   open: boolean;
   onClose: () => void;
@@ -47,39 +70,71 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
   const [note, setNote] = useState('');
   const { toast } = useToast();
 
-  const extractNumericCode = (value?: string | null) => {
-    if (!value) return '';
-    const m = value.match(/^(\d+(?:\.\d+)+)/);
-    return m ? m[1] : '';
-  };
-
   // Reset form when dialog opens
   useEffect(() => {
     if (open) {
-      setSelectedDocTypeId('');
-      setSelectedSubCategory('');
-      setDocumentLink('');
-      setCheckedItems(new Set());
-      setNote('');
+      resetForm();
     }
   }, [open]);
 
+  // Reset form function
+  const resetForm = useCallback(() => {
+    setSelectedDocTypeId('');
+    setSelectedSubCategory('');
+    setDocumentLink('');
+    setCheckedItems(new Set());
+    setNote('');
+  }, []);
+
+  // Filter requirements based on category (memoized for performance)
+  const availableRequirements = useMemo(() => {
+    if (!category) return requirements;
+    
+    return requirements.filter(req => {
+      const code = req.doc_type.code || extractNumericCode(req.doc_type.category);
+      const normalizedCategory = category.replace(/\.$/, '');
+      return !!code && (code === normalizedCategory || code.startsWith(normalizedCategory + '.'));
+    });
+  }, [requirements, category]);
+
   // Get selected doc type to show appropriate checklist by code (fallback to numeric prefix of category)
-  const selectedDocType = requirements.find(req => req.doc_type_id === selectedDocTypeId);
-  const docTypeCode = selectedDocType?.doc_type?.code || extractNumericCode(selectedDocType?.doc_type?.category);
+  const selectedDocType = useMemo(() =>
+    requirements.find(req => req.doc_type_id === selectedDocTypeId),
+    [requirements, selectedDocTypeId]
+  );
   
-  // Check if this doc type has sub-categories (like 1.1.1 Management Teams)
-  const hasSubCategories = docTypeCode === '1.1.1';
+  const docTypeCode = useMemo(() =>
+    selectedDocType?.doc_type?.code || extractNumericCode(selectedDocType?.doc_type?.category),
+    [selectedDocType]
+  );
+  
+  // Check if this doc type has sub-categories
+  const hasSubCategoriesFlag = useMemo(() =>
+    docTypeCode ? hasSubCategories(docTypeCode) : false,
+    [docTypeCode]
+  );
+  
+  // Get sub-category options
+  const subCategoryOptions = useMemo(() =>
+    docTypeCode ? getSubCategoryOptions(docTypeCode) : [],
+    [docTypeCode]
+  );
   
   // Use sub-category if selected, otherwise use main doc type code
   const displayCode = selectedSubCategory || docTypeCode;
-  const checklistItems = HSE_CHECKLISTS[displayCode || ''] || [];
+  const checklistItems = useMemo(() =>
+    HSE_CHECKLISTS[displayCode || ''] || [],
+    [displayCode]
+  );
   
   // Get detailed category info
-  const selectedCategoryInfo = DETAILED_CATEGORIES.find(cat => cat.id === displayCode);
+  const selectedCategoryInfo = useMemo(() =>
+    DETAILED_CATEGORIES.find(cat => cat.id === displayCode),
+    [displayCode]
+  );
   
-  // Extract positions from appliesTo field
-  const extractPositions = (appliesTo: string) => {
+  // Extract positions from appliesTo field (memoized)
+  const extractPositions = useCallback((appliesTo: string) => {
     if (!appliesTo) return [];
     
     // Handle special cases
@@ -97,28 +152,24 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
     // Extract positions from comma-separated list
     const positions = appliesTo.split(',').map(pos => pos.trim());
     return positions;
-  };
+  }, []);
   
-  const positions = selectedCategoryInfo ? extractPositions(selectedCategoryInfo.appliesTo) : [];
-  
-  // Get sub-category options for 1.1.1 Management Teams
-  const subCategoryOptions = hasSubCategories ? [
-    { id: "1.1.1.1", label: "1.1.1.1 Construction Manager" },
-    { id: "1.1.1.2", label: "1.1.1.2 HSE Manager" },
-    { id: "1.1.1.3", label: "1.1.1.3 Project Manager" },
-    { id: "1.1.1.4", label: "1.1.1.4 Site Manager" },
-    { id: "1.1.1.5", label: "1.1.1.5 Supervisors" }
-  ] : [];
+  const positions = useMemo(() =>
+    selectedCategoryInfo ? extractPositions(selectedCategoryInfo.appliesTo) : [],
+    [selectedCategoryInfo, extractPositions]
+  );
 
-  const handleCheckboxChange = (itemId: string, checked: boolean) => {
-    const newChecked = new Set(checkedItems);
-    if (checked) {
-      newChecked.add(itemId);
-    } else {
-      newChecked.delete(itemId);
-    }
-    setCheckedItems(newChecked);
-  };
+  const handleCheckboxChange = useCallback((itemId: string, checked: boolean) => {
+    setCheckedItems(prev => {
+      const newChecked = new Set(prev);
+      if (checked) {
+        newChecked.add(itemId);
+      } else {
+        newChecked.delete(itemId);
+      }
+      return newChecked;
+    });
+  }, []);
 
   const handleSubmit = async () => {
     if (!selectedDocTypeId || !documentLink.trim()) {
@@ -134,6 +185,19 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
       toast({
         title: "Thiếu thông tin",
         description: "Vui lòng chọn ít nhất một mục trong checklist",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Check if all required items are selected
+    const requiredItems = checklistItems.filter(item => item.required);
+    const missingRequiredItems = requiredItems.filter(item => !checkedItems.has(item.id));
+    
+    if (missingRequiredItems.length > 0) {
+      toast({
+        title: "Thiếu thông tin bắt buộc",
+        description: `Vui lòng chọn các mục bắt buộc: ${missingRequiredItems.map(item => item.label).join(', ')}`,
         variant: "destructive"
       });
       return;
@@ -168,11 +232,7 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
       );
 
       // Reset form
-      setSelectedDocTypeId('');
-      setSelectedSubCategory('');
-      setDocumentLink('');
-      setCheckedItems(new Set());
-      setNote('');
+      resetForm();
       onClose();
       
       toast({
@@ -190,47 +250,24 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
     }
   };
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     if (!uploading) {
-      setSelectedDocTypeId('');
-      setSelectedSubCategory('');
-      setDocumentLink('');
-      setCheckedItems(new Set());
-      setNote('');
+      resetForm();
       onClose();
     }
-  };
+  }, [uploading, resetForm, onClose]);
 
-  // Filter requirements based on category
-  const availableRequirements = category
-    ? requirements.filter(req => {
-        const code = req.doc_type.code || extractNumericCode(req.doc_type.category);
-        const normalizedCategory = (category || '').replace(/\.$/, '');
-        const result = !!code && (code === normalizedCategory || code.startsWith(normalizedCategory + '.'));
-        // Debug log
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Filtering requirement:', {
-            docTypeName: req.doc_type.name,
-            docTypeCode: req.doc_type.code,
-            docTypeCategory: req.doc_type.category,
-            extractedCode: code,
-            category: normalizedCategory,
-            matches: result
-          });
-        }
-        return result;
-      })
-    : requirements;
-    
-  // Debug log
-  if (process.env.NODE_ENV === 'development') {
-    console.log('NewSubmissionDialog Debug:', {
-      category,
-      totalRequirements: requirements.length,
-      availableRequirements: availableRequirements.length,
-      availableRequirementNames: availableRequirements.map(req => req.doc_type.name)
-    });
-  }
+  // Debug log (only in development)
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('NewSubmissionDialog Debug:', {
+        category,
+        totalRequirements: requirements.length,
+        availableRequirements: availableRequirements.length,
+        availableRequirementNames: availableRequirements.map(req => req.doc_type.name)
+      });
+    }
+  }, [category, requirements, availableRequirements]);
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -281,7 +318,7 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
             )}
           </div>
 
-          {hasSubCategories && selectedDocTypeId && (
+          {hasSubCategoriesFlag && selectedDocTypeId && (
             <div className="space-y-2">
               <Label htmlFor="subCategory">Position / Sub-category</Label>
               <Select
@@ -305,7 +342,7 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
             </div>
           )}
 
-          {selectedDocTypeId && checklistItems.length > 0 && (!hasSubCategories || selectedSubCategory) && (
+          {selectedDocTypeId && checklistItems.length > 0 && (!hasSubCategoriesFlag || selectedSubCategory) && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -365,7 +402,7 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      const allIds = checklistItems.map(item => item.id) || [];
+                      const allIds = checklistItems.map(item => item.id);
                       setCheckedItems(new Set(allIds));
                     }}
                   >
