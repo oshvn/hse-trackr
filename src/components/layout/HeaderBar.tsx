@@ -15,6 +15,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useToast } from "@/hooks/use-toast";
+import { NotificationBell } from "./NotificationBell";
 
 interface HeaderBarProps {
   user: User | null;
@@ -71,7 +72,8 @@ export const HeaderBar = ({ user, userRole }: HeaderBarProps) => {
         </h1>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2">
+        {(userRole === "admin" || userRole === "super_admin") && <NotificationBell />}
         {user ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
