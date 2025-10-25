@@ -197,9 +197,6 @@ const MySubmissionsPage: React.FC = () => {
           submitted_at: new Date().toISOString(),
           cnt: 1,
           note: fullNote,
-          file_name: null,
-          file_size: null,
-          storage_path: null,
         });
 
       if (insertError) throw insertError;
