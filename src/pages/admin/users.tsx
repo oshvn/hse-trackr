@@ -157,6 +157,13 @@ const AdminUsersPage = () => {
 
     try {
       setResettingUserId(user.user_id);
+      
+      // Get fresh session token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+      }
+
       const { data, error } = await supabase.functions.invoke('manage-invite', {
         body: {
           action: 'reset_password',
