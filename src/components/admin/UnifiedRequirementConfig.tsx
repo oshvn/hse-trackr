@@ -74,10 +74,10 @@ export const UnifiedRequirementConfig: React.FC = () => {
     try {
       setLoading(true);
       const [docTypesRes, contractorsRes, checklistRes, contractorReqRes] = await Promise.all([
-        supabase.from('document_types').select('*').order('created_at'),
-        supabase.from('contractors').select('id, name').order('name'),
-        supabase.from('checklist_requirements').select('*').order('doc_type_id').order('position'),
-        supabase.from('contractor_requirements').select('*'),
+        supabase.from('doc_types' as any).select('*').order('created_at'),
+        supabase.from('contractors' as any).select('id, name').order('name'),
+        supabase.from('checklist_requirements' as any).select('*').order('doc_type_id').order('position'),
+        supabase.from('contractor_requirements' as any).select('*'),
       ]);
 
       if (docTypesRes.error) throw docTypesRes.error;
@@ -85,10 +85,10 @@ export const UnifiedRequirementConfig: React.FC = () => {
       if (checklistRes.error) throw checklistRes.error;
       if (contractorReqRes.error) throw contractorReqRes.error;
 
-      setDocTypes(docTypesRes.data || []);
-      setContractors(contractorsRes.data || []);
-      setChecklistRequirements(checklistRes.data || []);
-      setContractorRequirements(contractorReqRes.data || []);
+      setDocTypes((docTypesRes.data || []) as any);
+      setContractors((contractorsRes.data || []) as any);
+      setChecklistRequirements((checklistRes.data || []) as any);
+      setContractorRequirements((contractorReqRes.data || []) as any);
     } catch (error) {
       console.error('Error loading data:', error);
       toast({
@@ -156,8 +156,8 @@ export const UnifiedRequirementConfig: React.FC = () => {
       }));
 
       const { error } = await supabase
-        .from('checklist_requirements')
-        .insert(newRecords);
+        .from('checklist_requirements' as any)
+        .insert(newRecords as any);
 
       if (error) throw error;
 
@@ -183,8 +183,8 @@ export const UnifiedRequirementConfig: React.FC = () => {
   const handleToggleChecklistRequired = async (checklistReq: ChecklistRequirementRow, newValue: boolean) => {
     try {
       const { error } = await supabase
-        .from('checklist_requirements')
-        .update({ is_required: newValue })
+        .from('checklist_requirements' as any)
+        .update({ is_required: newValue } as any)
         .eq('id', checklistReq.id);
 
       if (error) throw error;
@@ -218,13 +218,13 @@ export const UnifiedRequirementConfig: React.FC = () => {
   ) => {
     try {
       const { error } = await supabase
-        .from('contractor_requirements')
+        .from('contractor_requirements' as any)
         .upsert({
           doc_type_id: docTypeId,
           contractor_id: contractorId,
           required_count: requiredCount,
           planned_due_date: plannedDueDate || null,
-        }, { onConflict: 'doc_type_id,contractor_id' });
+        } as any, { onConflict: 'doc_type_id,contractor_id' });
 
       if (error) throw error;
 
@@ -249,7 +249,7 @@ export const UnifiedRequirementConfig: React.FC = () => {
     setSavingDocTypeId(docTypeId);
     try {
       const { error } = await supabase
-        .from('document_types')
+        .from('document_types' as any)
         .update({
           name: editDocType.name,
           document_name: editDocType.document_name,
@@ -291,12 +291,12 @@ export const UnifiedRequirementConfig: React.FC = () => {
     }
 
     try {
-      const { error } = await supabase.from('document_types').insert({
+      const { error } = await supabase.from('document_types' as any).insert({
         name: newDocType.name.trim(),
         document_name: newDocType.document_name?.trim() || null,
         category: newDocType.category.trim(),
         is_critical: newDocType.is_critical,
-      });
+      } as any);
 
       if (error) throw error;
 
