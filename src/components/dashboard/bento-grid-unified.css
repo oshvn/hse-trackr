@@ -1,134 +1,121 @@
-/* Unified Dashboard BentoGrid Layout */
+/* Unified Dashboard BentoGrid Layout - Clean & Organized */
 
 .unified-bento-grid {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
-  grid-auto-rows: minmax(300px, auto);
-  gap: 16px;
+  grid-auto-rows: auto;
+  gap: 20px;
   width: 100%;
   padding: 20px;
-  background: linear-gradient(135deg, #f5f5f5 0%, #fafafa 100%);
+  background: #f8f9fa;
 }
 
-/* ===== HEADER (Spans full width) ===== */
-.unified-bento-grid .grid-header {
-  grid-column: 1 / -1;
-  grid-row: auto;
-  min-height: auto;
-  padding: 20px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-/* ===== FILTERS (Spans full width) ===== */
-.unified-bento-grid .grid-filters {
-  grid-column: 1 / -1;
-  grid-row: auto;
-  min-height: auto;
-  padding: 16px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-}
-
-/* ===== KPI CARDS (3 cards in a row) ===== */
-.unified-bento-grid .grid-kpi-overall,
-.unified-bento-grid .grid-kpi-critical,
-.unified-bento-grid .grid-kpi-time {
-  grid-column: span 4;
-  grid-row: auto;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.unified-bento-grid .grid-kpi-overall:hover,
-.unified-bento-grid .grid-kpi-critical:hover,
-.unified-bento-grid .grid-kpi-time:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-}
-
-/* ===== PRIMARY CHARTS (Large cards taking 6 columns each) ===== */
-.unified-bento-grid .grid-chart-primary-1,
-.unified-bento-grid .grid-chart-primary-2 {
-  grid-column: span 6;
-  grid-row: auto;
-  min-height: 350px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.unified-bento-grid .grid-chart-primary-1:hover,
-.unified-bento-grid .grid-chart-primary-2:hover {
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-}
-
-/* ===== SECONDARY CHARTS (Medium cards taking 4 columns each) ===== */
-.unified-bento-grid .grid-chart-secondary-1,
-.unified-bento-grid .grid-chart-secondary-2,
-.unified-bento-grid .grid-chart-secondary-3 {
-  grid-column: span 4;
-  grid-row: auto;
-  min-height: 280px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.unified-bento-grid .grid-chart-secondary-1:hover,
-.unified-bento-grid .grid-chart-secondary-2:hover,
-.unified-bento-grid .grid-chart-secondary-3:hover {
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
-}
-
-/* ===== ALERTS & ACTIONS (Span 6 columns) ===== */
-.unified-bento-grid .grid-alerts,
-.unified-bento-grid .grid-actions {
-  grid-column: span 6;
-  grid-row: auto;
-  min-height: 300px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.unified-bento-grid .grid-alerts:hover,
-.unified-bento-grid .grid-actions:hover {
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-}
-
-/* ===== TABLES & DETAILS (Full width or 6 cols) ===== */
-.unified-bento-grid .grid-processing-time {
-  grid-column: span 12;
-  grid-row: auto;
-  min-height: 300px;
-}
-
-.unified-bento-grid .grid-bottleneck {
-  grid-column: span 6;
-  grid-row: auto;
-  min-height: 280px;
-  cursor: pointer;
-}
-
-.unified-bento-grid .grid-timeline {
-  grid-column: span 6;
-  grid-row: auto;
-  min-height: 280px;
-  cursor: pointer;
-}
-
-/* ===== CARD STYLING ===== */
+/* ===== CARD BASE STYLES ===== */
 .unified-bento-grid > * {
   background: white;
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   transition: all 0.3s ease-in-out;
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  min-height: 280px;
 }
 
 .unified-bento-grid > *:hover {
-  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+  border-color: #d1d5db;
+  transform: translateY(-2px);
+}
+
+/* ===== SECTION 1: KPI CARDS (Row 1) ===== */
+/* 3 cards, each takes 4 columns */
+.grid-kpi-overall,
+.grid-kpi-critical,
+.grid-kpi-time {
+  grid-column: span 4;
+  min-height: 200px;
+}
+
+/* ===== SECTION 2: PRIMARY CHARTS (Row 2) ===== */
+/* 2 large charts, each takes 6 columns */
+.grid-chart-primary-1,
+.grid-chart-primary-2 {
+  grid-column: span 6;
+  min-height: 380px;
+}
+
+/* Chart container inside */
+.grid-chart-primary-1 > div:nth-child(2),
+.grid-chart-primary-2 > div:nth-child(2) {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 340px;
+}
+
+/* ===== SECTION 3: SECONDARY CHARTS (Row 3) ===== */
+/* 3 medium charts, each takes 4 columns */
+.grid-chart-secondary-1,
+.grid-chart-secondary-2,
+.grid-chart-secondary-3 {
+  grid-column: span 4;
+  min-height: 300px;
+}
+
+/* ===== SECTION 4: ANALYSIS CARDS (Row 4) ===== */
+/* 3 cards, each takes 4 columns */
+.grid-bottleneck,
+.grid-timeline,
+.grid-category {
+  grid-column: span 4;
+  min-height: 300px;
+}
+
+/* ===== SECTION 5: FULL-WIDTH CHART (Row 5) ===== */
+/* 1 large chart takes full width */
+.grid-processing-time {
+  grid-column: 1 / -1;
+  min-height: 380px;
+}
+
+/* ===== TITLE & CONTENT ===== */
+.unified-bento-grid > * > h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 12px 0;
+  letter-spacing: 0.5px;
+}
+
+.unified-bento-grid > * > p {
+  font-size: 12px;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* Flex layout for content */
+.unified-bento-grid > * > div:last-child {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+/* ===== BUTTON STYLING ===== */
+.unified-bento-grid button {
+  margin-top: auto;
+  padding: 8px 12px;
+  font-size: 12px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.unified-bento-grid button:hover {
+  background-color: #f3f4f6;
 }
 
 /* ===== CHART CONTAINER ===== */
@@ -138,137 +125,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 200px;
 }
 
 .chart-container > * {
-  width: 100%;
-  height: 100%;
-}
-
-/* ===== TABLET (768px - 1024px) ===== */
-@media (max-width: 1024px) {
-  .unified-bento-grid {
-    grid-template-columns: repeat(8, 1fr);
-    gap: 12px;
-    padding: 16px;
-  }
-
-  /* KPI cards: 2 per row on tablet */
-  .unified-bento-grid .grid-kpi-overall,
-  .unified-bento-grid .grid-kpi-critical,
-  .unified-bento-grid .grid-kpi-time {
-    grid-column: span 4;
-  }
-
-  /* Adjust primary charts */
-  .unified-bento-grid .grid-chart-primary-1,
-  .unified-bento-grid .grid-chart-primary-2 {
-    grid-column: span 8;
-    min-height: 300px;
-  }
-
-  /* Adjust secondary charts */
-  .unified-bento-grid .grid-chart-secondary-1,
-  .unified-bento-grid .grid-chart-secondary-2,
-  .unified-bento-grid .grid-chart-secondary-3 {
-    grid-column: span 4;
-    min-height: 250px;
-  }
-
-  /* Adjust alerts and actions */
-  .unified-bento-grid .grid-alerts,
-  .unified-bento-grid .grid-actions {
-    grid-column: span 8;
-    min-height: 280px;
-  }
-
-  /* Processing time on tablet */
-  .unified-bento-grid .grid-processing-time {
-    grid-column: span 8;
-    min-height: 280px;
-  }
-
-  /* Bottleneck and timeline */
-  .unified-bento-grid .grid-bottleneck,
-  .unified-bento-grid .grid-timeline {
-    grid-column: span 4;
-    min-height: 250px;
-  }
-}
-
-/* ===== MOBILE (<768px) ===== */
-@media (max-width: 768px) {
-  .unified-bento-grid {
-    grid-template-columns: 1fr;
-    gap: 12px;
-    padding: 12px;
-    grid-auto-rows: minmax(250px, auto);
-  }
-
-  /* All KPI cards: 1 per row */
-  .unified-bento-grid .grid-kpi-overall,
-  .unified-bento-grid .grid-kpi-critical,
-  .unified-bento-grid .grid-kpi-time {
-    grid-column: span 1;
-    min-height: 200px;
-  }
-
-  /* All charts: full width */
-  .unified-bento-grid .grid-chart-primary-1,
-  .unified-bento-grid .grid-chart-primary-2,
-  .unified-bento-grid .grid-chart-secondary-1,
-  .unified-bento-grid .grid-chart-secondary-2,
-  .unified-bento-grid .grid-chart-secondary-3,
-  .unified-bento-grid .grid-alerts,
-  .unified-bento-grid .grid-actions,
-  .unified-bento-grid .grid-processing-time,
-  .unified-bento-grid .grid-bottleneck,
-  .unified-bento-grid .grid-timeline {
-    grid-column: span 1;
-    min-height: 200px;
-  }
-
-  /* Reduce padding on mobile */
-  .unified-bento-grid > * {
-    padding: 16px;
-  }
-}
-
-/* ===== SMALL MOBILE (<480px) ===== */
-@media (max-width: 480px) {
-  .unified-bento-grid {
-    gap: 8px;
-    padding: 8px;
-  }
-
-  .unified-bento-grid > * {
-    padding: 12px;
-    min-height: 150px;
-  }
-}
-
-/* ===== CARD CLICK FEEDBACK ===== */
-.unified-bento-grid .clickable {
-  cursor: pointer;
-  position: relative;
-}
-
-.unified-bento-grid .clickable::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  background: linear-gradient(135deg, transparent 0%, rgba(255, 255, 255, 0.1) 100%);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  pointer-events: none;
-  border-radius: 12px;
-}
-
-.unified-bento-grid .clickable:hover::after {
-  opacity: 1;
+  width: 100% !important;
+  height: 100% !important;
 }
 
 /* ===== LOADING STATE ===== */
@@ -279,11 +141,11 @@
 
 /* ===== ERROR STATE ===== */
 .unified-bento-grid .error {
-  border-color: #ef4444;
+  border-color: #fca5a5;
   background: #fef2f2;
 }
 
-/* ===== ANIMATION ===== */
+/* ===== ANIMATIONS ===== */
 @keyframes slideIn {
   from {
     opacity: 0;
@@ -299,9 +161,101 @@
   animation: slideIn 0.4s ease-out backwards;
 }
 
-.unified-bento-grid > *:nth-child(1) { animation-delay: 0s; }
-.unified-bento-grid > *:nth-child(2) { animation-delay: 0.05s; }
-.unified-bento-grid > *:nth-child(3) { animation-delay: 0.1s; }
-.unified-bento-grid > *:nth-child(4) { animation-delay: 0.15s; }
-.unified-bento-grid > *:nth-child(5) { animation-delay: 0.2s; }
-.unified-bento-grid > *:nth-child(n+6) { animation-delay: 0.25s; }
+.unified-bento-grid > *:nth-child(1) { animation-delay: 0.05s; }
+.unified-bento-grid > *:nth-child(2) { animation-delay: 0.1s; }
+.unified-bento-grid > *:nth-child(3) { animation-delay: 0.15s; }
+.unified-bento-grid > *:nth-child(4) { animation-delay: 0.2s; }
+.unified-bento-grid > *:nth-child(5) { animation-delay: 0.25s; }
+.unified-bento-grid > *:nth-child(6) { animation-delay: 0.3s; }
+.unified-bento-grid > *:nth-child(7) { animation-delay: 0.35s; }
+.unified-bento-grid > *:nth-child(8) { animation-delay: 0.4s; }
+.unified-bento-grid > *:nth-child(9) { animation-delay: 0.45s; }
+.unified-bento-grid > *:nth-child(10) { animation-delay: 0.5s; }
+.unified-bento-grid > *:nth-child(n+11) { animation-delay: 0.55s; }
+
+/* ===== TABLET (768px - 1024px) ===== */
+@media (max-width: 1024px) {
+  .unified-bento-grid {
+    grid-template-columns: repeat(8, 1fr);
+    gap: 16px;
+    padding: 16px;
+  }
+
+  /* KPI cards: 2 per row */
+  .grid-kpi-overall { grid-column: span 4; }
+  .grid-kpi-critical { grid-column: span 4; }
+  .grid-kpi-time { grid-column: span 8; }
+
+  /* Primary charts: full width */
+  .grid-chart-primary-1,
+  .grid-chart-primary-2 {
+    grid-column: span 8;
+    min-height: 320px;
+  }
+
+  /* Secondary charts: 2 per row */
+  .grid-chart-secondary-1 { grid-column: span 4; }
+  .grid-chart-secondary-2 { grid-column: span 4; }
+  .grid-chart-secondary-3 { grid-column: span 8; }
+
+  /* Analysis cards: 2 per row */
+  .grid-bottleneck { grid-column: span 4; }
+  .grid-timeline { grid-column: span 4; }
+  .grid-category { grid-column: span 8; }
+
+  /* Processing time: full width */
+  .grid-processing-time {
+    grid-column: 1 / -1;
+    min-height: 320px;
+  }
+}
+
+/* ===== MOBILE (<768px) ===== */
+@media (max-width: 768px) {
+  .unified-bento-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  /* All cards: full width */
+  .unified-bento-grid > * {
+    grid-column: span 1;
+    min-height: 180px;
+    padding: 16px;
+  }
+
+  /* Adjust specific cards */
+  .grid-kpi-overall,
+  .grid-kpi-critical,
+  .grid-kpi-time,
+  .grid-chart-primary-1,
+  .grid-chart-primary-2,
+  .grid-chart-secondary-1,
+  .grid-chart-secondary-2,
+  .grid-chart-secondary-3,
+  .grid-bottleneck,
+  .grid-timeline,
+  .grid-category,
+  .grid-processing-time {
+    grid-column: 1;
+  }
+}
+
+/* ===== SMALL MOBILE (<480px) ===== */
+@media (max-width: 480px) {
+  .unified-bento-grid {
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .unified-bento-grid > * {
+    min-height: 150px;
+    padding: 12px;
+  }
+
+  .unified-bento-grid > * > h3 {
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+}

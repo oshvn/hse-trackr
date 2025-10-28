@@ -133,7 +133,16 @@ export const UnifiedDashboardLayout: React.FC<UnifiedDashboardLayoutProps> = ({
 
       {/* Filters */}
       <div className="sticky top-[80px] z-30 bg-white shadow-sm">
-        <FilterBar filters={filters} onChange={onFiltersChange} />
+        <FilterBar 
+          contractors={contractorData || []}
+          categories={docProgressData?.map((d: any) => d.category).filter(Boolean) || []}
+          contractorFilter={filters?.contractor || 'all'}
+          categoryFilter={filters?.category || 'all'}
+          searchTerm=""
+          onContractorChange={(value) => onFiltersChange({ ...filters, contractor: value })}
+          onCategoryChange={(value) => onFiltersChange({ ...filters, category: value })}
+          onSearchChange={() => {}}
+        />
       </div>
 
       {/* Error State */}
