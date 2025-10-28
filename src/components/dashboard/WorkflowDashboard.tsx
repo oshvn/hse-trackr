@@ -29,7 +29,7 @@ import {
   ActionStatus,
   Priority
 } from '../../lib/workflowTypes';
-import { ActionExecutionModal } from './ActionExecutionModal';
+// import { ActionExecutionModal } from './ActionExecutionModal'; // TODO: implement
 import { 
   Mail, 
   Calendar, 
@@ -431,12 +431,12 @@ export const WorkflowDashboard: React.FC<WorkflowDashboardProps> = ({
       </Card>
 
       {/* Action Execution Modal */}
-      <ActionExecutionModal
+      {/* <ActionExecutionModal
         isOpen={isActionModalOpen}
         onClose={() => setIsActionModalOpen(false)}
         workflowEngine={workflowEngine}
         onActionExecuted={loadData}
-      />
+      /> */}
 
       {/* Execution Details Modal */}
       {selectedExecution && (

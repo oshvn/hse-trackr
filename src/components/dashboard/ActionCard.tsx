@@ -177,13 +177,15 @@ export function ActionCard({
     setSubmittingFeedback(true);
     try {
       const completeFeedback: ActionFeedback = {
+        actionId: action.id,
         rating: feedback.rating!,
         effectiveness: feedback.effectiveness!,
         comments: feedback.comments || '',
         wouldRecommend: feedback.wouldRecommend || false,
         actualTimeSpent: feedback.actualTimeSpent || 30,
         actualImpact: action.impactAssessment,
-        suggestions: feedback.suggestions || []
+        suggestions: feedback.suggestions || [],
+        createdAt: new Date()
       };
       
       const success = await aiActionExecutor.submitFeedback(action.id, completeFeedback);

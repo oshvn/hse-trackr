@@ -186,7 +186,7 @@ export const LazyLoad: React.FC<LazyLoadProps> = ({
   }, [isIntersecting, isLoaded, delay]);
   
   return (
-    <div ref={ref} className="w-full">
+    <div ref={ref as any} className="w-full">
       {isLoaded ? children : fallback}
     </div>
   );
@@ -387,14 +387,14 @@ export const OptimizedChart: React.FC<{
   
   if (shouldUseLazyLoading && !isInView) {
     return (
-      <div ref={ref} className={cn('h-64 w-full', className)}>
+      <div ref={ref as any} className={cn('h-64 w-full', className)}>
         <Skeleton className="h-full w-full" />
       </div>
     );
   }
   
   return (
-    <div ref={ref} className={cn('h-64 w-full', className)}>
+    <div ref={ref as any} className={cn('h-64 w-full', className)}>
       {isLoading ? (
         <Skeleton className="h-full w-full" />
       ) : (
