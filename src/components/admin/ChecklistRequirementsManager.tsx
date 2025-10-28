@@ -14,9 +14,10 @@ import { AlertCircle, Save, RefreshCcw, ChevronDown, ChevronUp } from 'lucide-re
 interface DocTypeRow {
   id: string;
   name: string;
-  document_name: string | null;
-  category: string | null;
-  is_critical?: boolean;
+  category: string;
+  code: string;
+  is_critical: boolean;
+  weight: number;
 }
 
 interface ChecklistRequirementRow {
@@ -40,16 +41,16 @@ export const ChecklistRequirementsManager: React.FC = () => {
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [docTypesResult, requirementsResult] = await Promise.all([
-        supabase.from('document_types').select('*').order('created_at').order('name'),
-        supabase.from('checklist_requirements').select('*').order('doc_type_id').order('position')
-      ]);
+      // Load doc_types instead
+      const { data: docTypesData, error: docTypesError } = await supabase
+        .from('doc_types')
+        .select('*')
+        .order('name');
 
-      if (docTypesResult.error) throw docTypesResult.error;
-      if (requirementsResult.error) throw requirementsResult.error;
+      if (docTypesError) throw docTypesError;
 
-      setDocTypes(docTypesResult.data || []);
-      setChecklistRequirements(requirementsResult.data || []);
+      setDocTypes(docTypesData || []);
+      setChecklistRequirements([]);
     } catch (error) {
       console.error('Error loading data:', error);
       toast({
@@ -93,87 +94,22 @@ export const ChecklistRequirementsManager: React.FC = () => {
     [getChecklistItemsForDocType]
   );
 
-  // Handle toggle required
+  // Disabled for now - no checklist_requirements table
   const handleToggleRequired = async (checklistReq: ChecklistRequirementRow, newValue: boolean) => {
-    try {
-      const { error } = await supabase
-        .from('checklist_requirements')
-        .update({ is_required: newValue })
-        .eq('id', checklistReq.id);
-
-      if (error) throw error;
-
-      setChecklistRequirements(prev =>
-        prev.map(req =>
-          req.id === checklistReq.id ? { ...req, is_required: newValue } : req
-        )
-      );
-
-      toast({
-        title: 'Cập nhật thành công',
-        description: `${checklistReq.checklist_label} - ${newValue ? 'bắt buộc' : 'tùy chọn'}`
-      });
-    } catch (error) {
-      console.error('Error toggling requirement:', error);
-      toast({
-        title: 'Lỗi',
-        description: 'Không thể cập nhật yêu cầu',
-        variant: 'destructive'
-      });
-    }
+    toast({
+      title: 'Chức năng chưa khả dụng',
+      description: 'Tính năng này sẽ được bổ sung sau',
+      variant: 'default'
+    });
   };
 
-  // Handle init checklist items cho doc_type
+  // Disabled for now - no checklist_requirements table
   const handleInitializeChecklistItems = async (docType: DocTypeRow) => {
-    setSavingDocTypeId(docType.id);
-    try {
-      const availableItems = getAvailableChecklistItems(docType);
-      const existingReqs = getRequirementsForDocType(docType.id);
-
-      // Filter items not yet in database
-      const itemsToAdd = availableItems.filter(item =>
-        !existingReqs.find(req => req.checklist_item_id === item.id)
-      );
-
-      if (itemsToAdd.length === 0) {
-        toast({
-          title: 'Không có mục mới',
-          description: 'Tất cả mục checklist đã được thêm'
-        });
-        setSavingDocTypeId(null);
-        return;
-      }
-
-      const newRecords = itemsToAdd.map((item, index) => ({
-        doc_type_id: docType.id,
-        checklist_item_id: item.id,
-        checklist_label: item.label,
-        is_required: true,
-        position: existingReqs.length + index
-      }));
-
-      const { error } = await supabase
-        .from('checklist_requirements')
-        .insert(newRecords);
-
-      if (error) throw error;
-
-      toast({
-        title: 'Thêm thành công',
-        description: `Đã thêm ${itemsToAdd.length} mục checklist`
-      });
-
-      await loadData();
-    } catch (error) {
-      console.error('Error initializing checklist items:', error);
-      toast({
-        title: 'Lỗi',
-        description: 'Không thể thêm mục checklist',
-        variant: 'destructive'
-      });
-    } finally {
-      setSavingDocTypeId(null);
-    }
+    toast({
+      title: 'Chức năng chưa khả dụng',
+      description: 'Tính năng này sẽ được bổ sung sau',
+      variant: 'default'
+    });
   };
 
   if (loading) {
@@ -245,7 +181,7 @@ export const ChecklistRequirementsManager: React.FC = () => {
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {docType.category} {docType.document_name ? `• ${docType.document_name}` : ''}
+                        {docType.category} • Code: {docType.code}
                       </p>
                     </div>
                   </div>

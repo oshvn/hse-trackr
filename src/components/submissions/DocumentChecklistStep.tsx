@@ -64,28 +64,15 @@ export const DocumentChecklistStep: React.FC<DocumentChecklistStepProps> = ({
           return;
         }
 
-        // Lấy checklist requirements từ database
-        const { data: requirementsData, error: requirementsError } = await supabase
-          .from('checklist_requirements')
-          .select('id, checklist_item_id, checklist_label, is_required')
-          .eq('doc_type_id', docTypeData.id)
-          .order('position');
-
-        if (requirementsError) throw requirementsError;
-
-        if (requirementsData && requirementsData.length > 0) {
-          setChecklistRequirements(requirementsData);
-        } else {
-          // Fallback: use hardcoded từ CategoryNode nếu không có trong database
-          if (selectedCategory.required_documents) {
-            const fallbackReqs = selectedCategory.required_documents.map(doc => ({
-              id: doc.id,
-              checklist_item_id: doc.id,
-              checklist_label: doc.label,
-              is_required: doc.required !== false
-            }));
-            setChecklistRequirements(fallbackReqs);
-          }
+        // Table checklist_requirements không tồn tại - use fallback
+        if (selectedCategory.required_documents) {
+          const fallbackReqs = selectedCategory.required_documents.map(doc => ({
+            id: doc.id,
+            checklist_item_id: doc.id,
+            checklist_label: doc.label,
+            is_required: doc.required !== false
+          }));
+          setChecklistRequirements(fallbackReqs);
         }
       } catch (error) {
         console.error('Error loading checklist requirements:', error);

@@ -199,6 +199,7 @@ const MySubmissionsPage: React.FC = () => {
               : 'Theo dõi và quản lý các hồ sơ nộp của bạn'}
           </p>
         </div>
+<<<<<<< HEAD
         <Button
           onClick={() => navigate('/bulk-submission')}
           className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-lg py-6 px-6"
@@ -206,6 +207,17 @@ const MySubmissionsPage: React.FC = () => {
           <Plus className="h-5 w-5" />
           Nộp Hồ Sơ Mới
         </Button>
+=======
+        {contractorId && (
+          <Button
+            onClick={() => navigate('/bulk-submission')}
+            className="flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Nộp hồ sơ mới
+          </Button>
+        )}
+>>>>>>> origin/main
       </div>
 
       {isAdmin && (
