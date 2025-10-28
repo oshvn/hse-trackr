@@ -73,20 +73,21 @@ export const UnifiedRequirementConfig: React.FC = () => {
   const loadAllData = useCallback(async () => {
     try {
       setLoading(true);
-      const [docTypesRes, contractorsRes, contractorReqRes] = await Promise.all([
+      const [docTypesRes, contractorsRes, checklistRes, contractorReqRes] = await Promise.all([
         supabase.from('doc_types' as any).select('*'),
         supabase.from('contractors' as any).select('id, name').order('name'),
+        supabase.from('checklist_requirements' as any).select('*').order('doc_type_id').order('position'),
         supabase.from('contractor_requirements' as any).select('*'),
       ]);
 
       if (docTypesRes.error) throw docTypesRes.error;
       if (contractorsRes.error) throw contractorsRes.error;
+      if (checklistRes.error) throw checklistRes.error;
       if (contractorReqRes.error) throw contractorReqRes.error;
 
       setDocTypes((docTypesRes.data || []) as any);
       setContractors((contractorsRes.data || []) as any);
-      // checklist_requirements table doesn't exist - use empty array
-      setChecklistRequirements([]);
+      setChecklistRequirements((checklistRes.data || []) as any);
       setContractorRequirements((contractorReqRes.data || []) as any);
     } catch (error) {
       console.error('Error loading data:', error);
@@ -146,11 +147,23 @@ export const UnifiedRequirementConfig: React.FC = () => {
         return;
       }
 
-      // Disabled - checklist_requirements table doesn't exist
+      const newRecords = itemsToAdd.map((item, index) => ({
+        doc_type_id: docType.id,
+        checklist_item_id: item.id,
+        checklist_label: item.label,
+        is_required: item.required !== false,
+        position: existingReqs.length + index
+      }));
+
+      const { error } = await supabase
+        .from('checklist_requirements' as any)
+        .insert(newRecords as any);
+
+      if (error) throw error;
+
       toast({
-        title: 'Chức năng chưa khả dụng',
-        description: 'Bảng checklist_requirements chưa tồn tại trong database',
-        variant: 'default'
+        title: 'Thêm thành công',
+        description: `Đã thêm ${itemsToAdd.length} mục checklist`
       });
 
       await loadAllData();
@@ -169,12 +182,18 @@ export const UnifiedRequirementConfig: React.FC = () => {
   // Toggle checklist item required status
   const handleToggleChecklistRequired = async (checklistReq: ChecklistRequirementRow, newValue: boolean) => {
     try {
-      // Disabled - checklist_requirements table doesn't exist
-      toast({
-        title: 'Chức năng chưa khả dụng',
-        description: 'Bảng checklist_requirements chưa tồn tại trong database',
-        variant: 'default'
-      });
+      const { error } = await supabase
+        .from('checklist_requirements' as any)
+        .update({ is_required: newValue } as any)
+        .eq('id', checklistReq.id);
+
+      if (error) throw error;
+
+      setChecklistRequirements(prev =>
+        prev.map(req =>
+          req.id === checklistReq.id ? { ...req, is_required: newValue } : req
+        )
+      );
 
       toast({
         title: 'Cập nhật thành công',
