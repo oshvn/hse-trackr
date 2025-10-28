@@ -3,7 +3,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CategoryTable } from './CategoryTable';
 import { SummaryHeader } from './SummaryHeader';
 import { CategoryProgress } from './CategoryProgress';
-import { NewSubmissionDialog } from './NewSubmissionDialog';
 import { SubmissionHistorySheet } from './SubmissionHistorySheet';
 import { MAJOR_CATEGORIES } from '@/lib/checklistData';
 import type { ContractorRequirement, DocProgress, Submission } from '@/pages/my-submissions';
@@ -13,7 +12,7 @@ interface SubmissionsTabsProps {
   requirements: ContractorRequirement[];
   docProgress: DocProgress[];
   submissions: Submission[];
-  onNewSubmission: (docTypeId: string, documentLink: string, note: string, checklist: string[]) => Promise<void>;
+  onNewSubmission: () => void;
   onRefresh: () => void;
 }
 
@@ -27,7 +26,6 @@ export const SubmissionsTabs: React.FC<SubmissionsTabsProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState('all');
   const [selectedDocTypeId, setSelectedDocTypeId] = useState<string | null>(null);
-  const [showNewSubmission, setShowNewSubmission] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
 
   const getTabData = (category: string | null) => {
@@ -93,10 +91,6 @@ export const SubmissionsTabs: React.FC<SubmissionsTabsProps> = ({
     setShowHistory(true);
   };
 
-  const handleNewSubmissionClick = () => {
-    setShowNewSubmission(true);
-  };
-
   return (
     <>
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -124,7 +118,7 @@ export const SubmissionsTabs: React.FC<SubmissionsTabsProps> = ({
             {...getTabData(null)}
             submissions={submissions}
             onRowClick={handleRowClick}
-            onNewSubmission={handleNewSubmissionClick}
+            onNewSubmission={onNewSubmission}
             showCriticalFirst={true}
           />
         </TabsContent>
@@ -140,20 +134,12 @@ export const SubmissionsTabs: React.FC<SubmissionsTabsProps> = ({
               {...getTabData(cat.value)}
               submissions={submissions}
               onRowClick={handleRowClick}
-              onNewSubmission={handleNewSubmissionClick}
+              onNewSubmission={onNewSubmission}
               showCriticalFirst={true}
             />
           </TabsContent>
         ))}
       </Tabs>
-
-      <NewSubmissionDialog
-        open={showNewSubmission}
-        onClose={() => setShowNewSubmission(false)}
-        onSubmit={onNewSubmission}
-        requirements={getTabData(activeTab === 'all' ? null : activeTab).requirements}
-        category={activeTab === 'all' ? null : activeTab}
-      />
 
       <SubmissionHistorySheet
         open={showHistory}

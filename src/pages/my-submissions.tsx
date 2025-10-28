@@ -84,8 +84,8 @@ const MySubmissionsPage: React.FC = () => {
 
       if (!contractorId) {
         toast({
-          title: "Error",
-          description: "Unable to load contractor data",
+          title: "Lỗi",
+          description: "Không thể tải dữ liệu nhà thầu",
           variant: "destructive",
         });
         setLoading(false);
@@ -142,8 +142,8 @@ const MySubmissionsPage: React.FC = () => {
     } catch (error) {
       console.error('Error loading data:', error);
       toast({
-        title: "Error",
-        description: "Failed to load submissions data",
+        title: "Lỗi",
+        description: "Không thể tải dữ liệu nộp hồ sơ",
         variant: "destructive"
       });
     } finally {
@@ -180,52 +180,10 @@ const MySubmissionsPage: React.FC = () => {
     }
   }, [loadData, contractorId]);
 
-  const handleNewSubmission = async (docTypeId: string, documentLink: string, note: string, checklist: string[]) => {
-    try {
-      if (!contractorId) {
-        throw new Error('Missing contractor context');
-      }
-
-      // Create note with checklist
-      const checklistText = checklist.map(item => `✓ ${item}`).join('\n');
-      const fullNote = note 
-        ? `${note}\n\nChecklist:\n${checklistText}\n\nLink: ${documentLink}`
-        : `Checklist:\n${checklistText}\n\nLink: ${documentLink}`;
-
-      const { error: insertError } = await supabase
-        .from('submissions')
-        .insert({
-          contractor_id: contractorId,
-          doc_type_id: docTypeId,
-          status: 'submitted',
-          submitted_at: new Date().toISOString(),
-          cnt: 1,
-          note: fullNote,
-        });
-
-      if (insertError) throw insertError;
-
-      toast({
-        title: "Success",
-        description: "Document submitted successfully"
-      });
-
-      // Reload data
-      loadData();
-    } catch (error) {
-      console.error('Error creating submission:', error);
-      toast({
-        title: "Error",
-        description: "Failed to submit document",
-        variant: "destructive"
-      });
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Loading submissions...</div>
+        <div className="text-lg">Đang tải...</div>
       </div>
     );
   }
@@ -234,26 +192,26 @@ const MySubmissionsPage: React.FC = () => {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold">My Submissions</h1>
+          <h1 className="text-3xl font-bold">Danh Sách Nộp Hồ Sơ</h1>
           <p className="text-muted-foreground">
             {isAdmin 
-              ? 'View and track contractor document submissions by category'
-              : 'Track and manage your document submissions by category'}
+              ? 'Xem và theo dõi các hồ sơ nộp từ nhà thầu theo danh mục'
+              : 'Theo dõi và quản lý các hồ sơ nộp của bạn'}
           </p>
         </div>
         <Button
           onClick={() => navigate('/bulk-submission')}
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-lg py-6 px-6"
         >
-          <Plus className="h-4 w-4" />
-          Nộp hồ sơ mới
+          <Plus className="h-5 w-5" />
+          Nộp Hồ Sơ Mới
         </Button>
       </div>
 
       {isAdmin && (
         <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
           <label htmlFor="contractor-select" className="font-medium">
-            Select Contractor:
+            Chọn nhà thầu:
           </label>
           <select
             id="contractor-select"
@@ -261,7 +219,7 @@ const MySubmissionsPage: React.FC = () => {
             onChange={(e) => setSelectedContractorId(e.target.value)}
             className="flex-1 max-w-md px-3 py-2 border rounded-md bg-background"
           >
-            <option value="">-- Choose a contractor --</option>
+            <option value="">-- Chọn nhà thầu --</option>
             {contractors.map(contractor => (
               <option key={contractor.id} value={contractor.id}>
                 {contractor.name}
@@ -277,15 +235,15 @@ const MySubmissionsPage: React.FC = () => {
           requirements={requirements}
           docProgress={docProgress}
           submissions={submissions}
-          onNewSubmission={handleNewSubmission}
+          onNewSubmission={() => navigate('/bulk-submission')}
           onRefresh={loadData}
         />
       ) : (
         <div className="text-center p-12 border rounded-lg bg-muted/30">
           <p className="text-muted-foreground">
             {isAdmin 
-              ? 'Please select a contractor to view their submissions'
-              : 'No contractor assigned to your account'}
+              ? 'Vui lòng chọn nhà thầu để xem hồ sơ nộp'
+              : 'Tài khoản chưa được gán nhà thầu. Vui lòng liên hệ quản trị viên.'}
           </p>
         </div>
       )}
