@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { z } from 'zod';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -21,7 +21,7 @@ const submissionSchema = z.object({
   docTypeId: z.string().uuid('Invalid document type'),
   note: z.string().max(1000, 'Note must be less than 1000 characters').optional(),
   documentLink: z.string().url('Link không hợp lệ. Vui lòng nhập link đầy đủ (bắt đầu với http:// hoặc https://)').min(1, 'Vui lòng nhập link hồ sơ'),
-  checklist: z.array(z.string()).min(1, 'Vui lòng chọn ít nhất một mục trong checklist')
+  checklist: z.array(z.string()).optional()
 });
 
 // Helper function to extract numeric code
@@ -181,7 +181,7 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
       return;
     }
 
-    if (checkedItems.size === 0) {
+    if (checklistItems.length > 0 && checkedItems.size === 0) {
       toast({
         title: "Thiếu thông tin",
         description: "Vui lòng chọn ít nhất một mục trong checklist",
@@ -190,17 +190,19 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
       return;
     }
 
-    // Check if all required items are selected
-    const requiredItems = checklistItems.filter(item => item.required);
-    const missingRequiredItems = requiredItems.filter(item => !checkedItems.has(item.id));
-    
-    if (missingRequiredItems.length > 0) {
-      toast({
-        title: "Thiếu thông tin bắt buộc",
-        description: `Vui lòng chọn các mục bắt buộc: ${missingRequiredItems.map(item => item.label).join(', ')}`,
-        variant: "destructive"
-      });
-      return;
+    // Only enforce required items when checklist exists
+    if (checklistItems.length > 0) {
+      const requiredItems = checklistItems.filter(item => item.required);
+      const missingRequiredItems = requiredItems.filter(item => !checkedItems.has(item.id));
+      
+      if (missingRequiredItems.length > 0) {
+        toast({
+          title: "Thiếu thông tin bắt buộc",
+          description: `Vui lòng chọn các mục bắt buộc: ${missingRequiredItems.map(item => item.label).join(', ')}`,
+          variant: "destructive"
+        });
+        return;
+      }
     }
 
     try {
@@ -211,7 +213,7 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
         docTypeId: selectedDocTypeId,
         note: note.trim() || undefined,
         documentLink: documentLink.trim(),
-        checklist: Array.from(checkedItems)
+        checklist: checklistItems.length > 0 ? Array.from(checkedItems) : undefined
       });
 
       if (!validationResult.success) {
@@ -228,7 +230,7 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
         validationResult.data.docTypeId,
         validationResult.data.documentLink,
         validationResult.data.note || '',
-        validationResult.data.checklist
+        validationResult.data.checklist || []
       );
 
       // Reset form
@@ -277,6 +279,9 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
             <FileText className="h-5 w-5" />
             New Submission
           </DialogTitle>
+          <DialogDescription>
+            Chọn loại tài liệu, hoàn tất checklist (nếu có) và dán link hồ sơ.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
@@ -413,6 +418,12 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
             </Card>
           )}
 
+          {selectedDocTypeId && checklistItems.length === 0 && (
+            <div className="text-sm text-muted-foreground border rounded-md p-3">
+              Hạng mục này không có checklist. Bạn có thể nộp hồ sơ trực tiếp.
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="documentLink">Link hồ sơ (đã chia sẻ)</Label>
             <Input
@@ -453,7 +464,7 @@ export const NewSubmissionDialog: React.FC<NewSubmissionDialogProps> = ({
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={!selectedDocTypeId || !documentLink.trim() || checkedItems.size === 0 || uploading}
+              disabled={!selectedDocTypeId || !documentLink.trim() || (checklistItems.length > 0 && checkedItems.size === 0) || uploading}
               className="flex-1"
             >
               {uploading ? 'Submitting...' : 'Submit'}

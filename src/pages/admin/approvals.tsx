@@ -6,6 +6,7 @@ import { SubmissionDetailSheet } from '@/components/approvals/SubmissionDetailSh
 import { BulkBar } from '@/components/approvals/BulkBar';
 import { useToast } from '@/hooks/use-toast';
 import { differenceInDays } from 'date-fns';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export interface ApprovalSubmission {
   id: string;
@@ -39,6 +40,7 @@ const AdminApprovalsPage: React.FC = () => {
   const [contractors, setContractors] = useState<Array<{id: string, name: string}>>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'history'>('pending');
   const [filters, setFilters] = useState<FilterState>({
     contractor: '',
     category: '',
@@ -57,7 +59,7 @@ const AdminApprovalsPage: React.FC = () => {
     loadData();
     loadFilterOptions();
     setupRealtimeSubscription();
-  }, [currentPage, filters]);
+  }, [currentPage, filters, activeTab]);
 
   const loadData = async () => {
     try {
@@ -69,8 +71,19 @@ const AdminApprovalsPage: React.FC = () => {
           *,
           contractors!inner(id, name),
           doc_types!inner(id, name, category, is_critical)
-        `)
-        .in('status', ['submitted', 'revision'])
+        `);
+
+      // Filter based on active tab
+      if (activeTab === 'pending') {
+        query = query.in('status', ['submitted', 'revision']);
+      } else if (activeTab === 'approved') {
+        query = query.eq('status', 'approved');
+      } else if (activeTab === 'history') {
+        // Show all submissions for history
+        query = query.in('status', ['submitted', 'revision', 'approved', 'rejected']);
+      }
+
+      query = query
         .order('submitted_at', { ascending: false })
         .range((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE - 1);
 
@@ -325,35 +338,91 @@ const AdminApprovalsPage: React.FC = () => {
         </p>
       </div>
 
-      <ApprovalsFilters
-        filters={filters}
-        onFiltersChange={setFilters}
-        contractors={contractors}
-        categories={categories}
-      />
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="pending">Đang chờ duyệt</TabsTrigger>
+          <TabsTrigger value="approved">Đã duyệt</TabsTrigger>
+          <TabsTrigger value="history">Lịch sử</TabsTrigger>
+        </TabsList>
 
-      {selectedRows.size > 0 && (
-        <BulkBar
-          selectedCount={selectedRows.size}
-          onApprove={(note) => handleBulkAction('approve', note)}
-          onReject={(note) => handleBulkAction('reject', note)}
-          onClear={() => setSelectedRows(new Set())}
-        />
-      )}
+        <TabsContent value="pending" className="space-y-6 mt-6">
+          <ApprovalsFilters
+            filters={filters}
+            onFiltersChange={setFilters}
+            contractors={contractors}
+            categories={categories}
+          />
 
-      <ApprovalsTable
-        submissions={submissions}
-        loading={loading}
-        selectedRows={selectedRows}
-        onSelectionChange={setSelectedRows}
-        onRowClick={setSelectedSubmission}
-        onApprove={handleApprove}
-        onReject={handleReject}
-        onRequestRevision={handleRequestRevision}
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={setCurrentPage}
-      />
+          {selectedRows.size > 0 && (
+            <BulkBar
+              selectedCount={selectedRows.size}
+              onApprove={(note) => handleBulkAction('approve', note)}
+              onReject={(note) => handleBulkAction('reject', note)}
+              onClear={() => setSelectedRows(new Set())}
+            />
+          )}
+
+          <ApprovalsTable
+            submissions={submissions}
+            loading={loading}
+            selectedRows={selectedRows}
+            onSelectionChange={setSelectedRows}
+            onRowClick={setSelectedSubmission}
+            onApprove={handleApprove}
+            onReject={handleReject}
+            onRequestRevision={handleRequestRevision}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
+        </TabsContent>
+
+        <TabsContent value="approved" className="space-y-6 mt-6">
+          <ApprovalsFilters
+            filters={filters}
+            onFiltersChange={setFilters}
+            contractors={contractors}
+            categories={categories}
+          />
+
+          <ApprovalsTable
+            submissions={submissions}
+            loading={loading}
+            selectedRows={new Set()}
+            onSelectionChange={() => {}}
+            onRowClick={setSelectedSubmission}
+            onApprove={handleApprove}
+            onReject={handleReject}
+            onRequestRevision={handleRequestRevision}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
+        </TabsContent>
+
+        <TabsContent value="history" className="space-y-6 mt-6">
+          <ApprovalsFilters
+            filters={filters}
+            onFiltersChange={setFilters}
+            contractors={contractors}
+            categories={categories}
+          />
+
+          <ApprovalsTable
+            submissions={submissions}
+            loading={loading}
+            selectedRows={new Set()}
+            onSelectionChange={() => {}}
+            onRowClick={setSelectedSubmission}
+            onApprove={handleApprove}
+            onReject={handleReject}
+            onRequestRevision={handleRequestRevision}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
+        </TabsContent>
+      </Tabs>
 
       <SubmissionDetailSheet
         open={!!selectedSubmission}

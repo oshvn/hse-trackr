@@ -107,6 +107,39 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string
+          related_id: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message: string
+          related_id?: string | null
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          related_id?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           activated_at: string | null
@@ -268,14 +301,8 @@ export type Database = {
       }
     }
     Functions: {
-      is_admin_user: {
-        Args: { _user_id: string }
-        Returns: boolean
-      }
-      is_allowed_email: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      is_admin_user: { Args: { _user_id: string }; Returns: boolean }
+      is_allowed_email: { Args: never; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
