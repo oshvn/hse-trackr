@@ -74,7 +74,7 @@ export const UnifiedRequirementConfig: React.FC = () => {
     try {
       setLoading(true);
       const [docTypesRes, contractorsRes, checklistRes, contractorReqRes] = await Promise.all([
-        supabase.from('doc_types' as any).select('*').order('created_at'),
+        supabase.from('doc_types' as any).select('*'),
         supabase.from('contractors' as any).select('id, name').order('name'),
         supabase.from('checklist_requirements' as any).select('*').order('doc_type_id').order('position'),
         supabase.from('contractor_requirements' as any).select('*'),
