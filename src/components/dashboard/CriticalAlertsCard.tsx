@@ -32,15 +32,15 @@ const WarningIcons = {
 };
 
 export const CriticalAlertsCard: React.FC<CriticalAlertsCardProps> = ({
-  redCards,
+  redCards = { level1: [], level2: [], level3: [], all: [] },
   onSelect,
   onViewAll,
   className,
   maxItems = 3,
   showStatistics = true,
 }) => {
-  const { level1, level2, level3, all } = redCards;
-  const totalAlerts = all.length;
+  const { level1 = [], level2 = [], level3 = [], all = [] } = redCards || { level1: [], level2: [], level3: [], all: [] };
+  const totalAlerts = all?.length ?? 0;
 
   if (totalAlerts === 0) {
     return (

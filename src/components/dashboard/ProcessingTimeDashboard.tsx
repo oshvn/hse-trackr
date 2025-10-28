@@ -6,14 +6,34 @@ import { ProcessingTimeMetrics } from '@/lib/dashboardHelpers';
 import { formatDays } from '@/lib/dashboardHelpers';
 
 interface ProcessingTimeDashboardProps {
-  metrics: ProcessingTimeMetrics;
+  data?: {
+    metrics?: ProcessingTimeMetrics;
+    stats?: any[];
+  } | null;
   isLoading?: boolean;
+  error?: string | null;
+  className?: string;
+  compact?: boolean;
 }
 
 export const ProcessingTimeDashboard: React.FC<ProcessingTimeDashboardProps> = ({
-  metrics,
-  isLoading = false
+  data = {},
+  isLoading = false,
+  error,
+  className,
+  compact = false
 }) => {
+  // Safe data extraction with defaults
+  const stats = Array.isArray(data?.stats) ? data.stats : [];
+  const metrics = (data?.metrics ?? {
+    averagePrepDays: 0,
+    averageApprovalDays: 0,
+    prepTimeTrend: 'stable',
+    approvalTimeTrend: 'stable',
+    totalDocumentsProcessed: 0,
+    avgTimeToApprove: 0
+  }) as any;
+
   const getTrendIcon = (trend: 'up' | 'down' | 'stable') => {
     switch (trend) {
       case 'up':

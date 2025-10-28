@@ -17,8 +17,8 @@ interface FilterBarProps {
 }
 
 export const FilterBar: React.FC<FilterBarProps> = ({
-  contractors,
-  categories,
+  contractors = [],
+  categories = [],
   contractorFilter,
   categoryFilter,
   searchTerm,
@@ -37,7 +37,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Contractors</SelectItem>
-              {contractors.map(contractor => (
+              {Array.isArray(contractors) && contractors.map(contractor => (
                 <SelectItem key={contractor.id} value={contractor.id}>
                   {contractor.name}
                 </SelectItem>
@@ -49,12 +49,12 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         <div className="space-y-2">
           <Label htmlFor="category-filter">Category</Label>
           <Select value={categoryFilter} onValueChange={onCategoryChange}>
-            <SelectTrigger className="w-64">
+            <SelectTrigger className="w-48">
               <SelectValue placeholder="Select category" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
-              {categories.map(category => (
+              {Array.isArray(categories) && categories.map(category => (
                 <SelectItem key={category} value={category}>
                   {category}
                 </SelectItem>

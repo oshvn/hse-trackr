@@ -21,42 +21,52 @@ interface KpiCardData {
 }
 
 interface KpiCardsProps {
-  overallCompletion: number;
-  totalApproved: number;
-  totalRequired: number;
-  estimatedCompletion: string;
-  redCardsCount: number;
-  missingDocsCount: number;
-  overdueDocsCount: number;
-  contractorsCantStart: number;
-  avgApprovalTime: number;
-  avgPrepTime: number;
-  lastWeekApprovalTime?: number;
-  targetApprovalTime?: number;
+  data?: {
+    overallCompletion?: number;
+    totalDocuments?: { approved: number; required: number };
+    estimatedCompletion?: string;
+    redCardsTotal?: number;
+    redCardsMissing?: number;
+    redCardsOverdue?: number;
+    contractorsCantStart?: number;
+    avgApprovalTime?: number;
+    avgPrepTime?: number;
+    lastWeekApprovalTime?: number;
+    targetApprovalTime?: number;
+  } | null;
   isLoading?: boolean;
+  error?: string | null;
   onViewCompletionDetails?: () => void;
   onViewRedCardsDetails?: () => void;
   onViewApprovalTimeDetails?: () => void;
+  className?: string;
+  compact?: boolean;
 }
 
 export const KpiCards: React.FC<KpiCardsProps> = ({
-  overallCompletion,
-  totalApproved,
-  totalRequired,
-  estimatedCompletion,
-  redCardsCount,
-  missingDocsCount,
-  overdueDocsCount,
-  contractorsCantStart,
-  avgApprovalTime,
-  avgPrepTime,
-  lastWeekApprovalTime = 0,
-  targetApprovalTime = 3,
+  data = null,
   isLoading = false,
+  error,
   onViewCompletionDetails,
   onViewRedCardsDetails,
-  onViewApprovalTimeDetails
+  onViewApprovalTimeDetails,
+  className,
+  compact = false
 }) => {
+  // Safe data extraction with defaults
+  const totalApproved = data?.totalDocuments?.approved ?? 0;
+  const totalRequired = data?.totalDocuments?.required ?? 32;
+  const redCardsCount = data?.redCardsTotal ?? 0;
+  const missingDocsCount = data?.redCardsMissing ?? 0;
+  const overdueDocsCount = data?.redCardsOverdue ?? 0;
+  const contractorsCantStart = data?.contractorsCantStart ?? 0;
+  const estimatedCompletion = data?.estimatedCompletion ?? 'N/A';
+  const overallCompletion = data?.overallCompletion ?? 0;
+  const avgApprovalTime = data?.avgApprovalTime ?? 0;
+  const avgPrepTime = data?.avgPrepTime ?? 0;
+  const lastWeekApprovalTime = data?.lastWeekApprovalTime ?? 0;
+  const targetApprovalTime = data?.targetApprovalTime ?? 3;
+
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

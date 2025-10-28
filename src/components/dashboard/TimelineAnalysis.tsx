@@ -19,16 +19,25 @@ import { formatDays } from '@/lib/dashboardHelpers';
 import { format } from 'date-fns';
 
 interface TimelineAnalysisProps {
-  events: TimelineEvent[];
+  data?: {
+    timeline?: TimelineEvent[];
+    stats?: any[];
+  } | null;
   isLoading?: boolean;
   onViewDetails?: (eventId: string) => void;
+  className?: string;
+  compact?: boolean;
 }
 
 export const TimelineAnalysis: React.FC<TimelineAnalysisProps> = ({
-  events,
+  data = { timeline: [], stats: [] },
   isLoading = false,
-  onViewDetails
+  onViewDetails,
+  className,
+  compact = false
 }) => {
+  // Safe data extraction with defaults
+  const events = Array.isArray(data?.timeline) ? data.timeline : [];
   const [filter, setFilter] = useState<'all' | 'bottlenecks' | 'critical'>('all');
   const [expandedEvents, setExpandedEvents] = useState<Set<string>>(new Set());
 
@@ -113,12 +122,12 @@ export const TimelineAnalysis: React.FC<TimelineAnalysisProps> = ({
     setExpandedEvents(newExpanded);
   };
 
-  const filteredEvents = events.filter(event => {
+  const filteredEvents = Array.isArray(events) ? events.filter(event => {
     if (filter === 'all') return true;
-    if (filter === 'bottlenecks') return event.bottleneckStage !== 'none';
-    if (filter === 'critical') return event.isCritical;
+    if (filter === 'bottlenecks') return event?.bottleneckStage !== 'none';
+    if (filter === 'critical') return event?.isCritical;
     return true;
-  });
+  }) : [];
 
   if (isLoading) {
     return (
