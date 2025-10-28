@@ -26,6 +26,15 @@ import { CategoryDrilldownPanel } from '@/components/dashboard/CategoryDrilldown
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ActionSuggestions } from '@/components/dashboard/ActionSuggestions';
 import { CriticalAlertsModal } from '@/components/dashboard/CriticalAlertsModal';
+import {
+  BentoGrid,
+  BentoHeader,
+  BentoFilters,
+  BentoKpi,
+  BentoPriority,
+  BentoAnalysis,
+  BentoDetails
+} from '@/components/dashboard/BentoGrid';
 import type {
   FilterState,
   KpiData,
@@ -406,7 +415,7 @@ const DashboardPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background p-4 lg:p-6">
-      <div className="space-y-4 lg:space-y-6 max-w-[1800px] mx-auto">
+      <div className="max-w-[1800px] mx-auto">
         {error && session && (
           <Alert className="mb-4">
             <AlertCircle className="h-4 w-4" />
@@ -419,145 +428,161 @@ const DashboardPage: React.FC = () => {
           </Alert>
         )}
 
-        <DashboardHeader role={role} />
+        <BentoGrid className="space-y-4 lg:space-y-6">
+          {/* Header Zone */}
+          <BentoHeader>
+            <DashboardHeader role={role} />
+          </BentoHeader>
 
-        <FilterBar
-          contractors={contractors}
-          categories={availableCategories}
-          contractorFilter={filters.contractor}
-          categoryFilter={filters.category}
-          searchTerm={filters.search ?? ''}
-          onContractorChange={value => setFilters(prev => ({ ...prev, contractor: value }))}
-          onCategoryChange={value => setFilters(prev => ({ ...prev, category: value }))}
-          onSearchChange={value => setFilters(prev => ({ ...prev, search: value }))}
-        />
+          {/* Filters Zone */}
+          <BentoFilters>
+            <FilterBar
+              contractors={contractors}
+              categories={availableCategories}
+              contractorFilter={filters.contractor}
+              categoryFilter={filters.category}
+              searchTerm={filters.search ?? ''}
+              onContractorChange={value => setFilters(prev => ({ ...prev, contractor: value }))}
+              onCategoryChange={value => setFilters(prev => ({ ...prev, category: value }))}
+              onSearchChange={value => setFilters(prev => ({ ...prev, search: value }))}
+            />
+          </BentoFilters>
 
-        {/* KPI Zone */}
-        {isDataLoading ? (
-          <Skeleton className="h-[380px] w-full" />
-        ) : (
-          <ContractorPerformanceRadar
-            data={kpiData}
-            docProgressData={enrichedProgressData}
-            summary={{
-              overallCompletion,
-              mustHaveReady,
-              overdueMustHaves,
-              avgPrepTime,
-              avgApprovalTime,
-            }}
-          />
-        )}
-
-        {/* Priority Zone */}
-        <div className="rounded-lg border-2 border-status-warning/30 bg-priority-bg p-4 lg:p-6 space-y-3">
-          <div className="flex items-center gap-2">
-            <div className="h-1 w-1 rounded-full bg-status-warning animate-pulse" />
-            <h2 className="text-xl font-bold text-foreground">Priority Actions</h2>
-          </div>
-          
-          {isDataLoading ? (
-            <Skeleton className="h-[220px]" />
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <CriticalAlertsCard
-                redItems={redAlerts}
-                amberItems={amberAlerts}
-                onSelect={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
-                onViewAll={() => setIsCriticalAlertsModalOpen(true)}
-              />
-
-              <ActionSuggestions
-                suggestions={[]} // Sẽ được cập nhật sau
-                criticalIssues={[...redAlerts, ...amberAlerts]}
-                contractorId={filters.contractor}
-                onRefresh={() => window.location.reload()}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Analysis Zone */}
-        <div className="space-y-3">
-          <h2 className="text-xl font-bold text-foreground">Analysis & Insights</h2>
-          <div className="grid gap-4 xl:grid-cols-3">
+          {/* KPI Zone */}
+          <BentoKpi>
             {isDataLoading ? (
-              <>
-                <Skeleton className="h-[320px]" />
-                <Skeleton className="h-[320px]" />
-                <Skeleton className="h-[320px]" />
-              </>
+              <Skeleton className="h-[380px] w-full" />
             ) : (
-              <>
-                <BulletChart
-                  className="h-auto"
-                  data={detailedProgressByContractor}
-                  onSelect={(category, contractorId) => {
-                    const contractorName = contractors.find(contractor => contractor.id === contractorId)?.name ?? null;
-                    setCategoryDrilldown({ category, contractorId, contractorName });
-                  }}
-                />
-                <MustHaveSplitChart
-                  className="h-auto"
-                  mustHaveCount={mustHaveCount}
-                  standardCount={standardCount}
-                />
-                <CompletionByContractorBar
-                  className="h-auto"
-                  kpiData={kpiData}
-                />
-              </>
+              <ContractorPerformanceRadar
+                data={kpiData}
+                docProgressData={enrichedProgressData}
+                summary={{
+                  overallCompletion,
+                  mustHaveReady,
+                  overdueMustHaves,
+                  avgPrepTime,
+                  avgApprovalTime,
+                }}
+              />
             )}
+          </BentoKpi>
 
-            <PlannedVsActualCompact
-              className="h-auto"
-              contractorId={planContractorId}
-              contractorName={planContractorName}
-              contractorOptions={planOptions}
-              requirements={planRequirements}
-              submissions={planSubmissions}
-              onContractorChange={setPlanContractorId}
-              isLoading={planContractorId !== 'all' ? (planRequirementsLoading || planSubmissionsLoading) : false}
-            />
-
-            <SnapshotTable
-              className="h-auto xl:col-span-2"
-              items={snapshotItems}
-              isLoading={isDataLoading}
-              onSelect={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
-            />
-          </div>
-        </div>
-
-        {/* Details Zone - Collapsible */}
-        <Collapsible open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-          <div className="rounded-lg border bg-card">
-            <CollapsibleTrigger asChild>
-              <Button
-                variant="ghost"
-                className="w-full flex items-center justify-between p-4 hover:bg-accent"
-              >
-                <h2 className="text-xl font-bold text-foreground">Detailed Analytics</h2>
-                <ChevronDown className={`h-5 w-5 transition-transform ${isDetailsOpen ? 'rotate-180' : ''}`} />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <div className="p-4 pt-0 space-y-4">
-                {isDataLoading ? (
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <Skeleton className="h-[220px]" />
-                    <Skeleton className="h-[320px]" />
-                  </div>
-                ) : (
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <MilestoneOverviewCard items={milestoneProgressItems} onViewDetails={() => setIsMilestoneModalOpen(true)} />
-                    <ProcessingTimeTable data={processingTimeStats} />
-                  </div>
-                )}
+          {/* Priority Zone */}
+          <BentoPriority>
+            <div className="rounded-lg border-2 border-status-warning/30 bg-priority-bg p-4 lg:p-6 space-y-3 h-full">
+              <div className="flex items-center gap-2">
+                <div className="h-1 w-1 rounded-full bg-status-warning animate-pulse" />
+                <h2 className="text-xl font-bold text-foreground">Priority Actions</h2>
               </div>
-            </CollapsibleContent>
-          </div>
-        </Collapsible>
+              
+              {isDataLoading ? (
+                <Skeleton className="h-[220px]" />
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <CriticalAlertsCard
+                    redItems={redAlerts}
+                    amberItems={amberAlerts}
+                    onSelect={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
+                    onViewAll={() => setIsCriticalAlertsModalOpen(true)}
+                  />
+
+                  <ActionSuggestions
+                    suggestions={[]} // Sẽ được cập nhật sau
+                    criticalIssues={[...redAlerts, ...amberAlerts]}
+                    contractorId={filters.contractor}
+                    onRefresh={() => window.location.reload()}
+                  />
+                </div>
+              )}
+            </div>
+          </BentoPriority>
+
+          {/* Analysis Zone */}
+          <BentoAnalysis>
+            <div className="space-y-3">
+              <h2 className="text-xl font-bold text-foreground">Analysis & Insights</h2>
+              <div className="grid gap-4 xl:grid-cols-3">
+                {isDataLoading ? (
+                  <>
+                    <Skeleton className="h-[320px]" />
+                    <Skeleton className="h-[320px]" />
+                    <Skeleton className="h-[320px]" />
+                  </>
+                ) : (
+                  <>
+                    <BulletChart
+                      className="h-auto"
+                      data={detailedProgressByContractor}
+                      onSelect={(category, contractorId) => {
+                        const contractorName = contractors.find(contractor => contractor.id === contractorId)?.name ?? null;
+                        setCategoryDrilldown({ category, contractorId, contractorName });
+                      }}
+                    />
+                    <MustHaveSplitChart
+                      className="h-auto"
+                      mustHaveCount={mustHaveCount}
+                      standardCount={standardCount}
+                    />
+                    <CompletionByContractorBar
+                      className="h-auto"
+                      kpiData={kpiData}
+                    />
+                  </>
+                )}
+
+                <PlannedVsActualCompact
+                  className="h-auto"
+                  contractorId={planContractorId}
+                  contractorName={planContractorName}
+                  contractorOptions={planOptions}
+                  requirements={planRequirements}
+                  submissions={planSubmissions}
+                  onContractorChange={setPlanContractorId}
+                  isLoading={planContractorId !== 'all' ? (planRequirementsLoading || planSubmissionsLoading) : false}
+                />
+
+                <SnapshotTable
+                  className="h-auto xl:col-span-2"
+                  items={snapshotItems}
+                  isLoading={isDataLoading}
+                  onSelect={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
+                />
+              </div>
+            </div>
+          </BentoAnalysis>
+
+          {/* Details Zone - Collapsible */}
+          <BentoDetails>
+            <Collapsible open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+              <div className="rounded-lg border bg-card">
+                <CollapsibleTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="w-full flex items-center justify-between p-4 hover:bg-accent"
+                  >
+                    <h2 className="text-xl font-bold text-foreground">Detailed Analytics</h2>
+                    <ChevronDown className={`h-5 w-5 transition-transform ${isDetailsOpen ? 'rotate-180' : ''}`} />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="p-4 pt-0 space-y-4">
+                    {isDataLoading ? (
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <Skeleton className="h-[220px]" />
+                        <Skeleton className="h-[320px]" />
+                      </div>
+                    ) : (
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <MilestoneOverviewCard items={milestoneProgressItems} onViewDetails={() => setIsMilestoneModalOpen(true)} />
+                        <ProcessingTimeTable data={processingTimeStats} />
+                      </div>
+                    )}
+                  </div>
+                </CollapsibleContent>
+              </div>
+            </Collapsible>
+          </BentoDetails>
+        </BentoGrid>
 
         <Dialog open={isMilestoneModalOpen} onOpenChange={setIsMilestoneModalOpen}>
           <DialogContent className="max-w-5xl">

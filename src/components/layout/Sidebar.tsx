@@ -1,4 +1,4 @@
-import { BarChart3, FileText, CheckSquare, Settings, Users } from "lucide-react";
+import { BarChart3, FileText, CheckSquare, Settings, Users, FileUp } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar as SidebarPrimitive,
@@ -36,6 +36,12 @@ const navigationItems: NavItem[] = [
     title: "My Submissions",
     url: "/my-submissions",
     icon: FileText,
+    roles: ["contractor", "admin"],
+  },
+  {
+    title: "New Submission",
+    url: "/bulk-submission",
+    icon: FileUp,
     roles: ["contractor", "admin"],
   },
   {

@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useNavigate } from 'react-router-dom';
 import { SubmissionsTabs } from '@/components/submissions/SubmissionsTabs';
+import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useSessionRole } from '@/hooks/useSessionRole';
+import { FileText, Plus } from 'lucide-react';
 
 const STORAGE_BUCKET = 'hse-documents';
 
@@ -55,6 +58,7 @@ export interface Submission {
 }
 
 const MySubmissionsPage: React.FC = () => {
+  const navigate = useNavigate();
   const [categories, setCategories] = useState<string[]>([]);
   const [requirements, setRequirements] = useState<ContractorRequirement[]>([]);
   const [docProgress, setDocProgress] = useState<DocProgress[]>([]);
@@ -231,13 +235,22 @@ const MySubmissionsPage: React.FC = () => {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold">My Submissions</h1>
-        <p className="text-muted-foreground">
-          {isAdmin 
-            ? 'View and track contractor document submissions by category'
-            : 'Track and manage your document submissions by category'}
-        </p>
+      <div className="flex items-center justify-between">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold">My Submissions</h1>
+          <p className="text-muted-foreground">
+            {isAdmin 
+              ? 'View and track contractor document submissions by category'
+              : 'Track and manage your document submissions by category'}
+          </p>
+        </div>
+        <Button
+          onClick={() => navigate('/bulk-submission')}
+          className="flex items-center gap-2"
+        >
+          <Plus className="h-4 w-4" />
+          Nộp hồ sơ mới
+        </Button>
       </div>
 
       {isAdmin && (

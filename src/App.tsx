@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppShell } from "./components/layout/AppShell";
 import Dashboard from "./pages/dashboard";
 import MySubmissions from "./pages/my-submissions";
+import BulkSubmissionPage from "./pages/bulk-submission";
 import AdminApprovals from "./pages/admin/approvals";
 import AdminSettings from "./pages/admin/settings";
 import AdminUsers from "./pages/admin/users";
@@ -28,6 +29,7 @@ const ContractorOnlySubmissions = withRole(MySubmissions, ["contractor"]);
 const ProtectedApprovalsPage = withRole(AdminApprovals, ["admin"]);
 const ProtectedAdminSettings = withRole(AdminSettings, ["admin"]);
 const ProtectedUsersPage = withRole(AdminUsers, ["admin"]);
+const ProtectedBulkSubmission = withRole(BulkSubmissionPage, ["contractor", "admin"]);
 
 const AppRoutes = () => (
   <Routes>
@@ -37,6 +39,7 @@ const AppRoutes = () => (
       <Route index element={<Dashboard />} />
       <Route path="dashboard" element={<Dashboard />} />
       <Route path="my-submissions" element={<ContractorOnlySubmissions />} />
+      <Route path="bulk-submission" element={<ProtectedBulkSubmission />} />
       <Route path="admin">
         <Route path="approvals" element={<ProtectedApprovalsPage />} />
         <Route path="settings" element={<ProtectedAdminSettings />} />

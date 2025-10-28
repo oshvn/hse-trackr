@@ -234,3 +234,207 @@ export const SUB_CATEGORIES = {
     { id: "1.5.3", label: "1.5.3 Emergency Equipment Check" }
   ]
 };
+
+// Hierarchical Category Structure (4 levels max)
+export interface CategoryNode {
+  id: string;
+  name: string;
+  level: number;
+  parentId?: string;
+  children?: CategoryNode[];
+  docTypeId?: string; // Only at leaf level
+  required_documents?: ChecklistItem[];
+}
+
+export const CATEGORY_HIERARCHY: CategoryNode[] = [
+  {
+    id: "1.1",
+    name: "1.1 Document Register",
+    level: 1,
+    children: [
+      {
+        id: "1.1.1",
+        name: "1.1.1 Management Teams",
+        level: 2,
+        parentId: "1.1",
+        children: [
+          {
+            id: "1.1.1.1",
+            name: "1.1.1.1 Construction Manager",
+            level: 3,
+            parentId: "1.1.1",
+            docTypeId: "MT_CM",
+            required_documents: HSE_CHECKLISTS["1.1.1"]
+          },
+          {
+            id: "1.1.1.2",
+            name: "1.1.1.2 HSE Manager",
+            level: 3,
+            parentId: "1.1.1",
+            docTypeId: "MT_HSE",
+            required_documents: HSE_CHECKLISTS["1.1.1"]
+          },
+          {
+            id: "1.1.1.3",
+            name: "1.1.1.3 Project Manager",
+            level: 3,
+            parentId: "1.1.1",
+            docTypeId: "MT_PM",
+            required_documents: HSE_CHECKLISTS["1.1.1"]
+          },
+          {
+            id: "1.1.1.4",
+            name: "1.1.1.4 Site Manager",
+            level: 3,
+            parentId: "1.1.1",
+            docTypeId: "MT_SM",
+            required_documents: HSE_CHECKLISTS["1.1.1"]
+          },
+          {
+            id: "1.1.1.5",
+            name: "1.1.1.5 Supervisors",
+            level: 3,
+            parentId: "1.1.1",
+            docTypeId: "MT_SV",
+            required_documents: HSE_CHECKLISTS["1.1.1"]
+          }
+        ]
+      },
+      {
+        id: "1.1.2",
+        name: "1.1.2 Management Plan",
+        level: 2,
+        parentId: "1.1",
+        docTypeId: "MP",
+        required_documents: HSE_CHECKLISTS["1.1.2"]
+      },
+      {
+        id: "1.1.3",
+        name: "1.1.3 Equipments",
+        level: 2,
+        parentId: "1.1",
+        docTypeId: "EQ",
+        required_documents: HSE_CHECKLISTS["1.1.3"]
+      },
+      {
+        id: "1.1.4",
+        name: "1.1.4 Internal Training & Workers",
+        level: 2,
+        parentId: "1.1",
+        children: [
+          {
+            id: "1.1.4.1",
+            name: "1.1.4.1 Workers Regulation Documents",
+            level: 3,
+            parentId: "1.1.4",
+            docTypeId: "IT_DOC",
+            required_documents: HSE_CHECKLISTS["1.1.4.1"]
+          },
+          {
+            id: "1.1.4.2",
+            name: "1.1.4.2 Attendees Signatures",
+            level: 3,
+            parentId: "1.1.4",
+            docTypeId: "IT_SIG",
+            required_documents: HSE_CHECKLISTS["1.1.4.2"]
+          },
+          {
+            id: "1.1.4.3",
+            name: "1.1.4.3 Test",
+            level: 3,
+            parentId: "1.1.4",
+            docTypeId: "IT_TEST",
+            required_documents: HSE_CHECKLISTS["1.1.4.3"]
+          },
+          {
+            id: "1.1.4.4",
+            name: "1.1.4.4 Evidence Picture",
+            level: 3,
+            parentId: "1.1.4",
+            docTypeId: "IT_PIC",
+            required_documents: HSE_CHECKLISTS["1.1.4.4"]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: "1.2",
+    name: "1.2 Risk Assessment",
+    level: 1,
+    docTypeId: "RA",
+    required_documents: HSE_CHECKLISTS["1.2"]
+  },
+  {
+    id: "1.3",
+    name: "1.3 JHA",
+    level: 1,
+    docTypeId: "JHA",
+    required_documents: HSE_CHECKLISTS["1.3"]
+  },
+  {
+    id: "1.4",
+    name: "1.4 Safe Method Statement",
+    level: 1,
+    docTypeId: "SMS",
+    required_documents: HSE_CHECKLISTS["1.4"]
+  },
+  {
+    id: "1.5",
+    name: "1.5 Emergency Action Plan",
+    level: 1,
+    children: [
+      {
+        id: "1.5.1",
+        name: "1.5.1 ERP Training",
+        level: 2,
+        parentId: "1.5",
+        docTypeId: "ERP_TR",
+        required_documents: HSE_CHECKLISTS["1.5.1"]
+      },
+      {
+        id: "1.5.2",
+        name: "1.5.2 Emergency Drills",
+        level: 2,
+        parentId: "1.5",
+        docTypeId: "ERP_DR",
+        required_documents: HSE_CHECKLISTS["1.5.2"]
+      },
+      {
+        id: "1.5.3",
+        name: "1.5.3 Emergency Equipment Check",
+        level: 2,
+        parentId: "1.5",
+        docTypeId: "ERP_EQ",
+        required_documents: HSE_CHECKLISTS["1.5.3"]
+      }
+    ]
+  }
+];
+
+// Helper function to find node by id
+export const findCategoryNode = (nodeId: string): CategoryNode | null => {
+  const traverse = (nodes: CategoryNode[]): CategoryNode | null => {
+    for (const node of nodes) {
+      if (node.id === nodeId) return node;
+      if (node.children) {
+        const found = traverse(node.children);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+  return traverse(CATEGORY_HIERARCHY);
+};
+
+// Helper function to get sub-categories (children of a node)
+export const getSubCategories = (nodeId: string): CategoryNode[] => {
+  const node = findCategoryNode(nodeId);
+  return node?.children || [];
+};
+
+// Helper function to check if a node is a leaf (final category)
+export const isLeafCategory = (node: CategoryNode | null): boolean => {
+  if (!node) return false;
+  return !node.children || node.children.length === 0;
+};

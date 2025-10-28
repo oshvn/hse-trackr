@@ -10,7 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RefreshCcw, Save, Settings, PlusCircle, ShieldAlert, Brain, Cpu, Key, TestTube } from "lucide-react";
+import { RefreshCcw, Save, Settings, PlusCircle, ShieldAlert, Brain, Cpu, Key, TestTube, List, AlertCircle } from "lucide-react";
+import { UnifiedRequirementConfig } from "@/components/admin/UnifiedRequirementConfig";
 
 interface DocTypeRow {
   id: string;
@@ -574,12 +575,20 @@ const AdminSettings: React.FC = () => {
         </Button>
       </div>
 
-      <Tabs defaultValue="doc-types" className="w-full">
+      <Tabs defaultValue="unified-config" className="w-full">
         <TabsList>
-          <TabsTrigger value="doc-types">Loại tài liệu</TabsTrigger>
-          <TabsTrigger value="requirements">Yêu cầu theo nhà thầu</TabsTrigger>
+          <TabsTrigger value="unified-config" className="hidden md:inline-flex">
+            <AlertCircle className="h-4 w-4 mr-2" />
+            Cấu Hình Yêu Cầu (Mới)
+          </TabsTrigger>
+          <TabsTrigger value="doc-types" className="text-xs md:text-sm">Loại tài liệu (Cũ)</TabsTrigger>
+          <TabsTrigger value="requirements" className="text-xs md:text-sm">Yêu cầu NCC (Cũ)</TabsTrigger>
           <TabsTrigger value="ai-config">Cấu hình AI</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="unified-config" className="space-y-6">
+          <UnifiedRequirementConfig />
+        </TabsContent>
 
         <TabsContent value="doc-types" className="space-y-6">
           <Card>
