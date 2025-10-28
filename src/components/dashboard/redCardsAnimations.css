@@ -1,0 +1,389 @@
+/* Red Cards Animations and Color Coding */
+
+/* Base animations */
+@keyframes pulse-red {
+  0%, 100% {
+    background-color: rgba(239, 68, 68, 0.1);
+    border-color: rgb(239, 68, 68);
+  }
+  50% {
+    background-color: rgba(239, 68, 68, 0.2);
+    border-color: rgb(220, 38, 38);
+  }
+}
+
+@keyframes pulse-orange {
+  0%, 100% {
+    background-color: rgba(251, 146, 60, 0.1);
+    border-color: rgb(251, 146, 60);
+  }
+  50% {
+    background-color: rgba(251, 146, 60, 0.2);
+    border-color: rgb(234, 88, 12);
+  }
+}
+
+@keyframes pulse-amber {
+  0%, 100% {
+    background-color: rgba(245, 158, 11, 0.1);
+    border-color: rgb(245, 158, 11);
+  }
+  50% {
+    background-color: rgba(245, 158, 11, 0.2);
+    border-color: rgb(217, 119, 6);
+  }
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-2px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(2px);
+  }
+}
+
+@keyframes glow-red {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(239, 68, 68, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.8);
+  }
+}
+
+@keyframes glow-orange {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(251, 146, 60, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(251, 146, 60, 0.8);
+  }
+}
+
+@keyframes glow-amber {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(245, 158, 11, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.8);
+  }
+}
+
+/* Red Card Level 3 (Overdue) - Critical */
+.red-card-level-3 {
+  animation: pulse-red 2s infinite;
+  border-width: 2px;
+  transition: all 0.3s ease;
+}
+
+.red-card-level-3:hover {
+  animation: glow-red 1.5s infinite;
+  transform: scale(1.02);
+  box-shadow: 0 8px 25px rgba(239, 68, 68, 0.3);
+}
+
+.red-card-level-3 .risk-indicator {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  font-weight: bold;
+}
+
+/* Red Card Level 2 (Urgent) - Warning */
+.red-card-level-2 {
+  animation: pulse-orange 3s infinite;
+  border-width: 2px;
+  transition: all 0.3s ease;
+}
+
+.red-card-level-2:hover {
+  animation: glow-orange 2s infinite;
+  transform: scale(1.02);
+  box-shadow: 0 8px 25px rgba(251, 146, 60, 0.3);
+}
+
+.red-card-level-2 .risk-indicator {
+  background: linear-gradient(135deg, #fb923c, #ea580c);
+  color: white;
+  font-weight: bold;
+}
+
+/* Red Card Level 1 (Early) - Caution */
+.red-card-level-1 {
+  animation: pulse-amber 4s infinite;
+  border-width: 2px;
+  transition: all 0.3s ease;
+}
+
+.red-card-level-1:hover {
+  animation: glow-amber 2.5s infinite;
+  transform: scale(1.02);
+  box-shadow: 0 8px 25px rgba(245, 158, 11, 0.3);
+}
+
+.red-card-level-1 .risk-indicator {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+  font-weight: bold;
+}
+
+/* Progress bar animations */
+.progress-bar-level-3 {
+  background: linear-gradient(90deg, #ef4444, #dc2626);
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-bar-level-3::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  animation: shimmer 2s infinite;
+}
+
+.progress-bar-level-2 {
+  background: linear-gradient(90deg, #fb923c, #ea580c);
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-bar-level-2::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  animation: shimmer 2.5s infinite;
+}
+
+.progress-bar-level-1 {
+  background: linear-gradient(90deg, #f59e0b, #d97706);
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-bar-level-1::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  animation: shimmer 3s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Risk score color coding */
+.risk-score-high {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  font-weight: bold;
+  animation: pulse-red 2s infinite;
+}
+
+.risk-score-medium {
+  background: linear-gradient(135deg, #fb923c, #ea580c);
+  color: white;
+  font-weight: bold;
+  animation: pulse-orange 3s infinite;
+}
+
+.risk-score-low {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+  font-weight: bold;
+  animation: pulse-amber 4s infinite;
+}
+
+/* Action buttons animations */
+.action-button-primary {
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.action-button-primary::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.action-button-primary:hover::before {
+  width: 300px;
+  height: 300px;
+}
+
+.action-button-secondary {
+  transition: all 0.2s ease;
+}
+
+.action-button-secondary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.action-button-destructive {
+  transition: all 0.2s ease;
+  animation: shake 3s infinite;
+}
+
+.action-button-destructive:hover {
+  animation: shake 0.5s infinite;
+  transform: scale(1.05);
+}
+
+/* Tab animations */
+.tab-level-3 {
+  border-bottom: 3px solid #ef4444;
+  animation: pulse-red 2s infinite;
+}
+
+.tab-level-2 {
+  border-bottom: 3px solid #fb923c;
+  animation: pulse-orange 3s infinite;
+}
+
+.tab-level-1 {
+  border-bottom: 3px solid #f59e0b;
+  animation: pulse-amber 4s infinite;
+}
+
+/* Entry animations */
+.red-card-entry {
+  animation: slide-in 0.5s ease-out;
+}
+
+.red-card-entry:nth-child(1) {
+  animation-delay: 0.1s;
+}
+
+.red-card-entry:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.red-card-entry:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.red-card-entry:nth-child(4) {
+  animation-delay: 0.4s;
+}
+
+.red-card-entry:nth-child(5) {
+  animation-delay: 0.5s;
+}
+
+/* Status indicators */
+.status-indicator-level-3 {
+  width: 12px;
+  height: 12px;
+  background-color: #ef4444;
+  border-radius: 50%;
+  display: inline-block;
+  animation: pulse-red 1.5s infinite;
+  margin-right: 8px;
+}
+
+.status-indicator-level-2 {
+  width: 12px;
+  height: 12px;
+  background-color: #fb923c;
+  border-radius: 50%;
+  display: inline-block;
+  animation: pulse-orange 2s infinite;
+  margin-right: 8px;
+}
+
+.status-indicator-level-1 {
+  width: 12px;
+  height: 12px;
+  background-color: #f59e0b;
+  border-radius: 50%;
+  display: inline-block;
+  animation: pulse-amber 2.5s infinite;
+  margin-right: 8px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .red-card-level-1:hover,
+  .red-card-level-2:hover,
+  .red-card-level-3:hover {
+    transform: none;
+    box-shadow: none;
+  }
+  
+  .action-button-destructive {
+    animation: none;
+  }
+  
+  .action-button-destructive:hover {
+    animation: shake 0.5s infinite;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .red-card-level-3 {
+    background-color: rgba(239, 68, 68, 0.2);
+  }
+  
+  .red-card-level-2 {
+    background-color: rgba(251, 146, 60, 0.2);
+  }
+  
+  .red-card-level-1 {
+    background-color: rgba(245, 158, 11, 0.2);
+  }
+}

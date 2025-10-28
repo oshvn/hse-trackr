@@ -2,18 +2,22 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useSessionRole } from '@/hooks/useSessionRole';
+import { ResponsiveDashboard } from '@/components/dashboard/ResponsiveDashboard';
 import { FilterBar } from '@/components/dashboard/FilterBar';
 import { ContractorPerformanceRadar } from '@/components/dashboard/ContractorPerformanceRadar';
+import { ContractorComparisonDashboard } from '@/components/dashboard/ContractorComparisonDashboard';
 import { CompletionByContractorBar } from '@/components/Charts/CompletionByContractorChart';
 import { MilestoneGanttChart } from '@/components/dashboard/MilestoneGanttChart';
 import { MilestoneOverviewCard } from '@/components/dashboard/MilestoneOverviewCard';
 import { ProcessingTimeTable } from '@/components/dashboard/ProcessingTimeTable';
+import { KpiCards } from '@/components/dashboard/KpiCards';
 
 import { DetailSidePanel } from '@/components/dashboard/DetailSidePanel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, ChevronDown } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { AlertCircle, ChevronDown, Clock, AlertTriangle, CheckCircle } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { MustHaveSplitChart } from '@/components/dashboard/MustHaveSplitChart';
@@ -26,6 +30,17 @@ import { CategoryDrilldownPanel } from '@/components/dashboard/CategoryDrilldown
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ActionSuggestions } from '@/components/dashboard/ActionSuggestions';
 import { CriticalAlertsModal } from '@/components/dashboard/CriticalAlertsModal';
+import { AIActionsDashboard } from '@/components/dashboard/AIActionsDashboard';
+import { WorkflowDashboard } from '@/components/dashboard/WorkflowDashboard';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { aiRecommendationService } from '@/services/aiRecommendationService';
+import { WorkflowEngine } from '@/services/workflowEngine';
+import type { AIAction } from '@/lib/aiTypes';
+import { ProcessingTimeDashboard } from '@/components/dashboard/ProcessingTimeDashboard';
+import { TimelineAnalysis } from '@/components/dashboard/TimelineAnalysis';
+import { ProcessingTimeByContractor } from '@/components/dashboard/ProcessingTimeByContractor';
+import { ProcessingTimeByDocType } from '@/components/dashboard/ProcessingTimeByDocType';
+import { BottleneckAnalysis } from '@/components/dashboard/BottleneckAnalysis';
 import {
   BentoGrid,
   BentoHeader,
@@ -40,6 +55,7 @@ import type {
   KpiData,
   DocProgressData,
   ProcessSnapshotItem,
+  RedCardItem,
 } from '@/lib/dashboardHelpers';
 import {
   calculateOverallCompletion,
@@ -53,6 +69,16 @@ import {
   calculateMilestoneProgress,
   calculateProcessingTimes,
   extractCriticalAlerts,
+  calculateTotalDocuments,
+  estimateCompletionTime,
+  calculateRedCardsData,
+  calculateApprovalTimeComparison,
+  extractRedCardsByLevel,
+  calculateProcessingTimeMetrics,
+  generateTimelineData,
+  calculateContractorProcessingTimeComparison,
+  calculateProcessingTimeByDocumentType,
+  analyzeBottlenecks,
 } from '@/lib/dashboardHelpers';
 
 interface Contractor {
@@ -137,6 +163,59 @@ const DashboardPage: React.FC = () => {
   const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isCriticalAlertsModalOpen, setIsCriticalAlertsModalOpen] = useState(false);
+  const [isCompletionDetailsOpen, setIsCompletionDetailsOpen] = useState(false);
+  const [isRedCardsDetailsOpen, setIsRedCardsDetailsOpen] = useState(false);
+  const [isApprovalTimeDetailsOpen, setIsApprovalTimeDetailsOpen] = useState(false);
+  const [aiActions, setAiActions] = useState<AIAction[]>([]);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [processingTimeTab, setProcessingTimeTab] = useState('metrics');
+  
+  // Initialize Workflow Engine
+  const [workflowEngine] = useState(() => new WorkflowEngine({
+    maxRetries: 3,
+    retryDelay: 5000,
+    batchSize: 10,
+    enableLogging: true,
+    enableNotifications: true,
+    externalApis: {
+      email: {
+        provider: 'smtp',
+        config: {
+          host: 'smtp.example.com',
+          port: 587,
+          secure: false,
+          auth: {
+            user: 'noreply@example.com',
+            pass: 'password'
+          }
+        }
+      },
+      calendar: {
+        provider: 'google',
+        config: {
+          clientId: 'your-google-client-id',
+          clientSecret: 'your-google-client-secret',
+          redirectUri: 'http://localhost:3000/auth/google/callback'
+        }
+      },
+      tasks: {
+        provider: 'jira',
+        config: {
+          baseUrl: 'https://your-domain.atlassian.net',
+          username: 'your-username',
+          apiToken: 'your-api-token'
+        }
+      },
+      documents: {
+        provider: 'sharepoint',
+        config: {
+          siteUrl: 'https://your-domain.sharepoint.com',
+          clientId: 'your-client-id',
+          clientSecret: 'your-client-secret'
+        }
+      }
+    }
+  }));
 
   const {
     data: contractors = [],
@@ -293,6 +372,10 @@ const DashboardPage: React.FC = () => {
 
   const criticalAlerts = useMemo(() => extractCriticalAlerts(filteredProgressData, criticalDocTypeIds), [filteredProgressData, criticalDocTypeIds]);
 
+  // New: Extract red cards by level using enhanced system
+  const redCardsByLevel = useMemo(() => extractRedCardsByLevel(filteredProgressData, criticalDocTypeIds), [filteredProgressData, criticalDocTypeIds]);
+
+  // Legacy: Keep existing red/amber alerts for backward compatibility
   const redAlerts = useMemo(() => criticalAlerts.filter(alert => alert.overdueDays > 0), [criticalAlerts]);
 
   const amberAlerts = useMemo(() => criticalAlerts.filter(alert => alert.overdueDays === 0 && alert.dueInDays !== null && alert.dueInDays <= 3), [criticalAlerts]);
@@ -317,8 +400,50 @@ const DashboardPage: React.FC = () => {
     calculateAvgApprovalTime(enrichedProgressData, filters, kpiData)
   ), [enrichedProgressData, filters, kpiData]);
 
+  // New KPI calculations
+  const totalDocuments = useMemo(() => (
+    calculateTotalDocuments(enrichedProgressData, filters)
+  ), [enrichedProgressData, filters]);
+
+  const estimatedCompletion = useMemo(() => (
+    estimateCompletionTime(enrichedProgressData, filters)
+  ), [enrichedProgressData, filters]);
+
+  const redCardsData = useMemo(() => (
+    calculateRedCardsData(enrichedProgressData, filters)
+  ), [enrichedProgressData, filters]);
+
+  const approvalTimeComparison = useMemo(() => (
+    calculateApprovalTimeComparison(enrichedProgressData, filters)
+  ), [enrichedProgressData, filters]);
+
   const snapshotItems: ProcessSnapshotItem[] = useMemo(() => (
     getProcessSnapshot(enrichedProgressData, filters, 5)
+  ), [enrichedProgressData, filters]);
+
+  // Processing time metrics
+  const processingTimeMetrics = useMemo(() => (
+    calculateProcessingTimeMetrics(enrichedProgressData, filters)
+  ), [enrichedProgressData, filters]);
+
+  // Timeline data
+  const timelineData = useMemo(() => (
+    generateTimelineData(enrichedProgressData, filters, 20)
+  ), [enrichedProgressData, filters]);
+
+  // Contractor processing time comparison
+  const contractorProcessingTimeComparison = useMemo(() => (
+    calculateContractorProcessingTimeComparison(enrichedProgressData, filters)
+  ), [enrichedProgressData, filters]);
+
+  // Document type processing time
+  const documentTypeProcessingTime = useMemo(() => (
+    calculateProcessingTimeByDocumentType(enrichedProgressData, filters)
+  ), [enrichedProgressData, filters]);
+
+  // Bottleneck analysis
+  const bottleneckAnalysisData = useMemo(() => (
+    analyzeBottlenecks(enrichedProgressData, filters)
   ), [enrichedProgressData, filters]);
 
   const planOptions = useMemo(() => {
@@ -345,6 +470,116 @@ const DashboardPage: React.FC = () => {
       setPlanContractorId(filters.contractor);
     }
   }, [filters.contractor, planContractorId]);
+
+  // Generate AI actions based on critical alerts
+  useEffect(() => {
+    const generateAIActions = async () => {
+      if (criticalAlerts.length === 0) return;
+
+      try {
+        const contractorId = filters.contractor === 'all' ? null : filters.contractor;
+        const contractorName = contractors.find(c => c.id === contractorId)?.name || 'Selected Contractor';
+        
+        const request = {
+          contractorId: contractorId || 'all',
+          contractorName: contractorName || 'All Contractors',
+          criticalIssues: criticalAlerts,
+          redCards: redCardsByLevel,
+          context: {
+            projectPhase: 'execution' as const,
+            deadlinePressure: redCardsByLevel.level3.length > 0 ? 'high' as const : 'medium' as const,
+            stakeholderVisibility: 'internal' as const
+          }
+        };
+
+        const recommendations = await aiRecommendationService.getRecommendations({
+          contractorId: contractorId || 'all',
+          contractorName: contractorName || 'All Contractors',
+          criticalIssues: criticalAlerts,
+          redCards: redCardsByLevel.all,
+          context: {
+            projectPhase: 'execution' as const,
+            deadlinePressure: redCardsByLevel.level3.length > 0 ? 'high' as const : 'medium' as const,
+            stakeholderVisibility: 'internal' as const
+          }
+        });
+        
+        // Convert recommendations to AI actions
+        const actions: AIAction[] = recommendations.map((rec, index) => ({
+          id: `ai-action-${Date.now()}-${index}`,
+          title: rec.message,
+          description: rec.message,
+          type: rec.actionType as any,
+          priority: {
+            score: rec.aiConfidence,
+            factors: {
+              urgency: rec.severity === 'high' ? 80 : rec.severity === 'medium' ? 60 : 40,
+              impact: rec.estimatedImpact === 'high' ? 80 : rec.estimatedImpact === 'medium' ? 60 : 40,
+              effort: 50,
+              risk: rec.riskScore || 50
+            },
+            level: rec.severity === 'high' ? 'high' : rec.severity === 'medium' ? 'medium' : 'low' as any
+          },
+          status: 'pending' as const,
+          rootCauseAnalysis: {
+            primaryCause: 'Document submission delays',
+            contributingFactors: ['Lack of resources', 'Process inefficiencies'],
+            patternType: 'recurring' as const,
+            confidence: rec.aiConfidence
+          },
+          impactAssessment: {
+            projectImpact: rec.estimatedImpact as any,
+            timelineImpact: parseInt(rec.timeToImplement) || 3,
+            costImpact: 10,
+            qualityImpact: 'medium' as const,
+            safetyImpact: 'low' as const
+          },
+          resourceOptimization: {
+            recommendedResources: ['Project Manager', 'Support Team'],
+            allocationEfficiency: 75,
+            bottlenecks: ['Limited staff availability'],
+            optimizationPotential: 20
+          },
+          timeline: {
+            startDate: new Date(),
+            endDate: new Date(Date.now() + (parseInt(rec.timeToImplement) || 3) * 24 * 60 * 60 * 1000),
+            milestones: [],
+            dependencies: [],
+            bufferTime: 1
+          },
+          successProbability: {
+            overall: rec.aiConfidence,
+            factors: {
+              historicalSuccess: 70,
+              resourceAvailability: 80,
+              stakeholderBuyIn: 75,
+              complexity: 30
+            },
+            confidence: rec.aiConfidence
+          },
+          assignee: undefined,
+          attendees: rec.actionType === 'meeting' ? [contractorName] : undefined,
+          relatedDocuments: rec.relatedDocuments,
+          relatedContractors: [contractorName],
+          relatedIssues: criticalAlerts,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          aiConfidence: rec.aiConfidence,
+          aiGenerated: true,
+          learningData: undefined
+        }));
+
+        setAiActions(actions);
+        
+        // Store in localStorage for persistence
+        localStorage.setItem('ai_actions', JSON.stringify(actions));
+      } catch (error) {
+        console.error('Error generating AI actions:', error);
+      }
+    };
+
+    generateAIActions();
+  }, [criticalAlerts, redCardsByLevel, filters.contractor, contractors]);
 
   const planDataEnabled = !!session && planContractorId !== 'all';
 
@@ -414,218 +649,236 @@ const DashboardPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background p-4 lg:p-6">
-      <div className="max-w-[1800px] mx-auto">
-        {error && session && (
-          <Alert className="mb-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              {error}
-              <Button variant="link" size="sm" onClick={retry} className="ml-2">
-                Retry
-              </Button>
-            </AlertDescription>
-          </Alert>
-        )}
+    <>
+      <ResponsiveDashboard
+        // Data props
+        contractors={contractors}
+        kpiData={kpiData}
+        progressData={enrichedProgressData}
+        criticalAlerts={criticalAlerts}
+        redCardsByLevel={redCardsByLevel}
+        overallCompletion={overallCompletion}
+        totalDocuments={totalDocuments}
+        estimatedCompletion={estimatedCompletion}
+        redCardsData={redCardsData}
+        avgApprovalTime={avgApprovalTime}
+        avgPrepTime={avgPrepTime}
+        approvalTimeComparison={approvalTimeComparison}
+        processingTimeStats={processingTimeStats}
+        processingTimeMetrics={processingTimeMetrics}
+        timelineData={timelineData}
+        contractorProcessingTimeComparison={contractorProcessingTimeComparison}
+        documentTypeProcessingTime={documentTypeProcessingTime}
+        bottleneckAnalysisData={bottleneckAnalysisData}
+        aiActions={aiActions}
+        workflowEngine={workflowEngine}
+        
+        // Filter props
+        filters={{
+          contractor: filters.contractor,
+          category: filters.category,
+          search: filters.search || '',
+        }}
+        onFiltersChange={setFilters}
+        
+        // Loading and error states
+        isLoading={isDataLoading}
+        error={error}
+        onRetry={retry}
+        
+        // Event handlers
+        onContractorSelect={(contractorId) => console.log('Contractor selected:', contractorId)}
+        onDocumentSelect={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
+        onAlertSelect={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
+        onViewAllAlerts={() => setIsCriticalAlertsModalOpen(true)}
+        onRefresh={() => window.location.reload()}
+        
+        // Configuration
+        title="HSE Dashboard"
+        subtitle={`Xin chào ${role === 'admin' ? 'Admin' : 'User'}`}
+        enableLazyLoading={true}
+        enableVirtualScrolling={false}
+        reduceAnimations={false}
+      />
 
-        <BentoGrid className="space-y-4 lg:space-y-6">
-          {/* Header Zone */}
-          <BentoHeader>
-            <DashboardHeader role={role} />
-          </BentoHeader>
+      {/* Legacy modals and panels for backward compatibility */}
+      <Dialog open={isMilestoneModalOpen} onOpenChange={setIsMilestoneModalOpen}>
+        <DialogContent className="max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>Milestone timeline</DialogTitle>
+          </DialogHeader>
+          <div className="mt-4 space-y-4">
+            <MilestoneGanttChart items={milestoneProgressItems} />
+          </div>
+        </DialogContent>
+      </Dialog>
 
-          {/* Filters Zone */}
-          <BentoFilters>
-            <FilterBar
-              contractors={contractors}
-              categories={availableCategories}
-              contractorFilter={filters.contractor}
-              categoryFilter={filters.category}
-              searchTerm={filters.search ?? ''}
-              onContractorChange={value => setFilters(prev => ({ ...prev, contractor: value }))}
-              onCategoryChange={value => setFilters(prev => ({ ...prev, category: value }))}
-              onSearchChange={value => setFilters(prev => ({ ...prev, search: value }))}
-            />
-          </BentoFilters>
+      <DetailSidePanel
+        open={!!selectedDetail}
+        onClose={() => setSelectedDetail(null)}
+        contractorId={selectedDetail?.contractorId || null}
+        docTypeId={selectedDetail?.docTypeId || null}
+        docProgressData={enrichedProgressData}
+      />
 
-          {/* KPI Zone */}
-          <BentoKpi>
-            {isDataLoading ? (
-              <Skeleton className="h-[380px] w-full" />
-            ) : (
-              <ContractorPerformanceRadar
-                data={kpiData}
-                docProgressData={enrichedProgressData}
-                summary={{
-                  overallCompletion,
-                  mustHaveReady,
-                  overdueMustHaves,
-                  avgPrepTime,
-                  avgApprovalTime,
-                }}
-              />
-            )}
-          </BentoKpi>
+      <CategoryDrilldownPanel
+        open={!!categoryDrilldown}
+        category={categoryDrilldown?.category ?? null}
+        contractorId={categoryDrilldown?.contractorId ?? null}
+        contractorName={categoryDrilldown?.contractorName ?? null}
+        onClose={() => setCategoryDrilldown(null)}
+        items={categoryDrilldownItems}
+        onSelectDoc={(contractorId, docTypeId) => {
+          setCategoryDrilldown(null);
+          setSelectedDetail({ contractorId, docTypeId });
+        }}
+      />
 
-          {/* Priority Zone */}
-          <BentoPriority>
-            <div className="rounded-lg border-2 border-status-warning/30 bg-priority-bg p-4 lg:p-6 space-y-3 h-full">
-              <div className="flex items-center gap-2">
-                <div className="h-1 w-1 rounded-full bg-status-warning animate-pulse" />
-                <h2 className="text-xl font-bold text-foreground">Priority Actions</h2>
-              </div>
-              
-              {isDataLoading ? (
-                <Skeleton className="h-[220px]" />
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <CriticalAlertsCard
-                    redItems={redAlerts}
-                    amberItems={amberAlerts}
-                    onSelect={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
-                    onViewAll={() => setIsCriticalAlertsModalOpen(true)}
-                  />
+      <CriticalAlertsModal
+        open={isCriticalAlertsModalOpen}
+        onClose={() => setIsCriticalAlertsModalOpen(false)}
+        redCards={redCardsByLevel}
+        docProgressData={enrichedProgressData}
+        onSelect={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
+      />
 
-                  <ActionSuggestions
-                    suggestions={[]} // Sẽ được cập nhật sau
-                    criticalIssues={[...redAlerts, ...amberAlerts]}
-                    contractorId={filters.contractor}
-                    onRefresh={() => window.location.reload()}
-                  />
+      {/* Completion Details Modal */}
+      <Dialog open={isCompletionDetailsOpen} onOpenChange={setIsCompletionDetailsOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Chi tiết Hoàn thành theo Loại Hồ sơ</DialogTitle>
+          </DialogHeader>
+          <div className="mt-4">
+            <div className="grid gap-4">
+              {availableCategories.map(category => {
+                const categoryData = filterData(enrichedProgressData, { ...filters, category });
+                const categoryFiltered = categoryData.filter(item => item.category === category);
+                const categoryApproved = categoryFiltered.reduce((sum, item) => sum + item.approved_count, 0);
+                const categoryRequired = categoryFiltered.reduce((sum, item) => sum + item.required_count, 0);
+                const categoryCompletion = categoryRequired > 0 ? Math.round((categoryApproved / categoryRequired) * 100) : 0;
+                 
+                return (
+                  <div key={category} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg gap-4">
+                    <div className="flex-1">
+                      <h3 className="font-medium">{category}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {categoryApproved}/{categoryRequired} hồ sơ đã duyệt
+                      </p>
+                    </div>
+                    <div className="text-right sm:min-w-[150px]">
+                      <div className="text-2xl font-bold">{categoryCompletion}%</div>
+                      <div className="w-full sm:w-32 bg-gray-200 rounded-full h-2 mt-2">
+                        <div
+                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${categoryCompletion}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Red Cards Details Modal */}
+      <Dialog open={isRedCardsDetailsOpen} onOpenChange={setIsRedCardsDetailsOpen}>
+        <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Chi tiết Red Cards - Cảnh báo Rủi ro Thi công</DialogTitle>
+          </DialogHeader>
+          <div className="mt-4 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <Card className="p-4 border-red-200 bg-red-50">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertCircle className="h-5 w-5 text-red-600" />
+                  <h3 className="font-medium text-sm">Tài liệu bắt buộc còn thiếu</h3>
                 </div>
+                <div className="text-2xl font-bold text-red-600">{redCardsData.missing}</div>
+              </Card>
+              <Card className="p-4 border-amber-200 bg-amber-50">
+                <div className="flex items-center gap-2 mb-2">
+                  <Clock className="h-5 w-5 text-amber-600" />
+                  <h3 className="font-medium text-sm">Tài liệu quá hạn</h3>
+                </div>
+                <div className="text-2xl font-bold text-amber-600">{redCardsData.overdue}</div>
+              </Card>
+              <Card className="p-4 border-blue-200 bg-blue-50">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertTriangle className="h-5 w-5 text-blue-600" />
+                  <h3 className="font-medium text-sm">Nhà thầu chưa thể bắt đầu</h3>
+                </div>
+                <div className="text-2xl font-bold text-blue-600">{redCardsData.contractorsCantStart}</div>
+              </Card>
+            </div>
+            
+            <div className="space-y-2">
+              {criticalAlerts.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-500" />
+                  <p>Không có cảnh báo rủi ro nào</p>
+                </div>
+              ) : (
+                criticalAlerts.map(alert => (
+                  <div key={`${alert.contractorId}-${alert.docTypeId}`} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-lg gap-2">
+                    <div className="flex-1">
+                      <h4 className="font-medium">{alert.docTypeName}</h4>
+                      <p className="text-sm text-muted-foreground">{alert.contractorName}</p>
+                    </div>
+                    <div className="text-right sm:min-w-[120px]">
+                      {alert.overdueDays > 0 ? (
+                        <span className="text-red-600 font-medium">Quá hạn {alert.overdueDays} ngày</span>
+                      ) : alert.dueInDays !== null ? (
+                        <span className="text-amber-600 font-medium">Còn {alert.dueInDays} ngày</span>
+                      ) : (
+                        <span className="text-gray-600">Không có hạn</span>
+                      )}
+                    </div>
+                  </div>
+                ))
               )}
             </div>
-          </BentoPriority>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-          {/* Analysis Zone */}
-          <BentoAnalysis>
-            <div className="space-y-3">
-              <h2 className="text-xl font-bold text-foreground">Analysis & Insights</h2>
-              <div className="grid gap-4 xl:grid-cols-3">
-                {isDataLoading ? (
-                  <>
-                    <Skeleton className="h-[320px]" />
-                    <Skeleton className="h-[320px]" />
-                    <Skeleton className="h-[320px]" />
-                  </>
-                ) : (
-                  <>
-                    <BulletChart
-                      className="h-auto"
-                      data={detailedProgressByContractor}
-                      onSelect={(category, contractorId) => {
-                        const contractorName = contractors.find(contractor => contractor.id === contractorId)?.name ?? null;
-                        setCategoryDrilldown({ category, contractorId, contractorName });
-                      }}
-                    />
-                    <MustHaveSplitChart
-                      className="h-auto"
-                      mustHaveCount={mustHaveCount}
-                      standardCount={standardCount}
-                    />
-                    <CompletionByContractorBar
-                      className="h-auto"
-                      kpiData={kpiData}
-                    />
-                  </>
-                )}
-
-                <PlannedVsActualCompact
-                  className="h-auto"
-                  contractorId={planContractorId}
-                  contractorName={planContractorName}
-                  contractorOptions={planOptions}
-                  requirements={planRequirements}
-                  submissions={planSubmissions}
-                  onContractorChange={setPlanContractorId}
-                  isLoading={planContractorId !== 'all' ? (planRequirementsLoading || planSubmissionsLoading) : false}
-                />
-
-                <SnapshotTable
-                  className="h-auto xl:col-span-2"
-                  items={snapshotItems}
-                  isLoading={isDataLoading}
-                  onSelect={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
-                />
-              </div>
-            </div>
-          </BentoAnalysis>
-
-          {/* Details Zone - Collapsible */}
-          <BentoDetails>
-            <Collapsible open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-              <div className="rounded-lg border bg-card">
-                <CollapsibleTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    className="w-full flex items-center justify-between p-4 hover:bg-accent"
-                  >
-                    <h2 className="text-xl font-bold text-foreground">Detailed Analytics</h2>
-                    <ChevronDown className={`h-5 w-5 transition-transform ${isDetailsOpen ? 'rotate-180' : ''}`} />
-                  </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <div className="p-4 pt-0 space-y-4">
-                    {isDataLoading ? (
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <Skeleton className="h-[220px]" />
-                        <Skeleton className="h-[320px]" />
+      {/* Approval Time Details Modal */}
+      <Dialog open={isApprovalTimeDetailsOpen} onOpenChange={setIsApprovalTimeDetailsOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Chi tiết Thời gian Phê duyệt theo Nhà thầu</DialogTitle>
+          </DialogHeader>
+          <div className="mt-4">
+            <div className="space-y-4">
+              {processingTimeStats.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Clock className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                  <p>Không có dữ liệu thời gian phê duyệt</p>
+                </div>
+              ) : (
+                processingTimeStats.map(stat => (
+                  <div key={stat.contractorId} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg gap-4">
+                    <div className="flex-1">
+                      <h3 className="font-medium">{stat.contractorName}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Thời gian chuẩn bị: {stat.averagePrepDays || 0} ngày
+                      </p>
+                    </div>
+                    <div className="text-right sm:min-w-[120px]">
+                      <div className="text-2xl font-bold">{stat.averageApprovalDays || 0} ngày</div>
+                      <div className="text-sm text-muted-foreground">
+                        Thời gian phê duyệt TB
                       </div>
-                    ) : (
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <MilestoneOverviewCard items={milestoneProgressItems} onViewDetails={() => setIsMilestoneModalOpen(true)} />
-                        <ProcessingTimeTable data={processingTimeStats} />
-                      </div>
-                    )}
+                    </div>
                   </div>
-                </CollapsibleContent>
-              </div>
-            </Collapsible>
-          </BentoDetails>
-        </BentoGrid>
-
-        <Dialog open={isMilestoneModalOpen} onOpenChange={setIsMilestoneModalOpen}>
-          <DialogContent className="max-w-5xl">
-            <DialogHeader>
-              <DialogTitle>Milestone timeline</DialogTitle>
-            </DialogHeader>
-            <div className="mt-4 space-y-4">
-              <MilestoneGanttChart items={milestoneProgressItems} />
+                ))
+              )}
             </div>
-          </DialogContent>
-        </Dialog>
-
-        <DetailSidePanel
-          open={!!selectedDetail}
-          onClose={() => setSelectedDetail(null)}
-          contractorId={selectedDetail?.contractorId || null}
-          docTypeId={selectedDetail?.docTypeId || null}
-          docProgressData={enrichedProgressData}
-        />
-
-        <CategoryDrilldownPanel
-          open={!!categoryDrilldown}
-          category={categoryDrilldown?.category ?? null}
-          contractorId={categoryDrilldown?.contractorId ?? null}
-          contractorName={categoryDrilldown?.contractorName ?? null}
-          onClose={() => setCategoryDrilldown(null)}
-          items={categoryDrilldownItems}
-          onSelectDoc={(contractorId, docTypeId) => {
-            setCategoryDrilldown(null);
-            setSelectedDetail({ contractorId, docTypeId });
-          }}
-        />
-
-        <CriticalAlertsModal
-          open={isCriticalAlertsModalOpen}
-          onClose={() => setIsCriticalAlertsModalOpen(false)}
-          redItems={redAlerts}
-          amberItems={amberAlerts}
-          docProgressData={enrichedProgressData}
-          onSelect={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
-        />
-      </div>
-    </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 
