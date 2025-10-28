@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useSessionRole } from '@/hooks/useSessionRole';
-import { ResponsiveDashboard } from '@/components/dashboard/ResponsiveDashboard';
+import { UnifiedDashboardLayout } from '@/components/dashboard/UnifiedDashboardLayout';
 import { FilterBar } from '@/components/dashboard/FilterBar';
 import { ContractorPerformanceRadar } from '@/components/dashboard/ContractorPerformanceRadar';
 import { ContractorComparisonDashboard } from '@/components/dashboard/ContractorComparisonDashboard';
@@ -650,55 +650,36 @@ const DashboardPage: React.FC = () => {
 
   return (
     <>
-      <ResponsiveDashboard
-        // Data props
-        contractors={contractors}
+      <UnifiedDashboardLayout
+        // Data
         kpiData={kpiData}
-        progressData={enrichedProgressData}
+        contractorData={contractors}
+        docProgressData={enrichedProgressData}
         criticalAlerts={criticalAlerts}
-        redCardsByLevel={redCardsByLevel}
-        overallCompletion={overallCompletion}
-        totalDocuments={totalDocuments}
-        estimatedCompletion={estimatedCompletion}
-        redCardsData={redCardsData}
-        avgApprovalTime={avgApprovalTime}
-        avgPrepTime={avgPrepTime}
-        approvalTimeComparison={approvalTimeComparison}
-        processingTimeStats={processingTimeStats}
-        processingTimeMetrics={processingTimeMetrics}
-        timelineData={timelineData}
-        contractorProcessingTimeComparison={contractorProcessingTimeComparison}
-        documentTypeProcessingTime={documentTypeProcessingTime}
-        bottleneckAnalysisData={bottleneckAnalysisData}
+        processingTimeData={{
+          stats: processingTimeStats,
+          metrics: processingTimeMetrics,
+          timeline: timelineData,
+          byContractor: contractorProcessingTimeComparison,
+          byDocType: documentTypeProcessingTime,
+        }}
+        bottleneckData={bottleneckAnalysisData}
         aiActions={aiActions}
-        workflowEngine={workflowEngine}
         
-        // Filter props
+        // Filters
         filters={{
           contractor: filters.contractor,
           category: filters.category,
-          search: filters.search || '',
         }}
         onFiltersChange={setFilters}
         
-        // Loading and error states
+        // States
         isLoading={isDataLoading}
         error={error}
-        onRetry={retry}
         
-        // Event handlers
-        onContractorSelect={(contractorId) => console.log('Contractor selected:', contractorId)}
-        onDocumentSelect={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
-        onAlertSelect={(contractorId, docTypeId) => setSelectedDetail({ contractorId, docTypeId })}
-        onViewAllAlerts={() => setIsCriticalAlertsModalOpen(true)}
-        onRefresh={() => window.location.reload()}
-        
-        // Configuration
+        // Props
         title="HSE Dashboard"
         subtitle={`Xin chào ${role === 'admin' ? 'Admin' : 'User'}`}
-        enableLazyLoading={true}
-        enableVirtualScrolling={false}
-        reduceAnimations={false}
       />
 
       {/* Legacy modals and panels for backward compatibility */}
