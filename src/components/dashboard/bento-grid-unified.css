@@ -1,4 +1,4 @@
-/* Unified Dashboard BentoGrid Layout - Optimized Compact */
+/* Unified Dashboard BentoGrid Layout - Optimized Sizes & Positions */
 
 .unified-bento-grid {
   display: grid;
@@ -32,20 +32,27 @@
 }
 
 /* ===== SECTION 1: KPI CARDS (Row 1) ===== */
-/* 4 cards, each takes 3 columns - show 4 instead of 3 */
+/* 3 compact cards, each takes 3 columns */
 .grid-kpi-overall,
 .grid-kpi-critical,
 .grid-kpi-time {
   grid-column: span 3;
-  min-height: 120px;
+  min-height: 100px;
 }
 
-/* ===== SECTION 2: PRIMARY CHARTS (Row 2) ===== */
-/* 3 medium charts, each takes 4 columns */
-.grid-chart-primary-1,
+/* ===== SECTION 2: PRIMARY CHARTS (Larger, takes priority space) ===== */
+/* Radar: takes 6 cols (left side) */
+.grid-chart-primary-1 {
+  grid-column: span 6;
+  grid-row: span 2;
+  min-height: 320px;
+}
+
+/* AI Actions: takes 6 cols (right side) */
 .grid-chart-primary-2 {
-  grid-column: span 4;
-  min-height: 200px;
+  grid-column: span 6;
+  grid-row: span 2;
+  min-height: 320px;
 }
 
 /* Chart container inside */
@@ -55,33 +62,33 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 160px;
+  min-height: 280px;
   overflow: hidden;
 }
 
 /* ===== SECTION 3: SECONDARY CHARTS (Row 3) ===== */
-/* 4 small charts, each takes 3 columns */
+/* 3 medium charts side by side, each takes 4 cols */
 .grid-chart-secondary-1,
 .grid-chart-secondary-2,
 .grid-chart-secondary-3 {
-  grid-column: span 3;
-  min-height: 180px;
+  grid-column: span 4;
+  min-height: 200px;
 }
 
 /* ===== SECTION 4: ANALYSIS CARDS (Row 4) ===== */
-/* 4 cards, each takes 3 columns */
+/* 3 cards side by side, each takes 4 cols */
 .grid-bottleneck,
 .grid-timeline,
 .grid-category {
-  grid-column: span 3;
-  min-height: 180px;
+  grid-column: span 4;
+  min-height: 200px;
 }
 
 /* ===== SECTION 5: FULL-WIDTH CHART (Row 5) ===== */
 /* 1 large chart takes full width */
 .grid-processing-time {
   grid-column: 1 / -1;
-  min-height: 200px;
+  min-height: 220px;
 }
 
 /* ===== TITLE & CONTENT ===== */
@@ -112,7 +119,7 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-height: 100px;
+  min-height: 80px;
   overflow: hidden;
 }
 
@@ -136,7 +143,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 100px;
+  min-height: 80px;
   overflow: hidden;
 }
 
@@ -183,9 +190,17 @@
 .unified-bento-grid > *:nth-child(6) { animation-delay: 0.12s; }
 .unified-bento-grid > *:nth-child(7) { animation-delay: 0.14s; }
 .unified-bento-grid > *:nth-child(8) { animation-delay: 0.16s; }
-.unified-bento-grid > *:nth-child(9) { animation-delay: 0.18s; }
-.unified-bento-grid > *:nth-child(10) { animation-delay: 0.2s; }
-.unified-bento-grid > *:nth-child(n+11) { animation-delay: 0.22s; }
+.unified-bento-grid > *:nth-child(n+9) { animation-delay: 0.18s; }
+
+/* ===== DESKTOP (1200px+) ===== */
+@media (min-width: 1025px) {
+  .unified-bento-grid {
+    grid-template-columns: repeat(12, 1fr);
+    gap: 12px;
+  }
+
+  /* Layout: KPI top, Primary charts middle (side-by-side, tall), Secondary/Analysis below */
+}
 
 /* ===== TABLET (1024px) ===== */
 @media (max-width: 1024px) {
@@ -200,11 +215,17 @@
   .grid-kpi-critical { grid-column: span 4; }
   .grid-kpi-time { grid-column: span 8; }
 
-  /* Primary charts: 2 per row */
-  .grid-chart-primary-1,
+  /* Primary charts: stack vertically */
+  .grid-chart-primary-1 {
+    grid-column: span 8;
+    grid-row: auto;
+    min-height: 240px;
+  }
+
   .grid-chart-primary-2 {
-    grid-column: span 4;
-    min-height: 180px;
+    grid-column: span 8;
+    grid-row: auto;
+    min-height: 240px;
   }
 
   /* Secondary charts: 2 per row */
@@ -220,7 +241,7 @@
   /* Processing time: full width */
   .grid-processing-time {
     grid-column: 1 / -1;
-    min-height: 180px;
+    min-height: 200px;
   }
 }
 
@@ -234,22 +255,33 @@
 
   /* All cards more compact */
   .unified-bento-grid > * {
-    min-height: 140px;
+    min-height: 120px;
     padding: 10px;
   }
 
-  /* 2 per row on mobile */
+  /* KPI: 2 per row */
   .grid-kpi-overall { grid-column: span 3; }
   .grid-kpi-critical { grid-column: span 3; }
   .grid-kpi-time { grid-column: span 6; }
 
-  .grid-chart-primary-1 { grid-column: span 3; }
-  .grid-chart-primary-2 { grid-column: span 3; }
+  /* Primary: stack full width */
+  .grid-chart-primary-1 { 
+    grid-column: span 6;
+    grid-row: auto;
+    min-height: 180px;
+  }
+  .grid-chart-primary-2 { 
+    grid-column: span 6;
+    grid-row: auto;
+    min-height: 180px;
+  }
 
+  /* Secondary: 2 per row */
   .grid-chart-secondary-1 { grid-column: span 3; }
   .grid-chart-secondary-2 { grid-column: span 3; }
   .grid-chart-secondary-3 { grid-column: span 6; }
 
+  /* Analysis: 2 per row */
   .grid-bottleneck { grid-column: span 3; }
   .grid-timeline { grid-column: span 3; }
   .grid-category { grid-column: span 6; }
@@ -266,9 +298,10 @@
   }
 
   .unified-bento-grid > * {
-    min-height: 120px;
+    min-height: 100px;
     padding: 8px;
     grid-column: 1 !important;
+    grid-row: auto !important;
   }
 
   .unified-bento-grid > * > h3 {
