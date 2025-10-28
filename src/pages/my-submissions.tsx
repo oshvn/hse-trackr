@@ -241,13 +241,15 @@ const MySubmissionsPage: React.FC = () => {
               : 'Track and manage your document submissions by category'}
           </p>
         </div>
-        <Button
-          onClick={() => navigate('/bulk-submission')}
-          className="flex items-center gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          Nộp hồ sơ mới
-        </Button>
+        {contractorId && (
+          <Button
+            onClick={() => navigate('/bulk-submission')}
+            className="flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Nộp hồ sơ mới
+          </Button>
+        )}
       </div>
 
       {isAdmin && (
