@@ -1,6 +1,4 @@
-import React, { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
+import React from 'react';
 import { useSessionRole } from '@/hooks/useSessionRole';
 
 // v2.0 Components
@@ -30,24 +28,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 
-/**
- * Dashboard v2.0 - Executive Document Tracking System
- * 
- * Main dashboard page featuring:
- * - 13 v2.0 components
- * - 5 interactive modals
- * - Complete data visualization
- * - Modal-based drill-down system
- */
-
 export default function Dashboard() {
-  const { userRole, isAdmin, loading, error, profile } = useSessionRole();
-  const { data, isLoading, error: dataError, refetch } = useDashboardData();
-  const { modal, openModal, closeModal, switchModal } = useModal();
-  const { filters, toggleContractor, toggleCategory, clearFilters } = useFilters();
+  const { userRole, loading, error, profile } = useSessionRole();
+  const { data, isLoading, error: dataError } = useDashboardData();
+  const { modal, openModal, closeModal } = useModal();
+  const { filters } = useFilters();
 
-  // Show loading state while session is being loaded
-  if (loading) {
+  // Show loading state
+  if (loading || isLoading) {
     return (
       <DashboardLayout>
         <div className="space-y-4 col-span-full">
@@ -59,81 +47,51 @@ export default function Dashboard() {
     );
   }
 
-  // Show error if session failed to load
-  if (error) {
+  // Show error if session failed
+  if (error || dataError) {
     return (
       <div className="p-8">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            Lỗi tải thông tin tài khoản: {error}
+            {error ? `Lỗi: ${error}` : `Lỗi tải dashboard: ${dataError?.message}`}
           </AlertDescription>
         </Alert>
       </div>
     );
   }
 
-  // Handle role-based access - allow admin, super_admin, and contractor
-  // guest role means user not logged in or profile not set up
+  // Handle role-based access
   if (userRole === 'guest') {
     return (
       <div className="p-8">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            Bạn không có quyền truy cập dashboard này. Vui lòng đăng nhập bằng tài khoản quản trị viên hoặc nhà thầu.
-            {profile?.status && <p className="text-xs mt-2 text-muted-foreground">Status: {profile.status}</p>}
+            Bạn không có quyền truy cập. Vui lòng đăng nhập.
           </AlertDescription>
         </Alert>
       </div>
     );
   }
 
-  // Show loading state for dashboard data
-  if (isLoading) {
-    return (
-      <DashboardLayout>
-        <div className="space-y-4 col-span-full">
-          <Skeleton className="h-24 w-full" />
-          <Skeleton className="h-96 w-full" />
-          <Skeleton className="h-96 w-full" />
-        </div>
-      </DashboardLayout>
-    );
-  }
-
-  // Show error state for dashboard data
-  if (dataError) {
-    return (
-      <DashboardLayout>
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Lỗi tải dashboard: {dataError.message}
-          </AlertDescription>
-        </Alert>
-      </DashboardLayout>
-    );
-  }
-
-  // Calculate alert data
   const criticalCount = data?.alerts?.filter(a => a.severity === 'blocking').length || 0;
   const blockingCount = data?.alerts?.filter(a => a.severity === 'blocking').length || 0;
 
   return (
     <DashboardLayout>
-      {/* Alert Banner - NOT in grid, displayed conditionally */}
+      {/* Alert Banner */}
       {criticalCount > 0 && (
         <AlertBanner
           criticalCount={criticalCount}
           blockingCount={blockingCount}
-          onViewAll={() => openModal('alerts')}
-          onTakeAction={() => openModal('actions')}
+          onViewAll={() => openModal('alerts', data?.alerts)}
+          onTakeAction={() => openModal('actions', data?.actions)}
           onDismiss={() => {}}
         />
       )}
 
-      {/* KPI Section - 3 cards, each spans 3 cols + 1 empty = 12 cols */}
+      {/* KPI Section - 12 cols total: 3+3+3+3 */}
       <KpiSection
         overallCompletion={data?.overallCompletion || 0}
         processingTime={data?.avgProcessingTime || 0}
@@ -147,50 +105,45 @@ export default function Dashboard() {
         onRankingClick={() => openModal('radar')}
       />
 
-      {/* Radar Chart - spans 6 cols, 2 rows */}
+      {/* Radar Chart - 6 cols, 2 rows */}
       <RadarChart
         data={data?.contractors || []}
-        onItemClick={(contractor) => {
-          switchModal('radar', { selectedContractor: contractor });
-        }}
+        onItemClick={(contractor) => openModal('radar', { contractor })}
       />
 
-      {/* AI Actions Panel - spans 6 cols, 2 rows */}
+      {/* AI Actions Panel - 6 cols, 2 rows */}
       <AIActionsPanel
         actions={data?.actions || []}
-        onActionClick={(action) => {
-          switchModal('actions', { selectedAction: action });
-        }}
+        onActionClick={(action) => openModal('actions', { action })}
       />
 
-      {/* Bar Chart Comparison - spans 4 cols */}
+      {/* Bar Chart - 4 cols */}
       <BarChartComparison
         data={data?.contractors || []}
-        onItemClick={(contractor) => {
-          toggleContractor(contractor.id);
-        }}
+        onItemClick={() => {}}
       />
 
-      {/* Category Progress - spans 4 cols */}
+      {/* Category Progress - 4 cols */}
       <CategoryProgress
         categories={data?.categories || []}
-        onCategoryClick={(category) => {
-          switchModal('category', { selectedCategory: category });
+        onCategoryClick={(categoryId) => {
+          const cat = data?.categories?.find(c => c.id === categoryId);
+          openModal('category', { category: cat });
         }}
       />
 
-      {/* Mini Timeline - spans 4 cols */}
+      {/* Timeline - 4 cols */}
       <MiniTimeline
         data={data?.timeline || []}
-        onViewFullTimeline={() => openModal('timeline')}
+        onViewFullTimeline={() => openModal('timeline', data?.timeline)}
       />
 
-      {/* Modals */}
+      {/* Modals - Outside grid */}
       {modal.type === 'alerts' && (
         <AlertsModal
           isOpen={modal.isOpen}
           onClose={closeModal}
-          alerts={data?.alerts || []}
+          alerts={modal.data || data?.alerts || []}
         />
       )}
 
@@ -222,7 +175,7 @@ export default function Dashboard() {
         <TimelineModal
           isOpen={modal.isOpen}
           onClose={closeModal}
-          data={data?.timeline || []}
+          data={modal.data || []}
         />
       )}
     </DashboardLayout>

@@ -115,11 +115,11 @@ export const RadarChart: React.FC<RadarChartProps> = ({ contractors, data, onCar
   return (
     <div
       className="lg:col-span-6 lg:row-span-2 col-span-1 bg-white rounded-lg border-2 border-blue-500 p-5 hover:shadow-lg cursor-pointer transition-all relative"
-      onClick={onCardClick}
+      onClick={() => onItemClick?.(contractorData[0])}
       role="button"
       tabIndex={0}
       onKeyPress={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') onCardClick?.();
+        if (e.key === 'Enter' || e.key === ' ') onItemClick?.(contractorData[0]);
       }}
     >
       {/* Tag */}
