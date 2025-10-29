@@ -80,7 +80,7 @@ export const AIActionsPanel: React.FC<AIActionsPanelProps> = ({ actions, onActio
   );
 
   return (
-    <div className="lg:col-span-6 lg:row-span-2 col-span-1 bg-white rounded-lg border-2 border-green-500 p-5 hover:shadow-lg transition-all">
+    <div className="bg-white rounded-lg border-2 border-green-500 p-5 hover:shadow-lg transition-all h-full flex flex-col">
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <h3 className="text-sm font-semibold text-gray-700">🤖 AI Actions for Bottlenecks</h3>
@@ -92,72 +92,73 @@ export const AIActionsPanel: React.FC<AIActionsPanelProps> = ({ actions, onActio
         AI Recommendations
       </div>
 
-      {/* Urgent Group */}
-      <div className="mb-4">
-        <div className="flex items-center gap-2 mb-2">
-          <AlertCircle className="w-4 h-4 text-red-600" />
-          <span className="text-xs font-bold text-gray-700">
-            🚨 Urgent ({groupedActions.urgent.length})
-          </span>
-        </div>
-        <div className="space-y-2 ml-6">
-          {groupedActions.urgent.map((action) => (
-            <ActionCard
-              key={action.id}
-              action={action}
-              accentColor="bg-gradient-to-r from-red-50 to-white border-red-500 hover:border-red-600"
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* This Week Group */}
-      {groupedActions.thisWeek.length > 0 && (
-        <div className="mb-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Clock className="w-4 h-4 text-amber-600" />
-            <span className="text-xs font-bold text-gray-700">
-              ⏰ This Week ({groupedActions.thisWeek.length})
-            </span>
-          </div>
-          <div className="space-y-2 ml-6">
-            {groupedActions.thisWeek.map((action) => (
-              <ActionCard
-                key={action.id}
-                action={action}
-                accentColor="bg-gradient-to-r from-amber-50 to-white border-amber-500 hover:border-amber-600"
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Planned Group */}
-      {groupedActions.planned.length > 0 && (
-        <div className="mb-2">
-          <details className="group">
-            <summary className="flex items-center gap-2 mb-2 cursor-pointer">
-              <CheckCircle className="w-4 h-4 text-blue-600" />
+      {actions.length > 0 ? (
+        <div className="flex-1 space-y-4 overflow-y-auto pr-1">
+          {/* Urgent Group */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <AlertCircle className="w-4 h-4 text-red-600" />
               <span className="text-xs font-bold text-gray-700">
-                📋 Planned ({groupedActions.planned.length})
+                🚨 Urgent ({groupedActions.urgent.length})
               </span>
-            </summary>
+            </div>
             <div className="space-y-2 ml-6">
-              {groupedActions.planned.map((action) => (
+              {groupedActions.urgent.map((action) => (
                 <ActionCard
                   key={action.id}
                   action={action}
-                  accentColor="bg-gradient-to-r from-blue-50 to-white border-blue-500 hover:border-blue-600"
+                  accentColor="bg-gradient-to-r from-red-50 to-white border-red-500 hover:border-red-600"
                 />
               ))}
             </div>
-          </details>
-        </div>
-      )}
+          </div>
 
-      {/* Empty State */}
-      {actions.length === 0 && (
-        <div className="text-center py-6 text-gray-500">
+          {/* This Week Group */}
+          {groupedActions.thisWeek.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Clock className="w-4 h-4 text-amber-600" />
+                <span className="text-xs font-bold text-gray-700">
+                  ⏰ This Week ({groupedActions.thisWeek.length})
+                </span>
+              </div>
+              <div className="space-y-2 ml-6">
+                {groupedActions.thisWeek.map((action) => (
+                  <ActionCard
+                    key={action.id}
+                    action={action}
+                    accentColor="bg-gradient-to-r from-amber-50 to-white border-amber-500 hover:border-amber-600"
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Planned Group */}
+          {groupedActions.planned.length > 0 && (
+            <div>
+              <details className="group">
+                <summary className="flex items-center gap-2 mb-2 cursor-pointer">
+                  <CheckCircle className="w-4 h-4 text-blue-600" />
+                  <span className="text-xs font-bold text-gray-700">
+                    📋 Planned ({groupedActions.planned.length})
+                  </span>
+                </summary>
+                <div className="space-y-2 ml-6">
+                  {groupedActions.planned.map((action) => (
+                    <ActionCard
+                      key={action.id}
+                      action={action}
+                      accentColor="bg-gradient-to-r from-blue-50 to-white border-blue-500 hover:border-blue-600"
+                    />
+                  ))}
+                </div>
+              </details>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="flex-1 flex items-center justify-center text-center text-gray-500">
           <p className="text-sm">No AI actions at this time</p>
         </div>
       )}
