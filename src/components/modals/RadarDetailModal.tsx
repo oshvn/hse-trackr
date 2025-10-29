@@ -20,7 +20,8 @@ export interface Metric {
 export interface RadarDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  metrics: Metric[];
+  metrics?: Metric[];
+  data?: any; // Support contractor data or metrics
   onExport?: () => void;
 }
 
@@ -37,27 +38,40 @@ export const RadarDetailModal: React.FC<RadarDetailModalProps> = ({
   isOpen,
   onClose,
   metrics,
+  data,
   onExport,
 }) => {
   const [selectedContractors, setSelectedContractors] = useState<Set<string>>(
     new Set(['contractorA', 'contractorB', 'contractorC'])
   );
 
+  // Use metrics or convert data to metrics format
+  const metricsData = metrics || (data?.metrics ? data.metrics : [
+    { name: 'Completion', contractorA: 92, contractorB: 65, contractorC: 78 },
+    { name: 'On-Time', contractorA: 88, contractorB: 72, contractorC: 85 },
+    { name: 'Quality', contractorA: 95, contractorB: 68, contractorC: 82 },
+    { name: 'Compliance', contractorA: 90, contractorB: 58, contractorC: 75 },
+    { name: 'Response', contractorA: 89, contractorB: 70, contractorC: 80 },
+  ]);
+
   // Transform data for chart
   const chartData = useMemo(() => {
-    return metrics.map((m) => ({
+    if (!metricsData || metricsData.length === 0) {
+      return [];
+    }
+    return metricsData.map((m) => ({
       metric: m.name.slice(0, 8),
       ...(selectedContractors.has('contractorA') && { A: m.contractorA }),
       ...(selectedContractors.has('contractorB') && { B: m.contractorB }),
       ...(selectedContractors.has('contractorC') && { C: m.contractorC }),
     }));
-  }, [metrics, selectedContractors]);
+  }, [metricsData, selectedContractors]);
 
   // Calculate insights
   const insights = useMemo(() => {
-    const avgA = metrics.reduce((sum, m) => sum + m.contractorA, 0) / metrics.length;
-    const avgB = metrics.reduce((sum, m) => sum + m.contractorB, 0) / metrics.length;
-    const avgC = metrics.reduce((sum, m) => sum + m.contractorC, 0) / metrics.length;
+    const avgA = metricsData.reduce((sum, m) => sum + m.contractorA, 0) / metricsData.length;
+    const avgB = metricsData.reduce((sum, m) => sum + m.contractorB, 0) / metricsData.length;
+    const avgC = metricsData.reduce((sum, m) => sum + m.contractorC, 0) / metricsData.length;
 
     return {
       top: avgA > avgB && avgA > avgC ? 'A' : avgB > avgC ? 'B' : 'C',
@@ -66,7 +80,7 @@ export const RadarDetailModal: React.FC<RadarDetailModalProps> = ({
       avgB: Math.round(avgB),
       avgC: Math.round(avgC),
     };
-  }, [metrics]);
+  }, [metricsData]);
 
   const toggleContractor = (contractor: string) => {
     const newSet = new Set(selectedContractors);
@@ -225,7 +239,7 @@ export const RadarDetailModal: React.FC<RadarDetailModalProps> = ({
               </tr>
             </thead>
             <tbody>
-              {metrics.map((metric, idx) => (
+              {metricsData.map((metric, idx) => (
                 <tr key={idx} className="border-b border-gray-200 hover:bg-gray-50">
                   <td className="px-3 py-2 font-semibold text-gray-900">{metric.name}</td>
                   {selectedContractors.has('contractorA') && (
