@@ -7,7 +7,6 @@ import { FilterBar } from '@/components/dashboard/FilterBar';
 import { ContractorPerformanceRadar } from '@/components/dashboard/ContractorPerformanceRadar';
 import { ContractorComparisonDashboard } from '@/components/dashboard/ContractorComparisonDashboard';
 import { CompletionByContractorBar } from '@/components/Charts/CompletionByContractorChart';
-import { MilestoneGanttChart } from '@/components/dashboard/MilestoneGanttChart';
 import { MilestoneOverviewCard } from '@/components/dashboard/MilestoneOverviewCard';
 import { ProcessingTimeTable } from '@/components/dashboard/ProcessingTimeTable';
 import { KpiCards } from '@/components/dashboard/KpiCards';
@@ -689,7 +688,7 @@ const DashboardPage: React.FC = () => {
             <DialogTitle>Milestone timeline</DialogTitle>
           </DialogHeader>
           <div className="mt-4 space-y-4">
-            <MilestoneGanttChart items={milestoneProgressItems} />
+            {/* MilestoneGanttChart removed */}
           </div>
         </DialogContent>
       </Dialog>

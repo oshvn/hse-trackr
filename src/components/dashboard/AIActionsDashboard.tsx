@@ -17,9 +17,9 @@ import {
   Clock, 
   AlertTriangle,
   Filter,
-  Grid3X3,
-  List,
   LayoutGrid,
+  List,
+  LayoutGrid as LayoutGridIcon,
   Calendar,
   Mail,
   Users,
@@ -406,7 +406,7 @@ export function AIActionsDashboard({
                 size="sm"
                 onClick={() => setState(prev => ({ ...prev, view: 'grid' }))}
               >
-                <Grid3X3 className="h-4 w-4 mr-2" />
+                <LayoutGrid className="h-4 w-4 mr-2" />
                 Grid
               </Button>
               <Button

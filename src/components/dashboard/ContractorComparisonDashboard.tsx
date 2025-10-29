@@ -18,7 +18,7 @@ import {
   BarChart3, 
   Radar as RadarIcon, 
   TrendingUp,
-  Grid3X3,
+  LayoutGrid,
   Table,
   Calendar,
   Eye
@@ -51,10 +51,10 @@ const DEFAULT_CONFIG: DashboardConfig = {
 };
 
 const VIEW_MODES = [
-  { value: 'overview', label: 'Tổng quan', icon: Grid3X3 },
+  { value: 'overview', label: 'Tổng quan', icon: LayoutGrid },
   { value: 'radar', label: 'Biểu đồ Radar', icon: RadarIcon },
   { value: 'bars', label: 'Biểu đồ cột', icon: BarChart3 },
-  { value: 'heatmap', label: 'Biểu đồ nhiệt', icon: Grid3X3 },
+  { value: 'heatmap', label: 'Biểu đồ nhiệt', icon: LayoutGrid },
   { value: 'trends', label: 'Xu hướng', icon: TrendingUp },
   { value: 'rankings', label: 'Bảng xếp hạng', icon: Table }
 ];

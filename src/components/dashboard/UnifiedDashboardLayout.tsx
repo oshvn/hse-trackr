@@ -18,7 +18,6 @@ import { AIActionsDashboard } from './AIActionsDashboard';
 import { ProcessingTimeDashboard } from './ProcessingTimeDashboard';
 import { BottleneckAnalysis } from './BottleneckAnalysis';
 import { TimelineAnalysis } from './TimelineAnalysis';
-import { MilestoneGanttChart } from './MilestoneGanttChart';
 import { CategoryProgressChart } from './CategoryProgressChart';
 
 // Types

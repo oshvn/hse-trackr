@@ -1,0 +1,1559 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard v2.0 - Interactive Prototype</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      /* Contractor Colors */
+      --contractor-a: #3b82f6;
+      --contractor-b: #10b981;
+      --contractor-c: #f59e0b;
+      
+      /* Status Colors */
+      --status-approved: #10b981;
+      --status-pending: #f59e0b;
+      --status-missing: #ef4444;
+      --status-overdue: #dc2626;
+      
+      /* Alert Colors */
+      --alert-critical: #dc2626;
+      --alert-warning: #f59e0b;
+      --alert-info: #3b82f6;
+      
+      /* UI Colors */
+      --bg-primary: #ffffff;
+      --bg-secondary: #f9fafb;
+      --border: #e5e7eb;
+      --text-primary: #1f2937;
+      --text-secondary: #6b7280;
+      --text-muted: #9ca3af;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      line-height: 1.5;
+    }
+
+    /* Alert Banner */
+    .alert-banner {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+      border-left: 6px solid var(--alert-critical);
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 12px rgba(220, 38, 38, 0.15);
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .alert-banner:hover {
+      box-shadow: 0 6px 16px rgba(220, 38, 38, 0.25);
+    }
+
+    .alert-banner.hidden {
+      transform: translateY(-100%);
+      opacity: 0;
+    }
+
+    .alert-content {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .alert-icon {
+      font-size: 24px;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.7; transform: scale(0.95); }
+    }
+
+    .alert-text {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .alert-title {
+      font-weight: 700;
+      font-size: 16px;
+      color: var(--alert-critical);
+    }
+
+    .alert-subtitle {
+      font-size: 14px;
+      color: #991b1b;
+    }
+
+    .alert-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: none;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--alert-critical);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #b91c1c;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(220, 38, 38, 0.3);
+    }
+
+    .btn-secondary {
+      background: white;
+      color: var(--alert-critical);
+      border: 2px solid var(--alert-critical);
+    }
+
+    .btn-secondary:hover {
+      background: #fef2f2;
+    }
+
+    /* Dashboard Container */
+    .dashboard {
+      max-width: 1920px;
+      margin: 0 auto;
+      padding: 24px;
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 20px;
+    }
+
+    /* Card Base */
+    .card {
+      background: var(--bg-primary);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      transition: all 0.2s;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card:hover {
+      border-color: var(--contractor-a);
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+      transform: translateY(-2px);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .card-icon {
+      font-size: 20px;
+      opacity: 0.6;
+    }
+
+    /* KPI Cards */
+    .kpi-card {
+      grid-column: span 3;
+      min-height: 120px;
+    }
+
+    .kpi-value {
+      font-size: 36px;
+      font-weight: 700;
+      margin: 8px 0;
+    }
+
+    .kpi-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .kpi-trend {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 14px;
+      margin-top: 4px;
+    }
+
+    .kpi-trend.up { color: var(--status-approved); }
+    .kpi-trend.down { color: var(--status-missing); }
+
+    .kpi-overall {
+      border-left: 4px solid var(--contractor-a);
+    }
+
+    .kpi-time {
+      border-left: 4px solid var(--status-pending);
+    }
+
+    /* Ranking Card */
+    .ranking-card {
+      grid-column: span 3;
+      min-height: 120px;
+      border-left: 4px solid var(--status-approved);
+    }
+
+    .ranking-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-top: 8px;
+    }
+
+    .ranking-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+    }
+
+    .rank-number {
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .rank-score {
+      margin-left: auto;
+      font-weight: 600;
+    }
+
+    .rank-status {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .rank-status.excellent { background: var(--status-approved); }
+    .rank-status.good { background: var(--status-pending); }
+    .rank-status.attention { background: var(--status-missing); }
+
+    /* Primary Charts */
+    .chart-primary {
+      grid-column: span 6;
+      grid-row: span 2;
+      min-height: 360px;
+      border: 3px solid var(--contractor-a);
+    }
+
+    .chart-primary.ai-actions {
+      border-color: var(--status-approved);
+    }
+
+    .primary-tag {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: var(--contractor-a);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .chart-primary.ai-actions .primary-tag {
+      background: var(--status-approved);
+    }
+
+    /* Radar Chart Mock */
+    .radar-container {
+      width: 100%;
+      height: 280px;
+      position: relative;
+      margin-top: 20px;
+    }
+
+    .radar-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 180px;
+      height: 180px;
+      border: 2px dashed var(--border);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .radar-legend {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-top: 12px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+    }
+
+    .legend-color {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+    }
+
+    /* AI Actions Panel */
+    .actions-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 16px;
+      max-height: 280px;
+      overflow-y: auto;
+    }
+
+    .action-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .action-group-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .action-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+
+    .action-item.urgent {
+      background: linear-gradient(135deg, #fef2f2 0%, #ffffff 100%);
+      border-left: 3px solid var(--alert-critical);
+    }
+
+    .action-item.this-week {
+      background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);
+      border-left: 3px solid var(--status-pending);
+    }
+
+    .action-item:hover {
+      transform: translateX(4px);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .action-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .action-item.urgent .action-icon {
+      background: var(--alert-critical);
+      color: white;
+    }
+
+    .action-item.this-week .action-icon {
+      background: var(--status-pending);
+      color: white;
+    }
+
+    .action-text {
+      flex: 1;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .action-text strong {
+      color: var(--text-primary);
+    }
+
+    /* Secondary Charts */
+    .chart-secondary {
+      grid-column: span 4;
+      min-height: 240px;
+    }
+
+    /* Bar Chart */
+    .bar-chart-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .bar-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .bar-label {
+      width: 100px;
+      font-size: 12px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .bar-container {
+      flex: 1;
+      height: 32px;
+      background: var(--bg-secondary);
+      border-radius: 6px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .bar-fill {
+      height: 100%;
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      font-size: 11px;
+      font-weight: 600;
+      color: white;
+      transition: width 0.5s ease;
+    }
+
+    .bar-fill.high { background: var(--status-approved); }
+    .bar-fill.medium { background: var(--status-pending); }
+    .bar-fill.low { background: var(--status-missing); }
+
+    /* Category Progress */
+    .category-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .category-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .category-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .progress-bar {
+      height: 24px;
+      border-radius: 6px;
+      overflow: hidden;
+      display: flex;
+    }
+
+    .progress-segment {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 600;
+      color: white;
+      transition: width 0.5s ease;
+    }
+
+    .progress-segment.approved { background: var(--status-approved); }
+    .progress-segment.pending { background: var(--status-pending); }
+    .progress-segment.missing { background: var(--status-missing); }
+
+    /* Mini Timeline */
+    .timeline-mini {
+      height: 180px;
+      position: relative;
+      margin-top: 16px;
+      padding: 20px 10px;
+    }
+
+    .timeline-axis {
+      position: absolute;
+      bottom: 20px;
+      left: 10px;
+      right: 10px;
+      height: 120px;
+      border-left: 2px solid var(--border);
+      border-bottom: 2px solid var(--border);
+    }
+
+    .timeline-line {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 100%;
+    }
+
+    .timeline-path {
+      position: absolute;
+      bottom: 30%;
+      left: 0;
+      right: 0;
+      height: 40%;
+      background: linear-gradient(to right, 
+        var(--contractor-a), 
+        var(--contractor-b), 
+        var(--contractor-c)
+      );
+      opacity: 0.2;
+      border-radius: 4px 4px 0 0;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 1024px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      transform: scale(0.9) translateY(20px);
+      transition: transform 0.2s;
+    }
+
+    .modal-overlay.active .modal-content {
+      transform: scale(1) translateY(0);
+    }
+
+    .modal-header {
+      padding: 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-title {
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    .modal-close {
+      font-size: 24px;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: color 0.2s;
+    }
+
+    .modal-close:hover {
+      color: var(--text-primary);
+    }
+
+    .modal-body {
+      padding: 24px;
+    }
+
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      border-bottom: 2px solid var(--border);
+      margin-bottom: 20px;
+    }
+
+    .tab {
+      padding: 12px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.2s;
+    }
+
+    .tab.active {
+      color: var(--contractor-a);
+      border-bottom-color: var(--contractor-a);
+    }
+
+    .tab:hover:not(.active) {
+      color: var(--text-primary);
+    }
+
+    /* Alert List in Modal */
+    .alert-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .alert-list-item {
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      border-left: 4px solid var(--alert-critical);
+    }
+
+    .alert-list-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .badge {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .badge-critical {
+      background: #fee2e2;
+      color: var(--alert-critical);
+    }
+
+    /* Responsive */
+    @media (max-width: 1199px) {
+      .dashboard {
+        grid-template-columns: repeat(8, 1fr);
+        gap: 16px;
+        padding: 20px;
+      }
+
+      .kpi-card:nth-child(1),
+      .kpi-card:nth-child(2),
+      .ranking-card:nth-child(3) {
+        grid-column: span 4;
+      }
+
+      .chart-primary {
+        grid-column: span 8;
+        grid-row: span 1;
+        min-height: 320px;
+      }
+
+      .chart-secondary {
+        grid-column: span 4;
+      }
+    }
+
+    @media (max-width: 767px) {
+      .alert-banner {
+        flex-direction: column;
+        gap: 12px;
+        padding: 12px 16px;
+      }
+
+      .alert-actions {
+        width: 100%;
+        flex-direction: column;
+      }
+
+      .btn {
+        width: 100%;
+      }
+
+      .dashboard {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        padding: 16px;
+      }
+
+      .kpi-card,
+      .ranking-card,
+      .chart-primary,
+      .chart-secondary {
+        grid-column: span 1;
+      }
+
+      .kpi-value {
+        font-size: 28px;
+      }
+
+      .modal-content {
+        width: 95%;
+        max-height: 95vh;
+      }
+
+      .modal-header,
+      .modal-body {
+        padding: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Alert Banner -->
+  <div class="alert-banner" id="alertBanner" onclick="openModal('alerts')">
+    <div class="alert-content">
+      <div class="alert-icon">⚠️</div>
+      <div class="alert-text">
+        <div class="alert-title">🚨 CRITICAL: 12 Red Cards Blocking</div>
+        <div class="alert-subtitle">3 Blocking | 7 Overdue | 5 Missing</div>
+      </div>
+    </div>
+    <div class="alert-actions" onclick="event.stopPropagation()">
+      <button class="btn btn-primary" onclick="openModal('alerts')">View All</button>
+      <button class="btn btn-secondary" onclick="openModal('actions')">Take Action</button>
+    </div>
+  </div>
+
+  <!-- Dashboard -->
+  <div class="dashboard">
+    <!-- KPI: Overall Completion -->
+    <div class="card kpi-card kpi-overall" onclick="openModal('category')">
+      <div class="card-header">
+        <span class="card-title">Overall Completion</span>
+        <span class="card-icon">📊</span>
+      </div>
+      <div class="kpi-label">Total Progress</div>
+      <div class="kpi-value">75%</div>
+      <div class="kpi-trend up">↗ +5% vs last week</div>
+    </div>
+
+    <!-- KPI: Processing Time -->
+    <div class="card kpi-card kpi-time" onclick="openModal('timeline')">
+      <div class="card-header">
+        <span class="card-title">Avg Processing Time</span>
+        <span class="card-icon">⏱️</span>
+      </div>
+      <div class="kpi-label">Prep + Approval</div>
+      <div class="kpi-value" style="color: var(--status-pending);">8.5d</div>
+      <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+        Prep: 5d | Approval: 3.5d
+      </div>
+    </div>
+
+    <!-- Ranking Card -->
+    <div class="card ranking-card" onclick="openModal('radar')">
+      <div class="card-header">
+        <span class="card-title">🏆 Contractor Ranking</span>
+        <span class="card-icon">📈</span>
+      </div>
+      <div class="ranking-list">
+        <div class="ranking-item">
+          <span class="rank-number">1.</span>
+          <span class="rank-status excellent"></span>
+          <span>Contractor A</span>
+          <span class="rank-score" style="color: var(--status-approved);">92%</span>
+        </div>
+        <div class="ranking-item">
+          <span class="rank-number">2.</span>
+          <span class="rank-status good"></span>
+          <span>Contractor C</span>
+          <span class="rank-score" style="color: var(--status-pending);">78%</span>
+        </div>
+        <div class="ranking-item">
+          <span class="rank-number">3.</span>
+          <span class="rank-status attention"></span>
+          <span>Contractor B</span>
+          <span class="rank-score" style="color: var(--status-missing);">65%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty space (4th KPI removed) -->
+    <div style="grid-column: span 3;"></div>
+
+    <!-- Radar Chart -->
+    <div class="card chart-primary" onclick="openModal('radar')">
+      <span class="primary-tag">Compare 3 Contractors</span>
+      <div class="card-header">
+        <span class="card-title">🎯 Contractor Performance Radar</span>
+        <span class="card-icon">🔍</span>
+      </div>
+      <div class="radar-container">
+        <div class="radar-center">
+          <div style="text-align: center;">
+            <div style="font-size: 11px; color: var(--text-muted);">5 Dimensions</div>
+            <div style="font-weight: 700; margin: 4px 0;">3 Contractors</div>
+            <div style="font-size: 11px; color: var(--text-muted);">Click to expand</div>
+          </div>
+        </div>
+      </div>
+      <div class="radar-legend">
+        <div class="legend-item">
+          <div class="legend-color" style="background: var(--contractor-a);"></div>
+          <span>Contractor A</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: var(--contractor-b);"></div>
+          <span>Contractor B</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: var(--contractor-c);"></div>
+          <span>Contractor C</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Actions Panel -->
+    <div class="card chart-primary ai-actions" onclick="openModal('actions')">
+      <span class="primary-tag">AI Recommendations</span>
+      <div class="card-header">
+        <span class="card-title">🤖 AI Actions for Bottlenecks</span>
+        <span class="card-icon">⚡</span>
+      </div>
+      <div class="actions-container">
+        <div class="action-group">
+          <div class="action-group-title">🚨 Urgent (3)</div>
+          <div class="action-item urgent">
+            <div class="action-icon">📧</div>
+            <div class="action-text">
+              <strong>Email Alert:</strong> Send deadline reminder to Contractor B (5 missing docs)
+            </div>
+          </div>
+          <div class="action-item urgent">
+            <div class="action-icon">⚠️</div>
+            <div class="action-text">
+              <strong>Escalate:</strong> 3 critical docs blocking construction start
+            </div>
+          </div>
+        </div>
+
+        <div class="action-group" style="margin-top: 12px;">
+          <div class="action-group-title">⏰ This Week (5)</div>
+          <div class="action-item this-week">
+            <div class="action-icon">👥</div>
+            <div class="action-text">
+              <strong>Schedule Meeting:</strong> Review process with Contractor A (overdue approvals)
+            </div>
+          </div>
+          <div class="action-item this-week">
+            <div class="action-icon">📚</div>
+            <div class="action-text">
+              <strong>Provide Support:</strong> Share safety doc templates to Contractor C
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bar Chart Comparison -->
+    <div class="card chart-secondary" onclick="openModal('category')">
+      <div class="card-header">
+        <span class="card-title">📊 Contractor Comparison</span>
+        <span class="card-icon">📈</span>
+      </div>
+      <div class="bar-chart-container">
+        <div class="bar-item">
+          <div class="bar-label">Contractor A</div>
+          <div class="bar-container">
+            <div class="bar-fill high" style="width: 92%;">92%</div>
+          </div>
+        </div>
+        <div class="bar-item">
+          <div class="bar-label">Contractor B</div>
+          <div class="bar-container">
+            <div class="bar-fill low" style="width: 65%;">65%</div>
+          </div>
+        </div>
+        <div class="bar-item">
+          <div class="bar-label">Contractor C</div>
+          <div class="bar-container">
+            <div class="bar-fill medium" style="width: 78%;">78%</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Category Progress -->
+    <div class="card chart-secondary" onclick="openModal('category')">
+      <div class="card-header">
+        <span class="card-title">📂 Category Progress</span>
+        <span class="card-icon">📋</span>
+      </div>
+      <div class="category-list">
+        <div class="category-item">
+          <div class="category-name">Safety Plans</div>
+          <div class="progress-bar">
+            <div class="progress-segment approved" style="width: 70%;">70%</div>
+            <div class="progress-segment pending" style="width: 20%;">20%</div>
+            <div class="progress-segment missing" style="width: 10%;">10%</div>
+          </div>
+        </div>
+        <div class="category-item">
+          <div class="category-name">Quality Docs</div>
+          <div class="progress-bar">
+            <div class="progress-segment approved" style="width: 85%;">85%</div>
+            <div class="progress-segment pending" style="width: 10%;">10%</div>
+            <div class="progress-segment missing" style="width: 5%;">5%</div>
+          </div>
+        </div>
+        <div class="category-item">
+          <div class="category-name">Environmental</div>
+          <div class="progress-bar">
+            <div class="progress-segment approved" style="width: 60%;">60%</div>
+            <div class="progress-segment pending" style="width: 25%;">25%</div>
+            <div class="progress-segment missing" style="width: 15%;">15%</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mini Timeline -->
+    <div class="card chart-secondary" onclick="openModal('timeline')">
+      <div class="card-header">
+        <span class="card-title">📅 30-Day Progress</span>
+        <span class="card-icon">📈</span>
+      </div>
+      <div class="timeline-mini">
+        <div class="timeline-axis">
+          <div class="timeline-path"></div>
+        </div>
+        <div style="position: absolute; bottom: 0; left: 10px; font-size: 10px; color: var(--text-muted);">
+          30 days ago
+        </div>
+        <div style="position: absolute; bottom: 0; right: 10px; font-size: 10px; color: var(--text-muted);">
+          Today
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Overlay -->
+  <div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modalTitle">Modal Title</h2>
+        <span class="modal-close" onclick="closeModal()">✕</span>
+      </div>
+      <div class="modal-body" id="modalBody">
+        <!-- Dynamic content will be inserted here -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="executeAction()">Execute Action</button>
+        <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Modal content templates
+    const modalTemplates = {
+      alerts: {
+        title: '🚨 Critical Alerts',
+        content: `
+          <div class="tabs">
+            <div class="tab active">Blocking (3)</div>
+            <div class="tab">Overdue (7)</div>
+            <div class="tab">Missing (5)</div>
+          </div>
+          <div class="alert-list">
+            <div class="alert-list-item">
+              <div class="alert-list-header">
+                <div>
+                  <span class="badge badge-critical">BLOCKING</span>
+                  <span style="margin-left: 8px; font-weight: 600;">Contractor B</span>
+                </div>
+                <span style="color: var(--text-muted); font-size: 12px;">7 days overdue</span>
+              </div>
+              <h4 style="margin: 8px 0; color: var(--text-primary);">Safety Plan - Excavation Method</h4>
+              <p style="color: var(--alert-critical); font-size: 13px; margin: 4px 0;">
+                ⚠️ <strong>Impact:</strong> Cannot start foundation work
+              </p>
+              <p style="color: var(--text-secondary); font-size: 12px; margin-top: 4px;">
+                Required by: Nov 5, 2025
+              </p>
+              <div style="display: flex; gap: 8px; margin-top: 12px;">
+                <button class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;">Send Reminder</button>
+                <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">View Details</button>
+              </div>
+            </div>
+
+            <div class="alert-list-item">
+              <div class="alert-list-header">
+                <div>
+                  <span class="badge badge-critical">BLOCKING</span>
+                  <span style="margin-left: 8px; font-weight: 600;">Contractor A</span>
+                </div>
+                <span style="color: var(--text-muted); font-size: 12px;">3 days overdue</span>
+              </div>
+              <h4 style="margin: 8px 0; color: var(--text-primary);">Environmental Impact Assessment</h4>
+              <p style="color: var(--alert-critical); font-size: 13px; margin: 4px 0;">
+                ⚠️ <strong>Impact:</strong> Cannot proceed with site clearing
+              </p>
+              <p style="color: var(--text-secondary); font-size: 12px; margin-top: 4px;">
+                Required by: Nov 9, 2025
+              </p>
+              <div style="display: flex; gap: 8px; margin-top: 12px;">
+                <button class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;">Send Reminder</button>
+                <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">View Details</button>
+              </div>
+            </div>
+
+            <div class="alert-list-item">
+              <div class="alert-list-header">
+                <div>
+                  <span class="badge badge-critical">BLOCKING</span>
+                  <span style="margin-left: 8px; font-weight: 600;">Contractor C</span>
+                </div>
+                <span style="color: var(--text-muted); font-size: 12px;">5 days overdue</span>
+              </div>
+              <h4 style="margin: 8px 0; color: var(--text-primary);">Quality Control Plan</h4>
+              <p style="color: var(--alert-critical); font-size: 13px; margin: 4px 0;">
+                ⚠️ <strong>Impact:</strong> Cannot start quality inspections
+              </p>
+              <p style="color: var(--text-secondary); font-size: 12px; margin-top: 4px;">
+                Required by: Nov 7, 2025
+              </p>
+              <div style="display: flex; gap: 8px; margin-top: 12px;">
+                <button class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;">Send Reminder</button>
+                <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">View Details</button>
+              </div>
+            </div>
+          </div>
+        `
+      },
+
+      radar: {
+        title: '🎯 Contractor Performance Details',
+        content: `
+          <div style="margin-bottom: 20px;">
+            <p style="color: var(--text-secondary); margin-bottom: 12px;">
+              Compare all contractors across 5 key performance dimensions
+            </p>
+            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+              <button class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;">View All 3</button>
+              <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">Contractor A Only</button>
+              <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">Contractor B Only</button>
+              <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">Contractor C Only</button>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div>
+              <h3 style="font-size: 16px; margin-bottom: 12px;">📊 Performance Metrics</h3>
+              <table style="width: 100%; font-size: 13px;">
+                <thead>
+                  <tr style="border-bottom: 2px solid var(--border);">
+                    <th style="text-align: left; padding: 8px; color: var(--text-secondary);">Metric</th>
+                    <th style="text-align: center; padding: 8px;">A</th>
+                    <th style="text-align: center; padding: 8px;">B</th>
+                    <th style="text-align: center; padding: 8px;">C</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr style="border-bottom: 1px solid var(--border);">
+                    <td style="padding: 8px; font-weight: 600;">Completion Rate</td>
+                    <td style="text-align: center; padding: 8px; color: var(--status-approved); font-weight: 600;">92%</td>
+                    <td style="text-align: center; padding: 8px; color: var(--status-missing); font-weight: 600;">65%</td>
+                    <td style="text-align: center; padding: 8px; color: var(--status-pending); font-weight: 600;">78%</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid var(--border);">
+                    <td style="padding: 8px; font-weight: 600;">On-time Delivery</td>
+                    <td style="text-align: center; padding: 8px; color: var(--status-approved); font-weight: 600;">88%</td>
+                    <td style="text-align: center; padding: 8px; color: var(--status-pending); font-weight: 600;">72%</td>
+                    <td style="text-align: center; padding: 8px; color: var(--status-approved); font-weight: 600;">85%</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid var(--border);">
+                    <td style="padding: 8px; font-weight: 600;">Quality Score</td>
+                    <td style="text-align: center; padding: 8px; color: var(--status-approved); font-weight: 600;">95%</td>
+                    <td style="text-align: center; padding: 8px; color: var(--status-missing); font-weight: 600;">68%</td>
+                    <td style="text-align: center; padding: 8px; color: var(--status-approved); font-weight: 600;">82%</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid var(--border);">
+                    <td style="padding: 8px; font-weight: 600;">Compliance</td>
+                    <td style="text-align: center; padding: 8px; color: var(--status-approved); font-weight: 600;">90%</td>
+                    <td style="text-align: center; padding: 8px; color: var(--status-missing); font-weight: 600;">58%</td>
+                    <td style="text-align: center; padding: 8px; color: var(--status-pending); font-weight: 600;">75%</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px; font-weight: 600;">Response Time</td>
+                    <td style="text-align: center; padding: 8px; color: var(--status-approved); font-weight: 600;">89%</td>
+                    <td style="text-align: center; padding: 8px; color: var(--status-pending); font-weight: 600;">70%</td>
+                    <td style="text-align: center; padding: 8px; color: var(--status-approved); font-weight: 600;">80%</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div>
+              <h3 style="font-size: 16px; margin-bottom: 12px;">🎯 Key Insights</h3>
+              <div style="display: flex; flex-direction: column; gap: 12px;">
+                <div style="padding: 12px; background: #f0fdf4; border-left: 4px solid var(--status-approved); border-radius: 4px;">
+                  <div style="font-weight: 600; color: var(--status-approved); margin-bottom: 4px;">✓ Top Performer</div>
+                  <div style="font-size: 13px; color: #166534;">
+                    Contractor A leads in all metrics with 92% average score
+                  </div>
+                </div>
+
+                <div style="padding: 12px; background: #fef2f2; border-left: 4px solid var(--alert-critical); border-radius: 4px;">
+                  <div style="font-weight: 600; color: var(--alert-critical); margin-bottom: 4px;">⚠ Needs Attention</div>
+                  <div style="font-size: 13px; color: #991b1b;">
+                    Contractor B shows low compliance (58%) and quality scores (68%)
+                  </div>
+                </div>
+
+                <div style="padding: 12px; background: #fffbeb; border-left: 4px solid var(--status-pending); border-radius: 4px;">
+                  <div style="font-weight: 600; color: var(--status-pending); margin-bottom: 4px;">📈 Room for Improvement</div>
+                  <div style="font-size: 13px; color: #92400e;">
+                    Contractor C performing well but can improve response time
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border);">
+            <h3 style="font-size: 16px; margin-bottom: 12px;">📂 Category Breakdown</h3>
+            <details style="cursor: pointer;">
+              <summary style="font-weight: 600; padding: 8px; background: var(--bg-secondary); border-radius: 4px;">
+                View detailed breakdown by document category →
+              </summary>
+              <div style="margin-top: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 4px;">
+                <p style="color: var(--text-secondary); font-size: 13px;">
+                  Detailed category-by-category comparison showing Safety, Quality, Environmental, and Construction documents...
+                </p>
+              </div>
+            </details>
+          </div>
+        `
+      },
+
+      actions: {
+        title: '🤖 AI Recommended Actions',
+        content: `
+          <div style="margin-bottom: 20px;">
+            <p style="color: var(--text-secondary);">
+              AI-generated recommendations based on current bottlenecks and delays
+            </p>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div style="background: linear-gradient(135deg, #fef2f2 0%, #ffffff 100%); border: 2px solid var(--alert-critical); border-radius: 8px; padding: 16px;">
+              <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                <div style="width: 40px; height: 40px; background: var(--alert-critical); color: white; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px;">📧</div>
+                <div style="flex: 1;">
+                  <h3 style="font-size: 16px; margin-bottom: 4px;">Send Deadline Reminder</h3>
+                  <span style="background: #fee2e2; color: var(--alert-critical); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700;">🚨 URGENT</span>
+                </div>
+              </div>
+
+              <div style="margin: 12px 0;">
+                <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">
+                  <strong>Contractor:</strong> Contractor B<br>
+                  <strong>Related Docs:</strong> 5 documents<br>
+                  <strong>Due Date:</strong> Oct 30, 2025<br>
+                  <strong>Impact:</strong> <span style="color: var(--alert-critical);">High - Blocking construction start</span>
+                </div>
+              </div>
+
+              <div style="background: white; padding: 12px; border-radius: 6px; margin: 12px 0;">
+                <h4 style="font-size: 13px; margin-bottom: 8px; color: var(--text-secondary);">📧 Email Preview</h4>
+                <div style="font-size: 12px; color: var(--text-primary); line-height: 1.6;">
+                  <strong>To:</strong> contractor-b@example.com<br>
+                  <strong>Subject:</strong> Urgent: 5 documents overdue - Action required<br><br>
+                  <strong>Body:</strong><br>
+                  Dear Contractor B,<br><br>
+                  We need your immediate attention on 5 overdue documents:<br>
+                  1. Safety Plan - Excavation Method (7 days overdue)<br>
+                  2. Quality Control Checklist (5 days overdue)<br>
+                  ...<br>
+                  These documents are blocking construction start. Please submit by Oct 30, 2025.
+                </div>
+              </div>
+
+              <div style="display: flex; gap: 8px;">
+                <button class="btn btn-primary" onclick="alert('✉️ Email sent to Contractor B!')">✉️ Send Email Now</button>
+                <button class="btn btn-secondary">📅 Schedule for Later</button>
+                <button class="btn" style="background: var(--bg-secondary);">Dismiss</button>
+              </div>
+            </div>
+
+            <div style="background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%); border: 2px solid var(--status-pending); border-radius: 8px; padding: 16px;">
+              <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                <div style="width: 40px; height: 40px; background: var(--status-pending); color: white; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px;">👥</div>
+                <div style="flex: 1;">
+                  <h3 style="font-size: 16px; margin-bottom: 4px;">Schedule Review Meeting</h3>
+                  <span style="background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700;">⏰ THIS WEEK</span>
+                </div>
+              </div>
+
+              <div style="margin: 12px 0;">
+                <div style="font-size: 13px; color: var(--text-secondary);">
+                  <strong>Contractor:</strong> Contractor A<br>
+                  <strong>Issue:</strong> Multiple approvals pending review<br>
+                  <strong>Suggested Date:</strong> Nov 1, 2025 at 2:00 PM
+                </div>
+              </div>
+
+              <div style="display: flex; gap: 8px; margin-top: 12px;">
+                <button class="btn btn-primary" onclick="alert('📅 Meeting scheduled with Contractor A!')">📅 Schedule Meeting</button>
+                <button class="btn btn-secondary">View Calendar</button>
+              </div>
+            </div>
+
+            <div style="background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%); border: 2px solid var(--status-pending); border-radius: 8px; padding: 16px;">
+              <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                <div style="width: 40px; height: 40px; background: var(--status-pending); color: white; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px;">📚</div>
+                <div style="flex: 1;">
+                  <h3 style="font-size: 16px; margin-bottom: 4px;">Provide Document Templates</h3>
+                  <span style="background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700;">⏰ THIS WEEK</span>
+                </div>
+              </div>
+
+              <div style="margin: 12px 0;">
+                <div style="font-size: 13px; color: var(--text-secondary);">
+                  <strong>Contractor:</strong> Contractor C<br>
+                  <strong>Templates:</strong> Safety Plan & Quality Control<br>
+                  <strong>Purpose:</strong> Help standardize document format
+                </div>
+              </div>
+
+              <div style="display: flex; gap: 8px; margin-top: 12px;">
+                <button class="btn btn-primary" onclick="alert('📚 Templates sent to Contractor C!')">📤 Send Templates</button>
+                <button class="btn btn-secondary">Preview Templates</button>
+              </div>
+            </div>
+          </div>
+        `
+      },
+
+      category: {
+        title: '📂 Category Details: Safety Plans',
+        content: `
+          <div class="tabs">
+            <div class="tab active">Overview</div>
+            <div class="tab">By Contractor</div>
+            <div class="tab">Timeline</div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px;">
+            <div>
+              <div style="text-align: center; padding: 20px;">
+                <div style="width: 160px; height: 160px; margin: 0 auto; position: relative;">
+                  <svg viewBox="0 0 36 36" style="transform: rotate(-90deg);">
+                    <circle cx="18" cy="18" r="16" fill="none" stroke="var(--border)" stroke-width="3"></circle>
+                    <circle cx="18" cy="18" r="16" fill="none" stroke="var(--status-approved)" stroke-width="3" 
+                            stroke-dasharray="75.4 100.5" stroke-linecap="round"></circle>
+                  </svg>
+                  <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+                    <div style="font-size: 32px; font-weight: 700;">75%</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">Complete</div>
+                  </div>
+                </div>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px;">
+                <div style="text-align: center; padding: 12px; background: #f0fdf4; border-radius: 8px;">
+                  <div style="font-size: 24px; font-weight: 700; color: var(--status-approved);">12</div>
+                  <div style="font-size: 11px; color: #166534;">Approved</div>
+                </div>
+                <div style="text-align: center; padding: 12px; background: #fffbeb; border-radius: 8px;">
+                  <div style="font-size: 24px; font-weight: 700; color: var(--status-pending);">3</div>
+                  <div style="font-size: 11px; color: #92400e;">Pending</div>
+                </div>
+                <div style="text-align: center; padding: 12px; background: #fef2f2; border-radius: 8px;">
+                  <div style="font-size: 24px; font-weight: 700; color: var(--status-missing);">1</div>
+                  <div style="font-size: 11px; color: #991b1b;">Missing</div>
+                </div>
+                <div style="text-align: center; padding: 12px; background: #fef2f2; border-radius: 8px;">
+                  <div style="font-size: 24px; font-weight: 700; color: var(--status-overdue);">2</div>
+                  <div style="font-size: 11px; color: #991b1b;">Overdue</div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3 style="font-size: 16px; margin-bottom: 12px;">📋 Documents by Contractor</h3>
+              
+              <div style="margin-bottom: 16px; padding: 12px; border: 1px solid var(--border); border-radius: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <h4 style="font-size: 14px; font-weight: 600;">Contractor A</h4>
+                  <span style="color: var(--status-approved); font-weight: 600;">5/5 (100%)</span>
+                </div>
+                <div style="height: 8px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden;">
+                  <div style="width: 100%; height: 100%; background: var(--status-approved);"></div>
+                </div>
+                <div style="margin-top: 8px; font-size: 12px; color: var(--text-secondary);">
+                  ✓ All safety documents approved
+                </div>
+              </div>
+
+              <div style="margin-bottom: 16px; padding: 12px; border: 1px solid var(--border); border-radius: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <h4 style="font-size: 14px; font-weight: 600;">Contractor B</h4>
+                  <span style="color: var(--status-missing); font-weight: 600;">3/6 (50%)</span>
+                </div>
+                <div style="height: 8px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden;">
+                  <div style="width: 50%; height: 100%; background: var(--status-missing);"></div>
+                </div>
+                <div style="margin-top: 8px; font-size: 12px; color: var(--alert-critical);">
+                  ⚠ 3 documents missing/overdue
+                </div>
+              </div>
+
+              <div style="padding: 12px; border: 1px solid var(--border); border-radius: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <h4 style="font-size: 14px; font-weight: 600;">Contractor C</h4>
+                  <span style="color: var(--status-pending); font-weight: 600;">4/5 (80%)</span>
+                </div>
+                <div style="height: 8px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden;">
+                  <div style="width: 80%; height: 100%; background: var(--status-pending);"></div>
+                </div>
+                <div style="margin-top: 8px; font-size: 12px; color: var(--text-secondary);">
+                  📋 1 document pending review
+                </div>
+              </div>
+            </div>
+          </div>
+        `
+      },
+
+      timeline: {
+        title: '📅 Full Project Timeline',
+        content: `
+          <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">Day View</button>
+              <button class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;">Week View</button>
+              <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">Month View</button>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <select style="padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px;">
+                <option>All Contractors</option>
+                <option>Contractor A</option>
+                <option>Contractor B</option>
+                <option>Contractor C</option>
+              </select>
+              <select style="padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px;">
+                <option>All Categories</option>
+                <option>Safety</option>
+                <option>Quality</option>
+                <option>Environmental</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="background: var(--bg-secondary); padding: 16px; border-radius: 8px; overflow-x: auto;">
+            <div style="min-width: 800px;">
+              <!-- Timeline header -->
+              <div style="display: grid; grid-template-columns: 150px 1fr; gap: 12px; margin-bottom: 12px;">
+                <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Contractor</div>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                  <div style="text-align: center; font-size: 11px; font-weight: 600; color: var(--text-secondary);">Submission</div>
+                  <div style="text-align: center; font-size: 11px; font-weight: 600; color: var(--text-secondary);">Review</div>
+                  <div style="text-align: center; font-size: 11px; font-weight: 600; color: var(--text-secondary);">Approval</div>
+                </div>
+              </div>
+
+              <!-- Contractor A timeline -->
+              <div style="display: grid; grid-template-columns: 150px 1fr; gap: 12px; margin-bottom: 12px;">
+                <div style="font-size: 13px; font-weight: 600; padding: 8px;">Contractor A</div>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                  <div style="height: 40px; background: var(--contractor-a); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: 600;">100%</div>
+                  <div style="height: 40px; background: var(--status-pending); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: 600;">75%</div>
+                  <div style="height: 40px; background: var(--status-approved); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: 600;">85%</div>
+                </div>
+              </div>
+
+              <!-- Contractor B timeline -->
+              <div style="display: grid; grid-template-columns: 150px 1fr; gap: 12px; margin-bottom: 12px;">
+                <div style="font-size: 13px; font-weight: 600; padding: 8px;">Contractor B</div>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                  <div style="height: 40px; background: var(--status-missing); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: 600;">60% ⚠️</div>
+                  <div style="height: 40px; background: var(--status-pending); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: 600;">50%</div>
+                  <div style="height: 40px; background: var(--status-missing); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: 600;">45%</div>
+                </div>
+              </div>
+
+              <!-- Contractor C timeline -->
+              <div style="display: grid; grid-template-columns: 150px 1fr; gap: 12px;">
+                <div style="font-size: 13px; font-weight: 600; padding: 8px;">Contractor C</div>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                  <div style="height: 40px; background: var(--contractor-c); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: 600;">85%</div>
+                  <div style="height: 40px; background: var(--status-pending); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: 600;">70%</div>
+                  <div style="height: 40px; background: var(--status-approved); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: 600;">75%</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top: 20px; display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 6px; font-size: 12px;">
+              <div style="width: 16px; height: 16px; background: var(--status-approved); border-radius: 4px;"></div>
+              <span>Approval Phase</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; font-size: 12px;">
+              <div style="width: 16px; height: 16px; background: var(--status-pending); border-radius: 4px;"></div>
+              <span>Review Phase</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; font-size: 12px;">
+              <div style="width: 16px; height: 16px; background: var(--contractor-a); border-radius: 4px;"></div>
+              <span>Submission Phase</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; font-size: 12px;">
+              <div style="width: 16px; height: 16px; background: var(--status-missing); border-radius: 4px;"></div>
+              <span>Overdue/Missing</span>
+            </div>
+          </div>
+
+          <div style="margin-top: 20px; padding: 16px; background: #fffbeb; border-left: 4px solid var(--status-pending); border-radius: 4px;">
+            <h4 style="font-size: 14px; margin-bottom: 8px; color: var(--status-pending);">📊 Timeline Insights</h4>
+            <ul style="font-size: 13px; color: #92400e; margin-left: 20px; line-height: 1.8;">
+              <li>Contractor A is ahead of schedule in most phases</li>
+              <li>Contractor B is significantly behind in all phases - needs immediate attention</li>
+              <li>Contractor C is on track but slightly behind in review phase</li>
+              <li>Average processing time: 8.5 days (Target: 7 days)</li>
+            </ul>
+          </div>
+        `
+      }
+    };
+
+    // Open modal function
+    function openModal(type) {
+      const overlay = document.getElementById('modalOverlay');
+      const title = document.getElementById('modalTitle');
+      const body = document.getElementById('modalBody');
+
+      const template = modalTemplates[type];
+      if (template) {
+        title.textContent = template.title;
+        body.innerHTML = template.content;
+        overlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+      }
+    }
+
+    // Close modal function
+    function closeModal(event) {
+      if (!event || event.target.id === 'modalOverlay') {
+        const overlay = document.getElementById('modalOverlay');
+        overlay.classList.remove('active');
+        document.body.style.overflow = 'auto';
+      }
+    }
+
+    // Execute action function
+    function executeAction() {
+      alert('✅ Action executed successfully!\n\nEmail has been sent to contractors.\nDashboard will be updated shortly.');
+      closeModal();
+    }
+
+    // Close modal on ESC key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeModal();
+      }
+    });
+
+    // Demo: Auto-open modal after 2 seconds (remove in production)
+    // setTimeout(() => {
+    //   openModal('alerts');
+    // }, 2000);
+
+    // Tab switching in modal
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('tab')) {
+        const tabs = document.querySelectorAll('.tab');
+        tabs.forEach(tab => tab.classList.remove('active'));
+        e.target.classList.add('active');
+      }
+    });
+
+    // Animate progress bars on page load
+    window.addEventListener('load', () => {
+      const bars = document.querySelectorAll('.bar-fill, .progress-segment');
+      bars.forEach(bar => {
+        const width = bar.style.width;
+        bar.style.width = '0';
+        setTimeout(() => {
+          bar.style.width = width;
+        }, 100);
+      });
+    });
+
+    // Add tooltips on hover
+    const cards = document.querySelectorAll('.card');
+    cards.forEach(card => {
+      card.addEventListener('mouseenter', () => {
+        card.style.cursor = 'pointer';
+      });
+    });
+
+    console.log('📊 Dashboard v2.0 Interactive Prototype loaded!');
+    console.log('👆 Click on any chart to see modal details');
+    console.log('💡 Features:');
+    console.log('  - Alert Banner (top)');
+    console.log('  - KPI Cards with trends');
+    console.log('  - Ranking Card (3 contractors)');
+    console.log('  - Radar Chart modal');
+    console.log('  - AI Actions modal');
+    console.log('  - Category details modal');
+    console.log('  - Full timeline modal');
+  </script>
+</body>
+</html>
