@@ -165,7 +165,10 @@ const resolveRole = (state: AuthState): "admin" | "super_admin" | "contractor" |
     return "guest";
   }
 
-  if (state.profile.status !== "active") {
+  // Allow both 'active' and 'invited' statuses to access
+  // 'invited' means contractor waiting for activation, but still contractor
+  // Only return 'guest' if deactivated or other issues
+  if (state.profile.status === "deactivated") {
     return "guest";
   }
 

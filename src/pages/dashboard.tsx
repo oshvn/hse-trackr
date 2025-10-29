@@ -41,19 +41,48 @@ import { AlertCircle } from 'lucide-react';
  */
 
 export default function Dashboard() {
-  const { userRole, isAdmin } = useSessionRole();
-  const { data, isLoading, error, refetch } = useDashboardData();
+  const { userRole, isAdmin, loading, error, profile } = useSessionRole();
+  const { data, isLoading, error: dataError, refetch } = useDashboardData();
   const { modal, openModal, closeModal, switchModal } = useModal();
   const { filters, toggleContractor, toggleCategory, clearFilters } = useFilters();
 
-  // Handle role-based access - allow admin and super_admin
-  if (userRole !== 'admin' && userRole !== 'super_admin' && userRole !== 'contractor') {
+  // Show loading state while session is being loaded
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-4 col-span-full">
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-96 w-full" />
+          <Skeleton className="h-96 w-full" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Show error if session failed to load
+  if (error) {
+    return (
+      <div className="p-8">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Lỗi tải thông tin tài khoản: {error}
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  // Handle role-based access - allow admin, super_admin, and contractor
+  // guest role means user not logged in or profile not set up
+  if (userRole === 'guest') {
     return (
       <div className="p-8">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
             Bạn không có quyền truy cập dashboard này. Vui lòng đăng nhập bằng tài khoản quản trị viên hoặc nhà thầu.
+            {profile?.status && <p className="text-xs mt-2 text-muted-foreground">Status: {profile.status}</p>}
           </AlertDescription>
         </Alert>
       </div>
