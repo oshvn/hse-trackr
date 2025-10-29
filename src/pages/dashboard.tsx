@@ -41,19 +41,19 @@ import { AlertCircle } from 'lucide-react';
  */
 
 export default function Dashboard() {
-  const { userRole } = useSessionRole();
+  const { userRole, isAdmin } = useSessionRole();
   const { data, isLoading, error, refetch } = useDashboardData();
   const { modal, openModal, closeModal, switchModal } = useModal();
   const { filters, toggleContractor, toggleCategory, clearFilters } = useFilters();
 
-  // Handle role-based access
-  if (userRole !== 'admin' && userRole !== 'manager') {
+  // Handle role-based access - allow admin and super_admin
+  if (userRole !== 'admin' && userRole !== 'super_admin' && userRole !== 'contractor') {
     return (
       <div className="p-8">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            Chỉ admin và manager mới có thể xem dashboard này.
+            Bạn không có quyền truy cập dashboard này. Vui lòng đăng nhập bằng tài khoản quản trị viên hoặc nhà thầu.
           </AlertDescription>
         </Alert>
       </div>
@@ -114,7 +114,7 @@ export default function Dashboard() {
           onProcessingClick={() => openModal('timeline')}
           onRankingClick={() => openModal('radar')}
         />
-      </div>
+          </div>
 
       {/* Radar Chart */}
       <div className="mt-6">
@@ -154,7 +154,7 @@ export default function Dashboard() {
             switchModal('category', { selectedCategory: category });
           }}
         />
-      </div>
+          </div>
 
       {/* Mini Timeline */}
       <div className="mt-6">
@@ -162,8 +162,8 @@ export default function Dashboard() {
           data={data?.timeline || []}
           onViewFullTimeline={() => openModal('timeline')}
         />
-      </div>
-
+            </div>
+            
       {/* Modals */}
       {modal.type === 'alerts' && (
         <AlertsModal
