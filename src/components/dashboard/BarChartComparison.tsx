@@ -8,8 +8,10 @@ export interface ContractorComparison {
 }
 
 export interface BarChartComparisonProps {
-  contractors: ContractorComparison[];
+  contractors?: ContractorComparison[];
+  data?: ContractorComparison[];
   onBarClick?: (contractorId: string) => void;
+  onItemClick?: (contractor: ContractorComparison) => void;
 }
 
 /**
@@ -23,15 +25,20 @@ export interface BarChartComparisonProps {
  */
 export const BarChartComparison: React.FC<BarChartComparisonProps> = ({
   contractors,
+  data,
   onBarClick,
+  onItemClick,
 }) => {
+  // Accept either 'contractors' or 'data' prop
+  const contractorData = contractors || data;
+
   const getBarColor = (completion: number) => {
     if (completion >= 80) return '#10b981';
     if (completion >= 60) return '#f59e0b';
     return '#ef4444';
   };
 
-  const data = (contractors || []).map((c) => ({
+  const chartData = (contractorData || []).map((c) => ({
     name: c.name,
     id: c.id,
     completion: c.completion,
@@ -39,7 +46,7 @@ export const BarChartComparison: React.FC<BarChartComparisonProps> = ({
   }));
 
   // Don't render chart if no data
-  if (!data || data.length === 0) {
+  if (!chartData || chartData.length === 0) {
     return (
       <div
         className="lg:col-span-4 col-span-1 bg-white rounded-lg border border-gray-200 p-4 hover:border-gray-400 hover:shadow-md cursor-pointer transition-all"
@@ -66,11 +73,11 @@ export const BarChartComparison: React.FC<BarChartComparisonProps> = ({
   return (
     <div
       className="lg:col-span-4 col-span-1 bg-white rounded-lg border border-gray-200 p-4 hover:border-gray-400 hover:shadow-md cursor-pointer transition-all"
-      onClick={() => onBarClick?.(contractors[0]?.id)}
+      onClick={() => onBarClick?.(contractors?.[0]?.id)}
       role="button"
       tabIndex={0}
       onKeyPress={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') onBarClick?.(contractors[0]?.id);
+        if (e.key === 'Enter' || e.key === ' ') onBarClick?.(contractors?.[0]?.id);
       }}
     >
       {/* Header */}
@@ -81,7 +88,7 @@ export const BarChartComparison: React.FC<BarChartComparisonProps> = ({
 
       {/* Bar Chart */}
       <ResponsiveContainer width="100%" height={200}>
-        <BarChart data={data} layout="vertical" margin={{ top: 0, right: 30, left: 100, bottom: 0 }}>
+        <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 30, left: 100, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
           <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} />
           <YAxis
@@ -103,12 +110,12 @@ export const BarChartComparison: React.FC<BarChartComparisonProps> = ({
             fill="#3b82f6"
             radius={[0, 6, 6, 0]}
             onClick={(data) => {
-              const contractor = contractors.find((c) => c.name === data.name);
+              const contractor = contractors?.find((c) => c.name === data.name);
               contractor && onBarClick?.(contractor.id);
             }}
             shape={(props) => {
               const { fill, x, y, width, height } = props;
-              const contractor = data.find((d) => d.name === props.name);
+              const contractor = chartData.find((d) => d.name === props.name);
               return (
                 <rect
                   x={x}

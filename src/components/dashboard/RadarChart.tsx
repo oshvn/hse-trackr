@@ -22,8 +22,10 @@ export interface ContractorMetrics {
 }
 
 export interface RadarChartProps {
-  contractors: ContractorMetrics[];
+  contractors?: ContractorMetrics[];
+  data?: ContractorMetrics[];
   onCardClick?: () => void;
+  onItemClick?: (contractor: ContractorMetrics) => void;
 }
 
 /**
@@ -37,50 +39,53 @@ export interface RadarChartProps {
  * - Compliance
  * - Response Time
  */
-export const RadarChart: React.FC<RadarChartProps> = ({ contractors, onCardClick }) => {
+export const RadarChart: React.FC<RadarChartProps> = ({ contractors, data, onCardClick, onItemClick }) => {
+  // Accept either 'contractors' or 'data' prop
+  const contractorData = contractors || data;
+
   // Transform data for Recharts
   const radarData = useMemo(() => {
-    if (!contractors || contractors.length === 0) {
+    if (!contractorData || contractorData.length === 0) {
       return [];
     }
     return [
       {
         dimension: 'Completion',
-        'Contractor A': contractors[0]?.completionRate || 0,
-        'Contractor B': contractors[1]?.completionRate || 0,
-        'Contractor C': contractors[2]?.completionRate || 0,
+        'Contractor A': contractorData[0]?.completionRate || 0,
+        'Contractor B': contractorData[1]?.completionRate || 0,
+        'Contractor C': contractorData[2]?.completionRate || 0,
         fullMark: 100,
       },
       {
         dimension: 'On-Time',
-        'Contractor A': contractors[0]?.onTimeDelivery || 0,
-        'Contractor B': contractors[1]?.onTimeDelivery || 0,
-        'Contractor C': contractors[2]?.onTimeDelivery || 0,
+        'Contractor A': contractorData[0]?.onTimeDelivery || 0,
+        'Contractor B': contractorData[1]?.onTimeDelivery || 0,
+        'Contractor C': contractorData[2]?.onTimeDelivery || 0,
         fullMark: 100,
       },
       {
         dimension: 'Quality',
-        'Contractor A': contractors[0]?.qualityScore || 0,
-        'Contractor B': contractors[1]?.qualityScore || 0,
-        'Contractor C': contractors[2]?.qualityScore || 0,
+        'Contractor A': contractorData[0]?.qualityScore || 0,
+        'Contractor B': contractorData[1]?.qualityScore || 0,
+        'Contractor C': contractorData[2]?.qualityScore || 0,
         fullMark: 100,
       },
       {
         dimension: 'Compliance',
-        'Contractor A': contractors[0]?.compliance || 0,
-        'Contractor B': contractors[1]?.compliance || 0,
-        'Contractor C': contractors[2]?.compliance || 0,
+        'Contractor A': contractorData[0]?.compliance || 0,
+        'Contractor B': contractorData[1]?.compliance || 0,
+        'Contractor C': contractorData[2]?.compliance || 0,
         fullMark: 100,
       },
       {
         dimension: 'Response',
-        'Contractor A': contractors[0]?.responseTime || 0,
-        'Contractor B': contractors[1]?.responseTime || 0,
-        'Contractor C': contractors[2]?.responseTime || 0,
+        'Contractor A': contractorData[0]?.responseTime || 0,
+        'Contractor B': contractorData[1]?.responseTime || 0,
+        'Contractor C': contractorData[2]?.responseTime || 0,
         fullMark: 100,
       },
     ];
-  }, [contractors]);
+  }, [contractorData]);
 
   // Don't render chart if no data
   if (!radarData || radarData.length === 0) {

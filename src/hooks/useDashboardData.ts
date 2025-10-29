@@ -76,17 +76,169 @@ export const useDashboardData = () => {
         return;
       }
 
-      // Simulate API call - replace with actual endpoint
-      const response = await fetch('/api/dashboard/data');
-      if (!response.ok) throw new Error('Failed to fetch dashboard data');
+      // Mock data matching prototype
+      const mockData: DashboardData = {
+        contractors: [
+          {
+            id: 'contractor-a',
+            name: 'Contractor A',
+            completionRate: 92,
+            onTimeDelivery: 88,
+            qualityScore: 95,
+            compliance: 90,
+            responseTime: 89,
+            status: 'excellent',
+          },
+          {
+            id: 'contractor-b',
+            name: 'Contractor B',
+            completionRate: 65,
+            onTimeDelivery: 72,
+            qualityScore: 68,
+            compliance: 58,
+            responseTime: 70,
+            status: 'needs-attention',
+          },
+          {
+            id: 'contractor-c',
+            name: 'Contractor C',
+            completionRate: 78,
+            onTimeDelivery: 85,
+            qualityScore: 82,
+            compliance: 75,
+            responseTime: 80,
+            status: 'good',
+          },
+        ],
+        alerts: [
+          {
+            id: 'alert-1',
+            severity: 'blocking',
+            contractor: 'Contractor B',
+            documentName: 'Safety Plan - Excavation Method',
+            category: 'Safety',
+            impact: 'Cannot start foundation work',
+            deadline: new Date('2025-11-05'),
+            daysOverdue: 7,
+          },
+          {
+            id: 'alert-2',
+            severity: 'blocking',
+            contractor: 'Contractor A',
+            documentName: 'Environmental Impact Assessment',
+            category: 'Environmental',
+            impact: 'Cannot proceed with site clearing',
+            deadline: new Date('2025-11-09'),
+            daysOverdue: 3,
+          },
+          {
+            id: 'alert-3',
+            severity: 'blocking',
+            contractor: 'Contractor C',
+            documentName: 'Quality Control Plan',
+            category: 'Quality',
+            impact: 'Cannot start quality inspections',
+            deadline: new Date('2025-11-07'),
+            daysOverdue: 5,
+          },
+          {
+            id: 'alert-4',
+            severity: 'overdue',
+            contractor: 'Contractor B',
+            documentName: 'Site Safety Inspection Report',
+            category: 'Safety',
+            impact: 'Moderate - needed for compliance',
+            deadline: new Date('2025-11-01'),
+            daysOverdue: 10,
+          },
+          {
+            id: 'alert-5',
+            severity: 'missing',
+            contractor: 'Contractor A',
+            documentName: 'Construction Schedule',
+            category: 'Planning',
+            impact: 'Low - informational',
+            deadline: new Date('2025-11-10'),
+          },
+        ],
+        actions: [
+          {
+            id: 'action-1',
+            title: 'Send Deadline Reminder',
+            description: 'Email alert to Contractor B about 5 missing docs',
+            urgency: 'urgent',
+            contractor: 'Contractor B',
+            actionType: 'email',
+          },
+          {
+            id: 'action-2',
+            title: 'Escalate Critical Docs',
+            description: '3 critical docs blocking construction start',
+            urgency: 'urgent',
+            contractor: 'Multiple',
+            actionType: 'escalate',
+          },
+          {
+            id: 'action-3',
+            title: 'Schedule Review Meeting',
+            description: 'Review process with Contractor A (overdue approvals)',
+            urgency: 'this-week',
+            contractor: 'Contractor A',
+            actionType: 'meeting',
+          },
+          {
+            id: 'action-4',
+            title: 'Provide Document Templates',
+            description: 'Share safety doc templates to Contractor C',
+            urgency: 'this-week',
+            contractor: 'Contractor C',
+            actionType: 'support',
+          },
+          {
+            id: 'action-5',
+            title: 'Quality Audit Review',
+            description: 'Contractor B quality metrics are below standard',
+            urgency: 'planned',
+            contractor: 'Contractor B',
+            actionType: 'meeting',
+          },
+        ],
+        categories: [
+          {
+            id: 'cat-1',
+            name: 'Safety Plans',
+            approved: 12,
+            pending: 3,
+            missing: 1,
+          },
+          {
+            id: 'cat-2',
+            name: 'Quality Docs',
+            approved: 17,
+            pending: 2,
+            missing: 1,
+          },
+          {
+            id: 'cat-3',
+            name: 'Environmental',
+            approved: 12,
+            pending: 5,
+            missing: 3,
+          },
+        ],
+        overallCompletion: 75,
+        avgProcessingTime: 8.5,
+        lastUpdated: new Date(),
+      };
 
-      const data: DashboardData = await response.json();
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       // Update cache
-      cachedData = data;
+      cachedData = mockData;
       cacheTimestamp = Date.now();
 
-      setState(prev => ({ ...prev, data, isLoading: false }));
+      setState(prev => ({ ...prev, data: mockData, isLoading: false }));
     } catch (error) {
       const err = error instanceof Error ? error : new Error('Unknown error');
       setState(prev => ({ ...prev, error: err, isLoading: false }));
