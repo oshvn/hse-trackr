@@ -46,25 +46,25 @@ export const CompletionByContractorBar: React.FC<CompletionByContractorBarProps>
   }
 
   return (
-    <Card className={cn('p-6 flex flex-col gap-4', className)}>
+    <Card className={cn('p-6 flex flex-col gap-4 h-full', className)}>
       <div>
         <h3 className="text-lg font-bold">Completion % by Contractor</h3>
         <p className="text-sm text-muted-foreground">Overall progress comparison</p>
       </div>
 
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-[300px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 35 }}>
+          <BarChart data={chartData} margin={{ top: 10, right: 30, left: 10, bottom: 60 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
             <XAxis
               dataKey="name"
-              tick={{ fontSize: 11 }}
-              angle={-35}
+              tick={{ fontSize: 12 }}
+              angle={-45}
               textAnchor="end"
-              height={50}
+              height={80}
               interval={0}
             />
-            <YAxis tick={{ fontSize: 11 }} domain={[0, 100]} />
+            <YAxis tick={{ fontSize: 12 }} domain={[0, 100]} />
             <Tooltip
               content={({ active, payload, label }) => {
                 if (active && payload && payload.length) {
@@ -85,7 +85,7 @@ export const CompletionByContractorBar: React.FC<CompletionByContractorBarProps>
               {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={getStatusColor(entry.completion)} />
               ))}
-              <LabelList dataKey="completion" position="top" formatter={(value: number) => `${value}%`} style={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} />
+              <LabelList dataKey="completion" position="top" formatter={(value: number) => `${value}%`} style={{ fontSize: 12, fill: 'hsl(var(--foreground))' }} />
             </Bar>
           </BarChart>
         </ResponsiveContainer>

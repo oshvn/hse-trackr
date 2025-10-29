@@ -102,12 +102,12 @@ export const PlannedVsActual: React.FC<PlannedVsActualProps> = ({
   }
 
   return (
-    <Card className="p-6 h-80">
-      <h3 className="text-lg font-semibold mb-4">Planned vs Actual - {contractorName}</h3>
+    <Card className="p-6 flex flex-col gap-4 h-full min-h-[400px]">
+      <h3 className="text-lg font-semibold">Planned vs Actual - {contractorName}</h3>
       
-      <div className="h-64">
+      <div className="flex-1 min-h-[300px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+          <LineChart data={chartData} margin={{ top: 10, right: 40, left: 10, bottom: 10 }}>
             <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
             <XAxis 
               dataKey="dateDisplay"
@@ -116,7 +116,7 @@ export const PlannedVsActual: React.FC<PlannedVsActualProps> = ({
             />
             <YAxis 
               tick={{ fontSize: 12 }}
-              label={{ value: 'Documents', angle: -90, position: 'insideLeft' }}
+              label={{ value: 'Documents', angle: -90, position: 'insideLeft', style: { fontSize: 12 } }}
             />
             <Tooltip
               content={({ active, payload, label }) => {

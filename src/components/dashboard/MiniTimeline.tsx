@@ -57,7 +57,7 @@ export const MiniTimeline: React.FC<TimelineProps> = ({
 
   return (
     <div
-      className="lg:col-span-4 col-span-1 bg-white rounded-lg border border-gray-200 p-4 hover:border-gray-400 hover:shadow-md cursor-pointer transition-all"
+      className="lg:col-span-4 col-span-1 bg-white rounded-lg border border-gray-200 p-6 hover:border-gray-400 hover:shadow-md cursor-pointer transition-all flex flex-col h-full min-h-[350px]"
       onClick={onCardClick}
       role="button"
       tabIndex={0}
@@ -67,59 +67,61 @@ export const MiniTimeline: React.FC<TimelineProps> = ({
     >
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
-        <h3 className="text-sm font-semibold text-gray-700">📅 30-Day Progress</h3>
+        <h3 className="text-base font-semibold text-gray-700">📅 30-Day Progress</h3>
         <span className="text-xl">📈</span>
       </div>
 
       {/* Timeline Chart */}
-      <ResponsiveContainer width="100%" height={180}>
-        <LineChart data={timelineData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-          <XAxis
-            dataKey="day"
-            tick={{ fontSize: 10 }}
-            stroke="#9ca3af"
-          />
-          <YAxis
-            domain={[0, 100]}
-            tick={{ fontSize: 10 }}
-            stroke="#9ca3af"
-          />
-          <Tooltip
-            formatter={(value) => `${value}%`}
-            contentStyle={{
-              backgroundColor: '#ffffff',
-              border: '1px solid #e5e7eb',
-              borderRadius: '6px',
-            }}
-          />
-          <Legend wrapperStyle={{ paddingTop: '10px' }} />
-          
-          {/* Expected Progress Line (dashed) */}
-          <Line
-            type="monotone"
-            dataKey="expected"
-            name="Expected"
-            stroke="#3b82f6"
-            strokeDasharray="5 5"
-            dot={false}
-            strokeWidth={2}
-          />
-          
-          {/* Actual Progress Line (solid) */}
-          <Line
-            type="monotone"
-            dataKey="actual"
-            name="Actual"
-            stroke="#10b981"
-            dot={false}
-            strokeWidth={2}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+      <div className="flex-1 min-h-[240px] w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={timelineData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+            <XAxis
+              dataKey="day"
+              tick={{ fontSize: 11 }}
+              stroke="#9ca3af"
+            />
+            <YAxis
+              domain={[0, 100]}
+              tick={{ fontSize: 11 }}
+              stroke="#9ca3af"
+            />
+            <Tooltip
+              formatter={(value) => `${value}%`}
+              contentStyle={{
+                backgroundColor: '#ffffff',
+                border: '1px solid #e5e7eb',
+                borderRadius: '6px',
+              }}
+            />
+            <Legend wrapperStyle={{ paddingTop: '10px' }} />
+            
+            {/* Expected Progress Line (dashed) */}
+            <Line
+              type="monotone"
+              dataKey="expected"
+              name="Expected"
+              stroke="#3b82f6"
+              strokeDasharray="5 5"
+              dot={false}
+              strokeWidth={2}
+            />
+            
+            {/* Actual Progress Line (solid) */}
+            <Line
+              type="monotone"
+              dataKey="actual"
+              name="Actual"
+              stroke="#10b981"
+              dot={false}
+              strokeWidth={2}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
 
       {/* Info */}
-      <div className="mt-3 flex justify-between text-xs text-gray-600">
+      <div className="mt-4 flex justify-between text-xs text-gray-600">
         <div className="flex items-center gap-1">
           <div className="w-2 h-2 rounded-full bg-blue-500" style={{ borderStyle: 'dashed' }} />
           <span>Expected (30d)</span>
