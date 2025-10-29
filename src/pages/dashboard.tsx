@@ -89,11 +89,11 @@ export default function Dashboard() {
     );
   }
 
-  // Show loading state
+  // Show loading state for dashboard data
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="space-y-4">
+        <div className="space-y-4 col-span-full">
           <Skeleton className="h-24 w-full" />
           <Skeleton className="h-96 w-full" />
           <Skeleton className="h-96 w-full" />
@@ -102,14 +102,14 @@ export default function Dashboard() {
     );
   }
 
-  // Show error state
-  if (error) {
+  // Show error state for dashboard data
+  if (dataError) {
     return (
       <DashboardLayout>
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            Lỗi tải dashboard: {error.message}
+            Lỗi tải dashboard: {dataError.message}
           </AlertDescription>
         </Alert>
       </DashboardLayout>
@@ -122,7 +122,7 @@ export default function Dashboard() {
 
   return (
     <DashboardLayout>
-      {/* Alert Banner */}
+      {/* Alert Banner - NOT in grid, displayed conditionally */}
       {criticalCount > 0 && (
         <AlertBanner
           criticalCount={criticalCount}
@@ -133,70 +133,58 @@ export default function Dashboard() {
         />
       )}
 
-      {/* KPI Section */}
-      <div className="mt-6">
-        <KpiSection
-          overallCompletion={data?.overallCompletion || 0}
-          processingTime={data?.avgProcessingTime || 0}
-          contractorRanking={(data?.contractors || []).map(c => ({
-            id: c.id,
-            name: c.name,
-            score: c.completionRate,
-          }))}
-          onOverallClick={() => openModal('category')}
-          onProcessingClick={() => openModal('timeline')}
-          onRankingClick={() => openModal('radar')}
-        />
-      </div>
+      {/* KPI Section - 3 cards, each spans 3 cols + 1 empty = 12 cols */}
+      <KpiSection
+        overallCompletion={data?.overallCompletion || 0}
+        processingTime={data?.avgProcessingTime || 0}
+        contractorRanking={(data?.contractors || []).map(c => ({
+          id: c.id,
+          name: c.name,
+          score: c.completionRate,
+        }))}
+        onOverallClick={() => openModal('category')}
+        onProcessingClick={() => openModal('timeline')}
+        onRankingClick={() => openModal('radar')}
+      />
 
-      {/* Radar Chart */}
-      <div className="mt-6">
-        <RadarChart
-          data={data?.contractors || []}
-          onItemClick={(contractor) => {
-            switchModal('radar', { selectedContractor: contractor });
-          }}
-        />
-      </div>
+      {/* Radar Chart - spans 6 cols, 2 rows */}
+      <RadarChart
+        data={data?.contractors || []}
+        onItemClick={(contractor) => {
+          switchModal('radar', { selectedContractor: contractor });
+        }}
+      />
 
-      {/* AI Actions Panel */}
-      <div className="mt-6">
-        <AIActionsPanel
-          actions={data?.actions || []}
-          onActionClick={(action) => {
-            switchModal('actions', { selectedAction: action });
-          }}
-        />
-      </div>
+      {/* AI Actions Panel - spans 6 cols, 2 rows */}
+      <AIActionsPanel
+        actions={data?.actions || []}
+        onActionClick={(action) => {
+          switchModal('actions', { selectedAction: action });
+        }}
+      />
 
-      {/* Bar Chart Comparison */}
-      <div className="mt-6">
-        <BarChartComparison
-          data={data?.contractors || []}
-          onItemClick={(contractor) => {
-            toggleContractor(contractor.id);
-          }}
-        />
-      </div>
+      {/* Bar Chart Comparison - spans 4 cols */}
+      <BarChartComparison
+        data={data?.contractors || []}
+        onItemClick={(contractor) => {
+          toggleContractor(contractor.id);
+        }}
+      />
 
-      {/* Category Progress */}
-      <div className="mt-6">
-        <CategoryProgress
-          categories={data?.categories || []}
-          onCategoryClick={(category) => {
-            switchModal('category', { selectedCategory: category });
-          }}
-        />
-          </div>
+      {/* Category Progress - spans 4 cols */}
+      <CategoryProgress
+        categories={data?.categories || []}
+        onCategoryClick={(category) => {
+          switchModal('category', { selectedCategory: category });
+        }}
+      />
 
-      {/* Mini Timeline */}
-      <div className="mt-6">
-        <MiniTimeline
-          data={data?.timeline || []}
-          onViewFullTimeline={() => openModal('timeline')}
-        />
-            </div>
-            
+      {/* Mini Timeline - spans 4 cols */}
+      <MiniTimeline
+        data={data?.timeline || []}
+        onViewFullTimeline={() => openModal('timeline')}
+      />
+
       {/* Modals */}
       {modal.type === 'alerts' && (
         <AlertsModal
