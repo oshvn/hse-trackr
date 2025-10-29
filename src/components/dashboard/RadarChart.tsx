@@ -82,6 +82,31 @@ export const RadarChart: React.FC<RadarChartProps> = ({ contractors, onCardClick
     ];
   }, [contractors]);
 
+  // Don't render chart if no data
+  if (!radarData || radarData.length === 0) {
+    return (
+      <div
+        className="lg:col-span-6 lg:row-span-2 col-span-1 bg-white rounded-lg border-2 border-blue-500 p-5 hover:shadow-lg cursor-pointer transition-all"
+        onClick={onCardClick}
+        role="button"
+        tabIndex={0}
+        onKeyPress={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') onCardClick?.();
+        }}
+      >
+        <div className="flex items-start justify-between mb-4">
+          <h3 className="text-sm font-semibold text-gray-700">🎯 Contractor Performance Radar</h3>
+          <span className="text-xl">🔍</span>
+        </div>
+        <div className="flex items-center justify-center h-80 text-gray-500">
+          <div className="text-center">
+            <p className="text-sm">No contractor data available</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className="lg:col-span-6 lg:row-span-2 col-span-1 bg-white rounded-lg border-2 border-blue-500 p-5 hover:shadow-lg cursor-pointer transition-all relative"

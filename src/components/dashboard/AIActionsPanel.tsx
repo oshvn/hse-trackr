@@ -29,6 +29,9 @@ export interface AIActionsPanelProps {
 export const AIActionsPanel: React.FC<AIActionsPanelProps> = ({ actions, onActionClick }) => {
   // Group actions by urgency
   const groupedActions = useMemo(() => {
+    if (!actions || actions.length === 0) {
+      return { urgent: [], thisWeek: [], planned: [] };
+    }
     return {
       urgent: actions.filter((a) => a.urgency === 'urgent'),
       thisWeek: actions.filter((a) => a.urgency === 'this-week'),

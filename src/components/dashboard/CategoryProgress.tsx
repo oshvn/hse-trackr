@@ -36,6 +36,25 @@ export const CategoryProgress: React.FC<CategoryProgressProps> = ({
     };
   };
 
+  // Don't render if no categories
+  if (!categories || categories.length === 0) {
+    return (
+      <div
+        className="lg:col-span-4 col-span-1 bg-white rounded-lg border border-gray-200 p-4 hover:border-gray-400 hover:shadow-md cursor-pointer transition-all"
+        role="button"
+        tabIndex={0}
+      >
+        <div className="flex items-start justify-between mb-4">
+          <h3 className="text-sm font-semibold text-gray-700">📂 Category Progress</h3>
+          <span className="text-xl">📋</span>
+        </div>
+        <div className="flex items-center justify-center h-32 text-gray-500">
+          <p className="text-sm">No category data available</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className="lg:col-span-4 col-span-1 bg-white rounded-lg border border-gray-200 p-4 hover:border-gray-400 hover:shadow-md cursor-pointer transition-all"

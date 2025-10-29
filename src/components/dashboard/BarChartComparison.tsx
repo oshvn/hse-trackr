@@ -38,6 +38,31 @@ export const BarChartComparison: React.FC<BarChartComparisonProps> = ({
     color: getBarColor(c.completion),
   }));
 
+  // Don't render chart if no data
+  if (!data || data.length === 0) {
+    return (
+      <div
+        className="lg:col-span-4 col-span-1 bg-white rounded-lg border border-gray-200 p-4 hover:border-gray-400 hover:shadow-md cursor-pointer transition-all"
+        onClick={() => onBarClick?.(contractors?.[0]?.id)}
+        role="button"
+        tabIndex={0}
+        onKeyPress={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') onBarClick?.(contractors?.[0]?.id);
+        }}
+      >
+        <div className="flex items-start justify-between mb-4">
+          <h3 className="text-sm font-semibold text-gray-700">📊 Contractor Comparison</h3>
+          <span className="text-xl">📈</span>
+        </div>
+        <div className="flex items-center justify-center h-48 text-gray-500">
+          <div className="text-center">
+            <p className="text-sm">No contractor data available</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className="lg:col-span-4 col-span-1 bg-white rounded-lg border border-gray-200 p-4 hover:border-gray-400 hover:shadow-md cursor-pointer transition-all"
