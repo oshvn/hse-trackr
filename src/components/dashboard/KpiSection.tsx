@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react';
-import { TrendingUp, TrendingDown, Clock, Trophy } from 'lucide-react';
 
 export interface Contractor {
   id: string;
@@ -11,13 +10,11 @@ export interface Contractor {
 
 export interface KpiSectionProps {
   overallCompletion: number;
-  completionTrend: number;
-  trendDirection: 'up' | 'down';
-  avgProcessingTime: number;
-  prepTime: number;
-  approvalTime: number;
-  contractors: Contractor[];
-  onCardClick?: (cardType: 'overall' | 'processing' | 'ranking') => void;
+  processingTime?: number;
+  contractorRanking?: Array<{ id: string; name: string; score: number }>;
+  onOverallClick?: () => void;
+  onProcessingClick?: () => void;
+  onRankingClick?: () => void;
 }
 
 /**
@@ -31,20 +28,18 @@ export interface KpiSectionProps {
  */
 export const KpiSection: React.FC<KpiSectionProps> = ({
   overallCompletion,
-  completionTrend,
-  trendDirection,
-  avgProcessingTime,
-  prepTime,
-  approvalTime,
-  contractors,
-  onCardClick,
+  processingTime = 0,
+  contractorRanking = [],
+  onOverallClick,
+  onProcessingClick,
+  onRankingClick,
 }) => {
   // Sort contractors by score and assign ranks
   const rankedContractors = useMemo(() => {
-    if (!contractors || contractors.length === 0) {
+    if (!contractorRanking || contractorRanking.length === 0) {
       return [];
     }
-    return contractors
+    return contractorRanking
       .sort((a, b) => b.score - a.score)
       .slice(0, 3)
       .map((contractor, index) => ({
@@ -57,7 +52,7 @@ export const KpiSection: React.FC<KpiSectionProps> = ({
               ? 'good'
               : 'needs-attention',
       }));
-  }, [contractors]);
+  }, [contractorRanking]);
 
   const getStatusColor = (status?: string) => {
     switch (status) {
@@ -90,11 +85,11 @@ export const KpiSection: React.FC<KpiSectionProps> = ({
       {/* Overall Completion KPI */}
       <div
         className="lg:col-span-3 md:col-span-4 col-span-1 bg-white rounded-lg border border-gray-200 p-5 hover:border-blue-400 hover:shadow-md cursor-pointer transition-all"
-        onClick={() => onCardClick?.('overall')}
+        onClick={() => onOverallClick?.()}
         role="button"
         tabIndex={0}
         onKeyPress={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') onCardClick?.('overall');
+          if (e.key === 'Enter' || e.key === ' ') onOverallClick?.();
         }}
       >
         <div className="flex items-start justify-between mb-3">
@@ -103,18 +98,8 @@ export const KpiSection: React.FC<KpiSectionProps> = ({
         </div>
         <div className="space-y-2">
           <div className="text-3xl font-bold text-blue-600">{overallCompletion}%</div>
-          <div className="flex items-center gap-1 text-sm">
-            {trendDirection === 'up' ? (
-              <>
-                <TrendingUp className="w-4 h-4 text-green-600" />
-                <span className="text-green-600">↗ +{completionTrend}% vs last week</span>
-              </>
-            ) : (
-              <>
-                <TrendingDown className="w-4 h-4 text-red-600" />
-                <span className="text-red-600">↘ -{completionTrend}% vs last week</span>
-              </>
-            )}
+          <div className="text-xs text-gray-500">
+            Total document completion rate
           </div>
         </div>
         <div className="border-l-4 border-blue-500 pl-3 mt-3 text-xs text-gray-500">
@@ -125,11 +110,11 @@ export const KpiSection: React.FC<KpiSectionProps> = ({
       {/* Processing Time KPI */}
       <div
         className="lg:col-span-3 md:col-span-4 col-span-1 bg-white rounded-lg border border-gray-200 p-5 hover:border-amber-400 hover:shadow-md cursor-pointer transition-all"
-        onClick={() => onCardClick?.('processing')}
+        onClick={() => onProcessingClick?.()}
         role="button"
         tabIndex={0}
         onKeyPress={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') onCardClick?.('processing');
+          if (e.key === 'Enter' || e.key === ' ') onProcessingClick?.();
         }}
       >
         <div className="flex items-start justify-between mb-3">
@@ -137,10 +122,9 @@ export const KpiSection: React.FC<KpiSectionProps> = ({
           <span className="text-xl">⏱️</span>
         </div>
         <div className="space-y-2">
-          <div className="text-3xl font-bold text-amber-600">{avgProcessingTime}d</div>
-          <div className="text-xs text-gray-500 space-y-1">
-            <div>Prep: {prepTime}d</div>
-            <div>Approval: {approvalTime}d</div>
+          <div className="text-3xl font-bold text-amber-600">{processingTime}d</div>
+          <div className="text-xs text-gray-500">
+            Average document processing days
           </div>
         </div>
         <div className="border-l-4 border-amber-500 pl-3 mt-3 text-xs text-gray-500">
@@ -151,11 +135,11 @@ export const KpiSection: React.FC<KpiSectionProps> = ({
       {/* Contractor Ranking KPI */}
       <div
         className="lg:col-span-3 md:col-span-4 col-span-1 bg-white rounded-lg border-2 border-green-500 p-5 hover:shadow-md cursor-pointer transition-all"
-        onClick={() => onCardClick?.('ranking')}
+        onClick={() => onRankingClick?.()}
         role="button"
         tabIndex={0}
         onKeyPress={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') onCardClick?.('ranking');
+          if (e.key === 'Enter' || e.key === ' ') onRankingClick?.();
         }}
       >
         <div className="flex items-start justify-between mb-3">
@@ -163,20 +147,24 @@ export const KpiSection: React.FC<KpiSectionProps> = ({
           <span className="text-xl">📈</span>
         </div>
         <div className="space-y-2">
-          {rankedContractors.map((contractor) => (
-            <div key={contractor.id} className="flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-gray-700">{contractor.rank}.</span>
-                <div
-                  className={`w-2 h-2 rounded-full ${getStatusBgColor(contractor.status)}`}
-                />
-                <span className="text-gray-600">{contractor.name}</span>
+          {rankedContractors.length > 0 ? (
+            rankedContractors.map((contractor) => (
+              <div key={contractor.id} className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-gray-700">{contractor.rank}.</span>
+                  <div
+                    className={`w-2 h-2 rounded-full ${getStatusBgColor(contractor.status)}`}
+                  />
+                  <span className="text-gray-600">{contractor.name}</span>
+                </div>
+                <span className={`font-semibold ${getStatusColor(contractor.status)}`}>
+                  {contractor.score}%
+                </span>
               </div>
-              <span className={`font-semibold ${getStatusColor(contractor.status)}`}>
-                {contractor.score}%
-              </span>
-            </div>
-          ))}
+            ))
+          ) : (
+            <div className="text-xs text-gray-500 py-2">No contractor data</div>
+          )}
         </div>
       </div>
 
