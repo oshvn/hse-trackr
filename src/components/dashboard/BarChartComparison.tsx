@@ -113,21 +113,6 @@ export const BarChartComparison: React.FC<BarChartComparisonProps> = ({
               const contractor = contractors?.find((c) => c.name === data.name);
               contractor && onBarClick?.(contractor.id);
             }}
-            shape={(props) => {
-              const { fill, x, y, width, height } = props;
-              const contractor = chartData.find((d) => d.name === props.name);
-              return (
-                <rect
-                  x={x}
-                  y={y}
-                  width={width}
-                  height={height}
-                  rx={6}
-                  ry={6}
-                  fill={contractor?.color || fill}
-                />
-              );
-            }}
           />
         </BarChart>
       </ResponsiveContainer>
