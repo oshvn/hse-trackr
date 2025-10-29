@@ -29,7 +29,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 
 export default function Dashboard() {
-  const { userRole, loading, error, profile } = useSessionRole();
+  const { role, loading, error, profile } = useSessionRole();
   const { data, isLoading, error: dataError } = useDashboardData();
   const { modal, openModal, closeModal } = useModal();
   const { filters } = useFilters();
@@ -62,7 +62,7 @@ export default function Dashboard() {
   }
 
   // Handle role-based access
-  if (userRole === 'guest') {
+  if (role === 'guest') {
     return (
       <div className="p-8">
         <Alert variant="destructive">
@@ -107,7 +107,16 @@ export default function Dashboard() {
 
       {/* Radar Chart - 6 cols, 2 rows */}
       <RadarChart
-        data={data?.contractors || []}
+        data={(data?.contractors || []).map(c => ({
+          id: c.id,
+          name: c.name,
+          color: c.status === 'excellent' ? '#10b981' : c.status === 'good' ? '#f59e0b' : '#ef4444',
+          completionRate: c.completionRate,
+          onTimeDelivery: c.onTimeDelivery,
+          qualityScore: c.qualityScore,
+          compliance: c.compliance,
+          responseTime: c.responseTime,
+        }))}
         onItemClick={(contractor) => openModal('radar', { contractor })}
       />
 
@@ -119,7 +128,11 @@ export default function Dashboard() {
 
       {/* Bar Chart - 4 cols */}
       <BarChartComparison
-        data={data?.contractors || []}
+        data={(data?.contractors || []).map(c => ({
+          id: c.id,
+          name: c.name,
+          completion: c.completionRate,
+        }))}
         onItemClick={() => {}}
       />
 
@@ -134,8 +147,7 @@ export default function Dashboard() {
 
       {/* Timeline - 4 cols */}
       <MiniTimeline
-        data={data?.timeline || []}
-        onViewFullTimeline={() => openModal('timeline', data?.timeline)}
+        onCardClick={() => openModal('timeline')}
       />
 
       {/* Modals - Outside grid */}
@@ -159,7 +171,7 @@ export default function Dashboard() {
         <ActionsModal
           isOpen={modal.isOpen}
           onClose={closeModal}
-          action={modal.data}
+          actions={modal.data?.action ? [modal.data.action] : data?.actions || []}
         />
       )}
 
@@ -167,7 +179,7 @@ export default function Dashboard() {
         <CategoryModal
           isOpen={modal.isOpen}
           onClose={closeModal}
-          category={modal.data}
+          categoryName={modal.data?.category?.name}
         />
       )}
 
@@ -175,7 +187,6 @@ export default function Dashboard() {
         <TimelineModal
           isOpen={modal.isOpen}
           onClose={closeModal}
-          data={modal.data || []}
         />
       )}
     </DashboardLayout>
