@@ -89,11 +89,23 @@ const LoginPage = () => {
     }
   }, [user, profile, navigate, safeReturnTo, location]);
 
-  // Redirect if already logged in
-  if (user && profile?.status === "active") {
-    const target = getRedirectTarget(profile.role);
-    navigate(target, { replace: true });
-    return null;
+  // Loading state while redirecting (don't render if already logged in)
+  if (redirecting) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <Card className="w-full max-w-md shadow-lg">
+          <CardHeader className="text-center">
+            <CardTitle>Chuyển hướng...</CardTitle>
+            <CardDescription>Đang chuẩn bị dashboard cho bạn.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -242,17 +254,6 @@ const LoginPage = () => {
       setLoading(false);
     }
   };
-
-  if (redirecting) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="space-y-3 text-center">
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
-          <p className="text-sm text-muted-foreground">Đang chuyển hướng…</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
