@@ -40,6 +40,9 @@ export interface RadarChartProps {
 export const RadarChart: React.FC<RadarChartProps> = ({ contractors, onCardClick }) => {
   // Transform data for Recharts
   const radarData = useMemo(() => {
+    if (!contractors || contractors.length === 0) {
+      return [];
+    }
     return [
       {
         dimension: 'Completion',

@@ -31,7 +31,7 @@ export const BarChartComparison: React.FC<BarChartComparisonProps> = ({
     return '#ef4444';
   };
 
-  const data = contractors.map((c) => ({
+  const data = (contractors || []).map((c) => ({
     name: c.name,
     id: c.id,
     completion: c.completion,

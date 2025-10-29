@@ -41,6 +41,9 @@ export const KpiSection: React.FC<KpiSectionProps> = ({
 }) => {
   // Sort contractors by score and assign ranks
   const rankedContractors = useMemo(() => {
+    if (!contractors || contractors.length === 0) {
+      return [];
+    }
     return contractors
       .sort((a, b) => b.score - a.score)
       .slice(0, 3)
