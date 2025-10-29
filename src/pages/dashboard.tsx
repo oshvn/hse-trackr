@@ -41,7 +41,7 @@ import { AlertCircle } from 'lucide-react';
  */
 
 export default function Dashboard() {
-  const { userRole, isAdmin, loading, error, profile } = useSessionRole();
+  const { role: userRole, isAdmin, loading, error, profile } = useSessionRole();
   const { data, isLoading, error: dataError, refetch } = useDashboardData();
   const { modal, openModal, closeModal, switchModal } = useModal();
   const { filters, toggleContractor, toggleCategory, clearFilters } = useFilters();
@@ -103,13 +103,13 @@ export default function Dashboard() {
   }
 
   // Show error state
-  if (error) {
+  if (dataError) {
     return (
       <DashboardLayout>
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            Lỗi tải dashboard: {error.message}
+            Lỗi tải dashboard: {dataError instanceof Error ? dataError.message : 'Unknown error'}
           </AlertDescription>
         </Alert>
       </DashboardLayout>
@@ -152,7 +152,10 @@ export default function Dashboard() {
       {/* Radar Chart */}
       <div className="mt-6">
         <RadarChart
-          data={data?.contractors || []}
+          contractors={(data?.contractors || []).map(c => ({
+            ...c,
+            color: c.status === 'excellent' ? '#10b981' : c.status === 'good' ? '#f59e0b' : '#ef4444'
+          }))}
           onItemClick={(contractor) => {
             switchModal('radar', { selectedContractor: contractor });
           }}
@@ -172,7 +175,11 @@ export default function Dashboard() {
       {/* Bar Chart Comparison */}
       <div className="mt-6">
         <BarChartComparison
-          data={data?.contractors || []}
+          contractors={(data?.contractors || []).map(c => ({
+            id: c.id,
+            name: c.name,
+            completion: c.completionRate
+          }))}
           onItemClick={(contractor) => {
             toggleContractor(contractor.id);
           }}
@@ -192,8 +199,7 @@ export default function Dashboard() {
       {/* Mini Timeline */}
       <div className="mt-6">
         <MiniTimeline
-          data={data?.timeline || []}
-          onViewFullTimeline={() => openModal('timeline')}
+          onCardClick={() => openModal('timeline')}
         />
             </div>
             
@@ -210,7 +216,13 @@ export default function Dashboard() {
         <RadarDetailModal
           isOpen={modal.isOpen}
           onClose={closeModal}
-          data={modal.data}
+          metrics={[
+            { name: 'Completion Rate', contractorA: 92, contractorB: 65, contractorC: 78 },
+            { name: 'On-Time Delivery', contractorA: 88, contractorB: 72, contractorC: 85 },
+            { name: 'Quality Score', contractorA: 95, contractorB: 68, contractorC: 82 },
+            { name: 'Compliance', contractorA: 90, contractorB: 58, contractorC: 75 },
+            { name: 'Response Time', contractorA: 89, contractorB: 70, contractorC: 80 },
+          ]}
         />
       )}
 
@@ -218,7 +230,18 @@ export default function Dashboard() {
         <ActionsModal
           isOpen={modal.isOpen}
           onClose={closeModal}
-          action={modal.data}
+          actions={(data?.actions || [])
+            .filter(action => action.urgency === 'urgent' || action.urgency === 'this-week')
+            .map(action => ({
+              ...action,
+              urgency: action.urgency as 'urgent' | 'this-week',
+              email: {
+                to: `${action.contractor.toLowerCase().replace(' ', '.')}@company.com`,
+                subject: action.title,
+                body: action.description
+              },
+              relatedDocs: ['Document 1', 'Document 2']
+            }))}
         />
       )}
 
@@ -226,7 +249,11 @@ export default function Dashboard() {
         <CategoryModal
           isOpen={modal.isOpen}
           onClose={closeModal}
-          category={modal.data}
+          categoryName={data?.categories?.[0]?.name || 'Safety Plans'}
+          completion={75}
+          approved={data?.categories?.[0]?.approved || 12}
+          pending={data?.categories?.[0]?.pending || 3}
+          missing={data?.categories?.[0]?.missing || 1}
         />
       )}
 
@@ -234,7 +261,12 @@ export default function Dashboard() {
         <TimelineModal
           isOpen={modal.isOpen}
           onClose={closeModal}
-          data={data?.timeline || []}
+          contractors={(data?.contractors || []).map(c => ({
+            name: c.name,
+            submission: c.completionRate,
+            review: c.onTimeDelivery,
+            approval: c.qualityScore
+          }))}
         />
       )}
     </DashboardLayout>

@@ -7,7 +7,7 @@ describe('DashboardLayout', () => {
   it('renders children correctly', () => {
     const testContent = 'Test Dashboard Content';
     render(
-      <DashboardLayout alerts={[]}>
+      <DashboardLayout>
         <div>{testContent}</div>
       </DashboardLayout>
     );
