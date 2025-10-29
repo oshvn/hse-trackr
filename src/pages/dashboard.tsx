@@ -117,8 +117,8 @@ export default function Dashboard() {
   }
 
   // Calculate alert data
-  const criticalCount = data?.alerts?.filter(a => a.severity === 'critical').length || 0;
-  const blockingCount = data?.alerts?.filter(a => a.status === 'blocking').length || 0;
+  const criticalCount = data?.alerts?.filter(a => a.severity === 'blocking').length || 0;
+  const blockingCount = data?.alerts?.filter(a => a.severity === 'blocking').length || 0;
 
   return (
     <DashboardLayout>
@@ -138,12 +138,16 @@ export default function Dashboard() {
         <KpiSection
           overallCompletion={data?.overallCompletion || 0}
           processingTime={data?.avgProcessingTime || 0}
-          contractorRanking={data?.contractorRanking || []}
+          contractorRanking={(data?.contractors || []).map(c => ({
+            id: c.id,
+            name: c.name,
+            score: c.completionRate,
+          }))}
           onOverallClick={() => openModal('category')}
           onProcessingClick={() => openModal('timeline')}
           onRankingClick={() => openModal('radar')}
         />
-          </div>
+      </div>
 
       {/* Radar Chart */}
       <div className="mt-6">
