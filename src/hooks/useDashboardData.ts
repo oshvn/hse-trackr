@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { supabase } from '@/lib/supabase';
 
 export interface ContractorData {
   id: string;
@@ -9,6 +10,12 @@ export interface ContractorData {
   compliance: number;
   responseTime: number;
   status: 'excellent' | 'good' | 'needs-attention';
+  // Trend data
+  previousCompletionRate?: number;
+  previousOnTimeDelivery?: number;
+  previousQualityScore?: number;
+  previousCompliance?: number;
+  previousResponseTime?: number;
 }
 
 export interface AlertData {
@@ -37,7 +44,8 @@ export interface DashboardData {
   actions: ActionData[];
   overallCompletion: number;
   avgProcessingTime: number;
-  categories: Array<{ id: string; name: string; approved: number; pending: number; missing: number }>;
+  categories: Array<{ id: string; name: string; approved: number; pending: number; missing: number; isCritical?: boolean }>;
+  contractorCategories?: Record<string, Array<{ id: string; name: string; approved: number; pending: number; missing: number; isCritical?: boolean }>>;
   lastUpdated: Date;
 }
 
@@ -50,6 +58,12 @@ interface UseDashboardDataState {
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 let cachedData: DashboardData | null = null;
 let cacheTimestamp = 0;
+
+// Force clear cache for categories fix
+export const clearDashboardCache = () => {
+  cachedData = null;
+  cacheTimestamp = 0;
+};
 
 /**
  * Hook to fetch and manage dashboard data
@@ -76,38 +90,253 @@ export const useDashboardData = () => {
         return;
       }
 
-      // Mock data matching prototype
+      // Fetch real categories from database
+      let categoriesData: Array<{ id: string; name: string; approved: number; pending: number; missing: number; isCritical?: boolean }> = [];
+      let contractorCategoriesMap: Record<string, Array<{ id: string; name: string; approved: number; pending: number; missing: number; isCritical?: boolean }>> = {};
+      let contractorsData: Array<{ id: string; name: string }> | null = null;
+      
+      try {
+        // Get all doc_types to extract unique categories
+        const { data: docTypesData } = await supabase
+          .from('doc_types')
+          .select('category, is_critical')
+          .order('category');
+
+        if (docTypesData && docTypesData.length > 0) {
+          // Get unique categories from doc_types
+          const uniqueCategories = new Map<string, boolean>();
+          docTypesData.forEach(dt => {
+            if (dt.category) {
+              // Keep critical flag if any doc_type in this category is critical
+              if (!uniqueCategories.has(dt.category)) {
+                uniqueCategories.set(dt.category, dt.is_critical || false);
+              } else if (dt.is_critical) {
+                uniqueCategories.set(dt.category, true);
+              }
+            }
+          });
+          
+          // Get all contractors
+          const { data: dbContractorsData } = await supabase
+            .from('contractors')
+            .select('id, name');
+          
+          contractorsData = dbContractorsData || null;
+
+          // Get category progress aggregated from v_doc_progress (all contractors)
+          const { data: progressData } = await supabase
+            .from('v_doc_progress')
+            .select('contractor_id, doc_type_id, category, is_critical, required_count, approved_count');
+
+          // Get pending submissions count
+          const { data: submissionsData } = await supabase
+            .from('submissions')
+            .select('doc_type_id, status, cnt, contractor_id')
+            .in('status', ['submitted', 'revision']);
+
+          // Get doc_type_id to category mapping
+          const { data: docTypeMapping } = await supabase
+            .from('doc_types')
+            .select('id, category');
+
+          // Helper function to map sub-categories to parent categories
+          const getParentCategory = (category: string): string => {
+            if (!category) return 'Unknown';
+            // Group all 1.1.x sub-categories under "1.1 Document Register"
+            if (category.startsWith('1.1.')) return '1.1 Document Register';
+            // Keep other categories as-is (1.2, 1.3, 1.4, 1.5)
+            return category;
+          };
+
+          const docTypeToCategory = new Map<string, string>();
+          const docTypeToParentCategory = new Map<string, string>();
+          docTypeMapping?.forEach(dt => {
+            if (dt.id && dt.category) {
+              docTypeToCategory.set(dt.id, dt.category);
+              docTypeToParentCategory.set(dt.id, getParentCategory(dt.category));
+            }
+          });
+
+          // Aggregate by parent category (all contractors combined)
+          const categoryMap = new Map<string, { approved: number; required: number; pending: number; isCritical: boolean }>();
+          
+          // Process progress data - group by parent category
+          progressData?.forEach(item => {
+            const parentCat = getParentCategory(item.category || 'Unknown');
+            const existing = categoryMap.get(parentCat) || { approved: 0, required: 0, pending: 0, isCritical: false };
+            existing.approved += item.approved_count || 0;
+            existing.required += item.required_count || 0;
+            // Mark as critical if any sub-category is critical
+            if (item.is_critical) existing.isCritical = true;
+            categoryMap.set(parentCat, existing);
+          });
+
+          // Process pending submissions (count only if not yet approved enough)
+          if (submissionsData && progressData) {
+            // Create a map of contractor_id -> doc_type_id -> approved_count
+            const approvedMap = new Map<string, Map<string, number>>();
+            progressData.forEach(item => {
+              if (!approvedMap.has(item.contractor_id)) {
+                approvedMap.set(item.contractor_id, new Map());
+              }
+              const contractorMap = approvedMap.get(item.contractor_id)!;
+              // We need doc_type_id here, but progressData doesn't have it directly
+              // So we'll use a different approach
+            });
+
+            // Count pending by parent category
+            submissionsData.forEach(sub => {
+              const parentCategory = docTypeToParentCategory.get(sub.doc_type_id) || 'Unknown';
+              const existing = categoryMap.get(parentCategory);
+              if (existing) {
+                // Count pending submissions (simplified: count all submitted/revision)
+                existing.pending += sub.cnt || 0;
+              }
+            });
+          }
+
+          // Convert to categories array (all contractors) - sorted by category number
+          categoriesData = Array.from(categoryMap.entries())
+            .map(([name, stats], index) => ({
+              id: `cat-${index}`,
+              name,
+              approved: stats.approved,
+              pending: stats.pending,
+              missing: Math.max(0, stats.required - stats.approved - stats.pending),
+              isCritical: stats.isCritical,
+            }))
+            .sort((a, b) => {
+              // Sort by category number (1.1, 1.2, 1.3, etc.)
+              const getCategoryNumber = (name: string): number => {
+                const match = name.match(/^(\d+\.\d+)/);
+                return match ? parseFloat(match[1]) : 999;
+              };
+              return getCategoryNumber(a.name) - getCategoryNumber(b.name);
+            });
+
+          // Calculate categories per contractor - group by parent category
+          contractorsData?.forEach(contractor => {
+            const contractorMap = new Map<string, { approved: number; required: number; pending: number; isCritical: boolean }>();
+            
+            // Filter progress data for this contractor and group by parent category
+            progressData?.filter(p => p.contractor_id === contractor.id).forEach(item => {
+              const parentCat = getParentCategory(item.category || 'Unknown');
+              const existing = contractorMap.get(parentCat) || { approved: 0, required: 0, pending: 0, isCritical: false };
+              existing.approved += item.approved_count || 0;
+              existing.required += item.required_count || 0;
+              // Mark as critical if any sub-category is critical
+              if (item.is_critical) existing.isCritical = true;
+              contractorMap.set(parentCat, existing);
+            });
+
+            // Add pending submissions for this contractor - group by parent category
+            submissionsData?.filter(s => s.contractor_id === contractor.id).forEach(sub => {
+              const parentCategory = docTypeToParentCategory.get(sub.doc_type_id) || 'Unknown';
+              const existing = contractorMap.get(parentCategory);
+              if (existing) {
+                existing.pending += sub.cnt || 0;
+              }
+            });
+
+            // Convert to categories array for this contractor - sorted by category number
+            const contractorCategories = Array.from(contractorMap.entries())
+              .map(([name, stats], index) => ({
+                id: `cat-${contractor.id}-${index}`,
+                name,
+                approved: stats.approved,
+                pending: stats.pending,
+                missing: Math.max(0, stats.required - stats.approved - stats.pending),
+                isCritical: stats.isCritical,
+              }))
+              .sort((a, b) => {
+                // Sort by category number (1.1, 1.2, 1.3, etc.)
+                const getCategoryNumber = (name: string): number => {
+                  const match = name.match(/^(\d+\.\d+)/);
+                  return match ? parseFloat(match[1]) : 999;
+                };
+                return getCategoryNumber(a.name) - getCategoryNumber(b.name);
+              });
+
+            contractorCategoriesMap[contractor.id] = contractorCategories;
+          });
+        }
+      } catch (categoryError) {
+        console.error('Error fetching categories:', categoryError);
+        // Fallback to empty categories if fetch fails
+      }
+
+      // Mock data matching prototype (keep contractors and other data as mock for now)
+      // Map database contractors to mock contractor IDs for compatibility
+      const contractorIdMap = new Map<string, string>();
+      if (contractorsData && contractorsData.length > 0) {
+        const mockContractorIds = ['contractor-a', 'contractor-b', 'contractor-c'];
+        contractorsData.forEach((dbContractor, index) => {
+          if (mockContractorIds[index]) {
+            contractorIdMap.set(dbContractor.id, mockContractorIds[index]);
+          }
+        });
+      }
+      
+      // Map contractorCategoriesMap keys to mock IDs
+      const mappedContractorCategories: Record<string, Array<{ id: string; name: string; approved: number; pending: number; missing: number; isCritical?: boolean }>> = {};
+      if (contractorIdMap.size > 0) {
+        Object.entries(contractorCategoriesMap).forEach(([dbId, categories]) => {
+          const mockId = contractorIdMap.get(dbId);
+          if (mockId) {
+            mappedContractorCategories[mockId] = categories;
+          }
+        });
+      }
+      
       const mockData: DashboardData = {
         contractors: [
           {
             id: 'contractor-a',
-            name: 'Contractor A',
+            name: 'ABC Construction',
             completionRate: 92,
             onTimeDelivery: 88,
             qualityScore: 95,
             compliance: 90,
             responseTime: 89,
             status: 'excellent',
+            // Trend data (previous period)
+            previousCompletionRate: 88,
+            previousOnTimeDelivery: 85,
+            previousQualityScore: 92,
+            previousCompliance: 87,
+            previousResponseTime: 85,
           },
           {
             id: 'contractor-b',
-            name: 'Contractor B',
+            name: 'XYZ Builders',
             completionRate: 65,
             onTimeDelivery: 72,
             qualityScore: 68,
             compliance: 58,
             responseTime: 70,
             status: 'needs-attention',
+            // Trend data (previous period)
+            previousCompletionRate: 70,
+            previousOnTimeDelivery: 75,
+            previousQualityScore: 72,
+            previousCompliance: 65,
+            previousResponseTime: 75,
           },
           {
             id: 'contractor-c',
-            name: 'Contractor C',
+            name: 'DEF Contractors',
             completionRate: 78,
             onTimeDelivery: 85,
             qualityScore: 82,
             compliance: 75,
             responseTime: 80,
             status: 'good',
+            // Trend data (previous period)
+            previousCompletionRate: 75,
+            previousOnTimeDelivery: 78,
+            previousQualityScore: 82,
+            previousCompliance: 70,
+            previousResponseTime: 78,
           },
         ],
         alerts: [
@@ -203,7 +432,8 @@ export const useDashboardData = () => {
             actionType: 'meeting',
           },
         ],
-        categories: [
+        categories: categoriesData.length > 0 ? categoriesData : [
+          // Fallback mock data if no categories found
           {
             id: 'cat-1',
             name: 'Safety Plans',
@@ -226,6 +456,7 @@ export const useDashboardData = () => {
             missing: 3,
           },
         ],
+        contractorCategories: Object.keys(mappedContractorCategories).length > 0 ? mappedContractorCategories : (Object.keys(contractorCategoriesMap).length > 0 ? contractorCategoriesMap : undefined),
         overallCompletion: 75,
         avgProcessingTime: 8.5,
         lastUpdated: new Date(),

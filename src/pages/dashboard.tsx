@@ -305,20 +305,6 @@ export default function Dashboard() {
         </div>
       </BentoGridItem>
 
-      {/* AI Actions Panel - Insights */}
-      <BentoGridItem
-        size="wide"
-        priority="high"
-        className="col-span-1 md:col-span-2 lg:col-span-3 xl:col-span-3 2xl:col-span-2"
-      >
-        <div className="h-full">
-          <AIActionsPanel
-            actions={data?.actions || []}
-            onActionClick={(action) => openModal('actions', { action })}
-          />
-        </div>
-      </BentoGridItem>
-
       {/* Timeline - Progress */}
       <BentoGridItem
         size="wide"
@@ -337,6 +323,14 @@ export default function Dashboard() {
             );
           }}
           onCardClick={() => openModal('timeline')}
+        />
+      </BentoGridItem>
+
+      {/* AI Actions Panel - Insights */}
+      <BentoGridItem size="full" priority="high">
+        <AIActionsPanel
+          actions={data?.actions || []}
+          onActionClick={(action) => openModal('actions', { action })}
         />
       </BentoGridItem>
 

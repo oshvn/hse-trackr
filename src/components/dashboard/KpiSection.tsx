@@ -81,10 +81,10 @@ export const KpiSection: React.FC<KpiSectionProps> = ({
   };
 
   return (
-    <div className="contents">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {/* Overall Completion KPI */}
       <div
-        className="lg:col-span-3 md:col-span-4 col-span-1 bg-white rounded-lg border border-gray-200 p-5 hover:border-blue-400 hover:shadow-md cursor-pointer transition-all"
+        className="bg-white rounded-lg border border-gray-200 p-5 hover:border-blue-400 hover:shadow-md cursor-pointer transition-all"
         onClick={() => onOverallClick?.()}
         role="button"
         tabIndex={0}
@@ -109,7 +109,7 @@ export const KpiSection: React.FC<KpiSectionProps> = ({
 
       {/* Processing Time KPI */}
       <div
-        className="lg:col-span-3 md:col-span-4 col-span-1 bg-white rounded-lg border border-gray-200 p-5 hover:border-amber-400 hover:shadow-md cursor-pointer transition-all"
+        className="bg-white rounded-lg border border-gray-200 p-5 hover:border-amber-400 hover:shadow-md cursor-pointer transition-all"
         onClick={() => onProcessingClick?.()}
         role="button"
         tabIndex={0}
@@ -134,7 +134,7 @@ export const KpiSection: React.FC<KpiSectionProps> = ({
 
       {/* Contractor Ranking KPI */}
       <div
-        className="lg:col-span-3 md:col-span-4 col-span-1 bg-white rounded-lg border-2 border-green-500 p-5 hover:shadow-md cursor-pointer transition-all"
+        className="bg-white rounded-lg border-2 border-green-500 p-5 hover:shadow-md cursor-pointer transition-all"
         onClick={() => onRankingClick?.()}
         role="button"
         tabIndex={0}
@@ -167,9 +167,6 @@ export const KpiSection: React.FC<KpiSectionProps> = ({
           )}
         </div>
       </div>
-
-      {/* Empty space to maintain 12-col grid */}
-      <div className="lg:col-span-3 hidden lg:block" />
     </div>
   );
 };

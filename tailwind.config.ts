@@ -1,7 +1,7 @@
 import type { Config } from "tailwindcss";
 
 export default {
-  darkMode: ["class"],
+  darkMode: false,
   content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
   prefix: "",
   theme: {
@@ -13,6 +13,15 @@ export default {
       },
     },
     extend: {
+      screens: {
+        // Mobile first approach
+        'sm': '640px',     // Mobile
+        'md': '768px',     // Tablet
+        'lg': '1024px',    // Desktop nhỏ
+        'xl': '1400px',    // Desktop lớn (1400px viewport = ~1096px effective)
+        '2xl': '1600px',   // Desktop rất lớn (1600px viewport = ~1296px effective)
+        '3xl': '1920px',   // Ultra-wide (1920px viewport = ~1616px effective)
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { AlertBanner } from './AlertBanner';
+import { BentoGrid, BentoGridItem } from './BentoGrid';
+import './BentoGrid.css';
 
 export interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -13,14 +15,15 @@ export interface DashboardLayoutProps {
 }
 
 /**
- * DashboardLayout v2.0
- * Main container component with 12-column grid layout
+ * DashboardLayout v2.0 with Bento Grid
+ * Modern masonry-style layout with flexible component sizing
  * 
  * Features:
- * - Responsive: 12-col (desktop), 8-col (tablet), 1-col (mobile)
- * - Sticky AlertBanner at top
- * - Optimal spacing and padding
- * - Error boundary wrapper ready
+ * - Bento Grid layout with auto-fit columns
+ * - Flexible item sizing (small, medium, large, wide, tall, full)
+ * - Priority-based ordering
+ * - Smooth animations and transitions
+ * - Responsive design
  */
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   children,
@@ -37,23 +40,25 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   const totalCritical = alertCounts.blocking + alertCounts.overdue + alertCounts.missing;
 
   return (
-    <div className="w-full min-h-screen bg-gray-50">
-      {/* Sticky Alert Banner */}
+    <div className="w-full min-h-screen bg-white">
+      {/* Sticky Alert Banner - Outside Bento Grid */}
       {showAlertBanner && totalCritical > 0 && (
-        <AlertBanner
-          criticalCount={totalCritical}
-          blockingCount={alertCounts.blocking}
-          onViewAll={() => onAlertBannerAction?.('view-all')}
-          onTakeAction={() => onAlertBannerAction?.('take-action')}
-          onDismiss={() => setShowAlertBanner(false)}
-        />
+        <div className="w-full sticky top-0 z-50">
+          <AlertBanner
+            criticalCount={totalCritical}
+            blockingCount={alertCounts.blocking}
+            onViewAll={() => onAlertBannerAction?.('view-all')}
+            onTakeAction={() => onAlertBannerAction?.('take-action')}
+            onDismiss={() => setShowAlertBanner(false)}
+          />
+        </div>
       )}
 
-      {/* Main Dashboard Grid */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="grid grid-cols-1 md:grid-cols-8 lg:grid-cols-12 gap-4 md:gap-6 lg:gap-6">
+      {/* Bento Grid Layout - Only for charts/components */}
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
+        <BentoGrid columns={12} gap={16}>
           {children}
-        </div>
+        </BentoGrid>
       </div>
     </div>
   );
