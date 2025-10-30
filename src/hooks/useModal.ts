@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 
-export type ModalType = 'alerts' | 'radar' | 'actions' | 'category' | 'timeline' | null;
+export type ModalType = 'alerts' | 'radar' | 'actions' | 'category' | 'timeline' | 'category-detail' | null;
 
 export interface ModalState {
   type: ModalType;

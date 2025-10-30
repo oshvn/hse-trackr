@@ -116,10 +116,18 @@ export const generatePerformanceReport = (): PerformanceReport => {
   const fcp = paintEntries.find(e => e.name === 'first-contentful-paint');
   if (fcp) report.firstContentfulPaint = fcp.startTime;
 
-  // Largest Contentful Paint
-  const lcpEntries = performance.getEntriesByType('largest-contentful-paint');
-  if (lcpEntries.length > 0) {
-    report.largestContentfulPaint = lcpEntries[lcpEntries.length - 1].startTime;
+  // Largest Contentful Paint (feature-detected)
+  try {
+    const supported = (PerformanceObserver as any)?.supportedEntryTypes?.includes?.('largest-contentful-paint');
+    if (supported) {
+      // Prefer observer to avoid deprecated warnings
+      const lcpList = performance.getEntriesByType('largest-contentful-paint');
+      if (lcpList && lcpList.length > 0) {
+        report.largestContentfulPaint = (lcpList[lcpList.length - 1] as any).startTime;
+      }
+    }
+  } catch {
+    // Ignore if not supported
   }
 
   // Time to Interactive

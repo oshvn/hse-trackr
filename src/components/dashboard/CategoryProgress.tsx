@@ -12,11 +12,14 @@ export interface Category {
 
 export interface CategoryProgressProps {
   categories: Category[];
-  onCategoryClick?: (categoryId: string) => void;
+  onCategoryClick?: (categoryId: string, contractorId?: string) => void;
+  onCategoryDrillDown?: (categoryId: string, contractorId?: string) => void;
   contractors?: ContractorData[];
   selectedContractor?: string;
   onContractorChange?: (contractorId: string) => void;
   maxVisibleCategories?: number; // Maximum categories to show before "Show more"
+  isDrillDownEnabled?: boolean; // Enable drill-down functionality
+  selectedCategoryId?: string | null; // Currently selected category for drill-down
 }
 
 export interface ContractorData {
@@ -41,10 +44,13 @@ export interface ContractorData {
 export const CategoryProgress: React.FC<CategoryProgressProps> = ({
   categories,
   onCategoryClick,
+  onCategoryDrillDown,
   contractors,
   selectedContractor,
   onContractorChange,
   maxVisibleCategories = 5,
+  isDrillDownEnabled = false,
+  selectedCategoryId = null,
 }) => {
   const [showAllCategories, setShowAllCategories] = useState(false);
 
@@ -188,11 +194,17 @@ export const CategoryProgress: React.FC<CategoryProgressProps> = ({
                   className={`space-y-1.5 p-2.5 rounded-lg border transition-all cursor-pointer ${
                     category.isCritical 
                       ? 'bg-red-50 border-red-200 hover:bg-red-100' 
+                      : selectedCategoryId === category.id
+                      ? 'bg-blue-50 border-blue-200 hover:bg-blue-100'
                       : 'hover:bg-gray-50 border-gray-200'
                   }`}
                   onClick={(e) => {
                     e.stopPropagation();
-                    onCategoryClick?.(category.id);
+                    if (isDrillDownEnabled && onCategoryDrillDown) {
+                      onCategoryDrillDown(category.id, selectedContractor);
+                    } else {
+                      onCategoryClick?.(category.id, selectedContractor);
+                    }
                   }}
                 >
                   {/* Category Name - Compact */}
@@ -205,6 +217,14 @@ export const CategoryProgress: React.FC<CategoryProgressProps> = ({
                           title={category.criticalReason || 'This category is critical for project completion'}
                         >
                           🚨
+                        </span>
+                      )}
+                      {isDrillDownEnabled && (
+                        <span 
+                          className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full flex-shrink-0"
+                          title="Click to view timeline details"
+                        >
+                          📊
                         </span>
                       )}
                     </div>

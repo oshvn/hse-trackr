@@ -9,6 +9,11 @@ import { RadarChart } from '@/components/dashboard/RadarChart';
 import { AIActionsPanel } from '@/components/dashboard/AIActionsPanel';
 import { CategoryProgress } from '@/components/dashboard/CategoryProgress';
 import { MiniTimeline } from '@/components/dashboard/MiniTimeline';
+import { CategoryDetailModal } from '@/components/modals/CategoryDetailModal';
+import { useDashboardIntegration } from '@/hooks/useDashboardIntegration';
+import { generateCategoryTimeline } from '@/lib/categoryTimelineUtils';
+import { getCachedContractorTimeline, clearChartCache, getCacheStats } from '@/lib/chartPerformance';
+import { measurePerformance, logPerformanceReport } from '@/lib/performanceOptimization';
 import { ContractorScorecard } from '@/components/dashboard/ContractorScorecard';
 import { RiskAssessment } from '@/components/dashboard/RiskAssessment';
 import { AdvancedFilters } from '@/components/dashboard/AdvancedFilters';
@@ -46,34 +51,119 @@ export default function Dashboard() {
     'responseTime'
   ]);
   
+  // Integration state management (simplified - only drill-down)
+  const integration = useDashboardIntegration();
+  
   // Category progress contractor state
   const [selectedCategoryContractor, setSelectedCategoryContractor] = useState<string | undefined>();
   
-  // Timeline contractor state
-  const [selectedTimelineContractors, setSelectedTimelineContractors] = useState<string[]>([]);
+  // Timeline contractor state (simplified - no longer needed for sync)
+  // const [selectedTimelineContractors, setSelectedTimelineContractors] = useState<string[]>([]);
   
-  // Contractor timeline data for MiniTimeline
+  // Contractor timeline data for MiniTimeline with caching and performance monitoring
   const contractorTimelineData = React.useMemo(() => {
-    const contractors = data?.contractors || [];
-    const colors = ['#3b82f6', '#10b981', '#f59e0b'];
-    
-    return contractors.map((contractor, index) => {
-      // Generate expected and actual progress arrays
-      const expectedProgress = Array.from({ length: 31 }, (_, i) => (i / 30) * 100);
-      const actualProgress = Array.from({ length: 31 }, (_, i) => {
-        const base = (i / 30) * contractor.completionRate;
-        return Math.min(100, base + (Math.random() - 0.5) * 5);
-      });
+    return measurePerformance('dashboard-contractor-timeline-data', () => {
+      const contractors = data?.contractors || [];
+      const colors = ['#3b82f6', '#10b981', '#f59e0b'];
       
-      return {
-        id: contractor.id,
-        name: contractor.name,
-        color: colors[index % colors.length],
-        expectedProgress,
-        actualProgress,
-      };
+      return getCachedContractorTimeline(contractors, colors);
     });
   }, [data?.contractors]);
+
+  // Generate category timeline data when drilling down
+  const categoryTimelineData = React.useMemo(() => {
+    // Expected initial state: no selectedCategory yet → skip quietly
+    if (!integration.integrationState.selectedCategory) {
+      return null;
+    }
+
+    if (!data?.categories || !data?.contractors) {
+      return null;
+    }
+    
+    let category = data.categories.find(c => c.id === integration.integrationState.selectedCategory);
+    if (!category) {
+      // Fallback: match by name via contractorCategories id → name
+      let fallbackName: string | null = null;
+      if (data.contractorCategories) {
+        for (const cats of Object.values(data.contractorCategories)) {
+          const hit = cats.find(cc => cc.id === integration.integrationState.selectedCategory);
+          if (hit) { fallbackName = hit.name; break; }
+        }
+      }
+      if (fallbackName) {
+        category = data.categories.find(c => c.name === fallbackName) as any;
+      }
+      if (!category) {
+        return null;
+      }
+    }
+    
+    console.log('✅ Found category:', category);
+    
+    return measurePerformance('category-timeline-data-generation', () => {
+      // Convert contractor data to match CategoryProgress.ContractorData interface
+      const contractors = (data.contractors || []).map(c => ({
+        id: c.id,
+        name: c.name,
+        categories: data?.contractorCategories?.[c.id] || data?.categories || []
+      }));
+      
+      const timelineData = generateCategoryTimeline(category, contractors);
+      return timelineData;
+    });
+  }, [integration.integrationState.selectedCategory, data?.categories, data?.contractors]);
+
+  // Update integration state when category timeline data changes
+  React.useEffect(() => {
+    if (categoryTimelineData) {
+      integration.setCategoryTimelineData(categoryTimelineData);
+    }
+  }, [categoryTimelineData, integration.setCategoryTimelineData]);
+
+  // Resolve clicked category id (contractor-level id -> global categories id)
+  const resolveCategoryId = React.useCallback((clickedId: string | null): string | null => {
+    if (!clickedId) return null;
+    // Fast path: exists in global categories
+    const direct = data?.categories?.find(c => c.id === clickedId);
+    if (direct) return direct.id;
+
+    // Try find by scanning contractorCategories to get the category name
+    let foundName: string | null = null;
+    if (data?.contractorCategories) {
+      for (const cats of Object.values(data.contractorCategories)) {
+        const hit = cats.find(cc => cc.id === clickedId);
+        if (hit) { foundName = hit.name; break; }
+      }
+    }
+    if (!foundName) return null;
+
+    // Map name back to global categories id
+    const global = data?.categories?.find(c => c.name === foundName);
+    return global ? global.id : null;
+  }, [data?.categories, data?.contractorCategories]);
+
+  // Performance monitoring effect
+  React.useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      // Log performance report on component mount
+      const timer = setTimeout(() => {
+        logPerformanceReport();
+        console.log('Chart Cache Stats:', getCacheStats());
+      }, 2000);
+
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  // Clear cache on unmount (development only)
+  React.useEffect(() => {
+    return () => {
+      if (process.env.NODE_ENV === 'development') {
+        clearChartCache();
+      }
+    };
+  }, []);
   
   // Benchmark data
   const benchmarks = React.useMemo(() => ({
@@ -305,26 +395,6 @@ export default function Dashboard() {
         </div>
       </BentoGridItem>
 
-      {/* Timeline - Progress */}
-      <BentoGridItem
-        size="wide"
-        priority="medium"
-        className="col-span-1 md:col-span-2 lg:col-span-3 xl:col-span-3 2xl:col-span-3"
-      >
-        <MiniTimeline
-          contractors={contractorTimelineData}
-          showContractorBreakdown={true}
-          selectedContractors={selectedTimelineContractors}
-          onContractorToggle={(contractorId) => {
-            setSelectedTimelineContractors(prev => 
-              prev.includes(contractorId) 
-                ? prev.filter(id => id !== contractorId)
-                : [...prev, contractorId]
-            );
-          }}
-          onCardClick={() => openModal('timeline')}
-        />
-      </BentoGridItem>
 
       {/* AI Actions Panel - Insights */}
       <BentoGridItem size="full" priority="high">
@@ -351,6 +421,7 @@ export default function Dashboard() {
         />
       </BentoGridItem>
 
+
       {/* Category Progress - Portfolio */}
       <BentoGridItem
         size="wide"
@@ -367,10 +438,18 @@ export default function Dashboard() {
             }))}
             selectedContractor={selectedCategoryContractor}
             onContractorChange={setSelectedCategoryContractor}
-            onCategoryClick={(categoryId) => {
-              const cat = data?.categories?.find(c => c.id === categoryId);
-              openModal('category', { category: cat });
+            onCategoryClick={(categoryId, contractorId) => {
+              const normalized = resolveCategoryId(categoryId) || categoryId;
+              integration.handleCategoryDrillDown(normalized, contractorId);
+              openModal('category-detail');
             }}
+            onCategoryDrillDown={(categoryId, contractorId) => {
+              const normalized = resolveCategoryId(categoryId) || categoryId;
+              integration.handleCategoryDrillDown(normalized, contractorId);
+              openModal('category-detail');
+            }}
+            isDrillDownEnabled={true}
+            selectedCategoryId={integration.integrationState.selectedCategory}
           />
         </div>
       </BentoGridItem>
@@ -437,11 +516,13 @@ export default function Dashboard() {
         />
       )}
 
-      {modal.type === 'category' && (
-        <CategoryModal
+      {/* Unified Category Detail Modal */}
+      {modal.type === 'category-detail' && (
+        <CategoryDetailModal
           isOpen={modal.isOpen}
           onClose={closeModal}
-          categoryName={modal.data?.category?.name}
+          categoryData={categoryTimelineData}
+          onBackToOverview={integration.handleBackToOverview}
         />
       )}
 
@@ -449,6 +530,15 @@ export default function Dashboard() {
         <TimelineModal
           isOpen={modal.isOpen}
           onClose={closeModal}
+          contractors={contractorTimelineData}
+          selectedContractors={[]}
+          onContractorToggle={() => {}}
+          onExport={() => {
+            console.log('Exporting timeline data...', {
+              contractors: contractorTimelineData,
+              timestamp: new Date().toISOString()
+            });
+          }}
         />
       )}
       </DashboardLayout>
