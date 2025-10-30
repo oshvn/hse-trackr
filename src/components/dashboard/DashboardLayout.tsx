@@ -40,7 +40,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   const totalCritical = alertCounts.blocking + alertCounts.overdue + alertCounts.missing;
 
   return (
-    <div className="w-full min-h-screen bg-white">
+    <div className="w-full bg-white">{/* bỏ min-h-screen để tránh khoảng trống dư cuối trang */}
       {/* Sticky Alert Banner - Outside Bento Grid */}
       {showAlertBanner && totalCritical > 0 && (
         <div className="w-full sticky top-0 z-50">

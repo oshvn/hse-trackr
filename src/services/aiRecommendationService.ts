@@ -173,7 +173,7 @@ class AIRecommendationService {
     const config = this.getActiveConfig();
     if (!config || !config.api_key) {
       console.warn('No active AI configuration found, using fallback recommendations');
-      return this.generateFallbackRecommendations(request.criticalIssues);
+      return this.generateFallbackRecommendations(request.criticalIssues, request.redCards);
     }
     
     // Generate hash for caching
@@ -191,8 +191,10 @@ class AIRecommendationService {
       const prompt = this.generatePrompt(request.criticalIssues, request.context, request.contractorName, request.redCards);
       
       // Gọi AI API dựa trên provider
-      let aiResponse: string;
-      if (config.provider === 'GLM') {
+      let aiResponse: string = '';
+      if (config.provider === 'Groq') {
+        aiResponse = await this.callGroqAPI(prompt, config);
+      } else if (config.provider === 'GLM') {
         aiResponse = await this.callGLMAPI(prompt, config);
       } else if (config.provider === 'Gemini') {
         aiResponse = await this.callGeminiAPI(prompt, config);
@@ -200,6 +202,12 @@ class AIRecommendationService {
         aiResponse = await this.callOpenAIAPI(prompt, config);
       } else {
         throw new Error(`Unsupported AI provider: ${config.provider}`);
+      }
+      
+      // Guard: nếu response rỗng/invalid → fallback
+      if (!aiResponse || (typeof aiResponse === 'string' && aiResponse.trim() === '')) {
+        console.warn('AI response empty. Falling back to rule-based recommendations');
+        return this.generateFallbackRecommendations(request.criticalIssues, request.redCards);
       }
       
       // Parse response từ AI
@@ -394,8 +402,41 @@ TRẢ LỜI THEO ĐỊNH DẠNG JSON NHƯ SAU:
     }
   }
 
+  private async callGroqAPI(prompt: string, config: AIConfig): Promise<any> {
+    try {
+      const response = await fetch(config.api_endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${config.api_key}`,
+        },
+        body: JSON.stringify({
+          model: config.model,
+          messages: [
+            { role: 'system', content: 'Bạn là một chuyên gia quản lý dự án xây dựng. Luôn trả lời với JSON hợp lệ và chính xác.' },
+            { role: 'user', content: prompt }
+          ],
+          temperature: config.temperature,
+          max_tokens: config.max_tokens
+        })
+      });
+      if (!response.ok) {
+        throw new Error(`Groq API error: ${response.status} ${response.statusText}`);
+      }
+      const data = await response.json();
+      return data.choices[0].message.content;
+    } catch (error) {
+      console.error('Error calling Groq API:', error);
+      throw error;
+    }
+  }
+
   private parseAIResponse(aiResponse: string, criticalIssues: CriticalAlertItem[], redCards?: RedCardItem[]): AIRecommendation[] {
     try {
+      // Guard: chuỗi rỗng/invalid
+      if (!aiResponse || aiResponse.trim() === '') {
+        return this.generateFallbackRecommendations(criticalIssues, redCards);
+      }
       // Thử parse JSON response
       const parsed = JSON.parse(aiResponse);
       
@@ -420,7 +461,7 @@ TRẢ LỜI THEO ĐỊNH DẠNG JSON NHƯ SAU:
     }
     
     // Fallback nếu parse JSON thất bại
-    return this.generateFallbackRecommendations(criticalIssues);
+    return this.generateFallbackRecommendations(criticalIssues, redCards);
   }
 
   private generateFallbackRecommendations(criticalIssues: CriticalAlertItem[], redCards?: RedCardItem[]): AIRecommendation[] {
@@ -560,6 +601,13 @@ TRẢ LỜI THEO ĐỊNH DẠNG JSON NHƯ SAU:
           return { success: true, message: 'OpenAI API connection successful' };
         } else {
           return { success: false, message: 'Unexpected response from OpenAI API' };
+        }
+      } else if (config.provider === 'Groq') {
+        const response = await this.callGroqAPI(testPrompt, config);
+        if (typeof response === 'string' && response.includes('Test successful')) {
+          return { success: true, message: 'Groq API connection successful' };
+        } else {
+          return { success: false, message: 'Unexpected response from Groq API' };
         }
       } else {
         return { success: false, message: `Unsupported AI provider: ${config.provider}` };
@@ -1155,3 +1203,10 @@ Hãy tối ưu hóa và trả về JSON với định dạng:
 }
 
 export const aiRecommendationService = new AIRecommendationService();
+
+export function clearAICache(request: AIRecommendationRequest) {
+  const hash = aiRecommendationService.generateRequestHash(request);
+  try {
+    localStorage.removeItem(`ai_cache_${hash}`);
+  } catch (e) { /* ignore */ }
+}

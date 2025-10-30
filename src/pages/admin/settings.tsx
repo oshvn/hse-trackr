@@ -96,7 +96,7 @@ const AdminSettings: React.FC = () => {
         { id: 'glm-4', name: 'GLM-4', isFree: false },
         { id: 'glm-4-air', name: 'GLM-4-Air', isFree: true },
       ],
-      defaultEndpoint: 'https://open.bigmodel.cn/api/paas/v4/chat/completions'
+      defaultEndpoint: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
     },
     {
       id: 'Gemini',
@@ -106,7 +106,7 @@ const AdminSettings: React.FC = () => {
         { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', isFree: false },
         { id: 'gemini-pro', name: 'Gemini Pro', isFree: true },
       ],
-      defaultEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent'
+      defaultEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent',
     },
     {
       id: 'OpenAI',
@@ -116,8 +116,17 @@ const AdminSettings: React.FC = () => {
         { id: 'gpt-4', name: 'GPT-4', isFree: false },
         { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', isFree: false },
       ],
-      defaultEndpoint: 'https://api.openai.com/v1/chat/completions'
-    }
+      defaultEndpoint: 'https://api.openai.com/v1/chat/completions',
+    },
+    {
+      id: 'Groq',
+      name: 'Groq (Llama 3.x, Free/Ultra Fast)',
+      models: [
+        { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B Instant', isFree: true },
+        { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B Versatile', isFree: true },
+      ],
+      defaultEndpoint: 'https://api.groq.com/openai/v1/chat/completions',
+    },
   ];
 
   const requirementMap = useMemo(() => {
@@ -425,120 +434,75 @@ const AdminSettings: React.FC = () => {
     try {
       let testUrl = '';
       let testPayload = {};
+      const start = performance.now();
       
       if (aiConfig.provider === 'GLM') {
         testUrl = aiConfig.api_endpoint;
         testPayload = {
           model: aiConfig.model,
           messages: [
-            {
-              role: 'system',
-              content: 'You are a helpful assistant.'
-            },
-            {
-              role: 'user',
-              content: 'Hello, this is a test message. Please respond with "Test successful".'
-            }
+            { role: 'system', content: 'You are a helpful assistant.' },
+            { role: 'user', content: 'Hello, this is a test message. Please respond with "Test successful".' }
           ],
           temperature: aiConfig.temperature,
           max_tokens: aiConfig.max_tokens,
         };
-        
         const response = await fetch(testUrl, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${aiConfig.api_key}`
-          },
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${aiConfig.api_key}` },
           body: JSON.stringify(testPayload)
         });
-        
-        if (!response.ok) {
-          throw new Error(`GLM API error: ${response.status} ${response.statusText}`);
-        }
-        
+        if (!response.ok) throw new Error(`GLM API error: ${response.status} ${response.statusText}`);
         const data = await response.json();
-        if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-          throw new Error('Invalid response from GLM API');
-        }
+        if (!data.choices || !data.choices[0] || !data.choices[0].message) throw new Error('Invalid response from GLM API');
       } else if (aiConfig.provider === 'Gemini') {
         testUrl = `${aiConfig.api_endpoint}?key=${aiConfig.api_key}`;
         testPayload = {
-          contents: [
-            {
-              parts: [
-                {
-                  text: 'Hello, this is a test message. Please respond with "Test successful".'
-                }
-              ]
-            }
-          ]
+          contents: [{ parts: [{ text: 'Hello, this is a test message. Please respond with "Test successful".' }] }]
         };
-        
-        const response = await fetch(testUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(testPayload)
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Gemini API error: ${response.status} ${response.statusText}`);
-        }
-        
+        const response = await fetch(testUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(testPayload) });
+        if (!response.ok) throw new Error(`Gemini API error: ${response.status} ${response.statusText}`);
         const data = await response.json();
-        if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-          throw new Error('Invalid response from Gemini API');
-        }
+        if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) throw new Error('Invalid response from Gemini API');
       } else if (aiConfig.provider === 'OpenAI') {
         testUrl = aiConfig.api_endpoint;
         testPayload = {
           model: aiConfig.model,
           messages: [
-            {
-              role: 'system',
-              content: 'You are a helpful assistant.'
-            },
-            {
-              role: 'user',
-              content: 'Hello, this is a test message. Please respond with "Test successful".'
-            }
+            { role: 'system', content: 'You are a helpful assistant.' },
+            { role: 'user', content: 'Hello, this is a test message. Please respond with "Test successful".' }
           ],
           temperature: aiConfig.temperature,
           max_tokens: aiConfig.max_tokens,
         };
-        
-        const response = await fetch(testUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${aiConfig.api_key}`
-          },
-          body: JSON.stringify(testPayload)
-        });
-        
-        if (!response.ok) {
-          throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
-        }
-        
+        const response = await fetch(testUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${aiConfig.api_key}` }, body: JSON.stringify(testPayload) });
+        if (!response.ok) throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
         const data = await response.json();
-        if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-          throw new Error('Invalid response from OpenAI API');
-        }
+        if (!data.choices || !data.choices[0] || !data.choices[0].message) throw new Error('Invalid response from OpenAI API');
+      } else if (aiConfig.provider === 'Groq') {
+        testUrl = aiConfig.api_endpoint;
+        testPayload = {
+          model: aiConfig.model,
+          messages: [
+            { role: 'system', content: 'You are a helpful assistant.' },
+            { role: 'user', content: 'Hello, this is a test message. Please respond with "Test successful".' }
+          ],
+          temperature: aiConfig.temperature,
+          max_tokens: aiConfig.max_tokens,
+        };
+        const response = await fetch(testUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${aiConfig.api_key}` }, body: JSON.stringify(testPayload) });
+        if (!response.ok) throw new Error(`Groq API error: ${response.status} ${response.statusText}`);
+        const data = await response.json();
+        const content = data?.choices?.[0]?.message?.content || '';
+        if (typeof content !== 'string' || content.length === 0) throw new Error('Invalid response from Groq API');
+      } else {
+        throw new Error(`Unsupported provider: ${aiConfig.provider}`);
       }
-      
-      toast({
-        title: "Kết nối AI thành công",
-        description: `${aiConfig.provider} - ${aiConfig.model} đã sẵn sàng sử dụng`,
-      });
-    } catch (error) {
-      console.error("Failed to test AI config", error);
-      toast({
-        title: "Kết nối AI thất bại",
-        description: error.message || "Vui lòng kiểm tra lại cấu hình",
-        variant: "destructive",
-      });
+      const elapsed = Math.round(performance.now() - start);
+      toast({ title: 'Kết nối AI thành công', description: `${aiConfig.provider} - ${aiConfig.model} (${elapsed}ms)` });
+    } catch (error: any) {
+      console.error('Failed to test AI config', error);
+      toast({ title: 'Kết nối AI thất bại', description: error.message || 'Vui lòng kiểm tra lại cấu hình', variant: 'destructive' });
     } finally {
       setTestingAIConfigId(null);
     }
@@ -939,14 +903,34 @@ const AdminSettings: React.FC = () => {
                 <h4 className="font-semibold mb-2">Thông tin về các nhà cung cấp</h4>
                 <div className="space-y-2 text-sm">
                   {aiProviders.map((provider) => (
-                    <div key={provider.id} className="border-b pb-2">
+                    <div key={provider.id} className="border-b pb-2 mb-2">
                       <div className="font-medium">{provider.name}</div>
-                      <div className="text-muted-foreground">
-                        Các model có sẵn: {provider.models.map(m => m.name).join(", ")}
-                      </div>
-                      <div className="text-muted-foreground">
-                        Model miễn phí: {provider.models.filter(m => m.isFree).map(m => m.name).join(", ") || "Không có"}
-                      </div>
+                      <div className="text-muted-foreground">Các model có sẵn: {provider.models.map(m => m.name).join(", ")}</div>
+                      <div className="text-muted-foreground">Model miễn phí: {provider.models.filter(m => m.isFree).map(m => m.name).join(", ") || "Không có"}</div>
+                      {provider.id === 'Groq' && (
+                        <div className="mt-1 text-xs text-blue-700">
+                          <b>Lấy API key:</b> Đăng ký miễn phí tại <a href="https://console.groq.com/keys" target="_blank" rel="noopener" className="underline">https://console.groq.com/keys</a><br />
+                          <b>Endpoint:</b> https://api.groq.com/openai/v1/chat/completions<br />
+                          <b>Model:</b> llama-3.1-8b-instant (Nhanh) hoặc llama-3.3-70b-versatile (Chất lượng cao)<br />
+                          <span className="text-gray-500">Groq có free tier, tốc độ phản hồi rất nhanh</span>
+                        </div>
+                      )}
+                      {provider.id === 'OpenAI' && (
+                        <div className="mt-1 text-xs text-blue-700">
+                          <b>Lấy API key:</b> <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" className="underline">https://platform.openai.com/api-keys</a>
+                        </div>
+                      )}
+                      {provider.id === 'GLM' && (
+                        <div className="mt-1 text-xs text-blue-700">
+                          <b>Đăng ký tại:</b> <a href="https://open.bigmodel.cn/usercenter/apikeys" target="_blank" rel="noopener" className="underline">https://open.bigmodel.cn/usercenter/apikeys</a>
+                        </div>
+                      )}
+                      {provider.id === 'Gemini' && (
+                        <div className="mt-1 text-xs text-blue-700">
+                          <b>Lấy API key:</b> <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener" className="underline">https://makersuite.google.com/app/apikey</a><br />
+                          <span className="text-gray-500">Google cloud API ở project cần enable Gemini, sử dụng endpoint phù hợp nếu đổi model!</span>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
