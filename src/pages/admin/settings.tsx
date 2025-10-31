@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
+import { useSessionRole } from "@/hooks/useSessionRole";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,6 +61,7 @@ const requirementKey = (docTypeId: string, contractorId: string) => `${docTypeId
 
 const AdminSettings: React.FC = () => {
   const { toast } = useToast();
+  const { user } = useSessionRole();
   const [docTypes, setDocTypes] = useState<DocTypeRow[]>([]);
   const [contractors, setContractors] = useState<ContractorRow[]>([]);
   const [requirements, setRequirements] = useState<RequirementRow[]>([]);
@@ -137,26 +139,141 @@ const AdminSettings: React.FC = () => {
     return map;
   }, [requirements]);
 
-  // Load AI config from localStorage
-  const loadAIConfig = useCallback(() => {
+  // Load AI config from database (per user)
+  const loadAIConfig = useCallback(async () => {
+    if (!user?.id) {
+      // Fallback to localStorage if not logged in
+      try {
+        const savedConfig = localStorage.getItem('ai_config');
+        if (savedConfig) {
+          const config = JSON.parse(savedConfig);
+          setAIConfig(config);
+        }
+      } catch (error) {
+        console.error('Failed to load AI config from localStorage:', error);
+      }
+      return;
+    }
+
     try {
-      const savedConfig = localStorage.getItem('ai_config');
-      if (savedConfig) {
-        const config = JSON.parse(savedConfig);
-        setAIConfig(config);
+      // Load from database
+      const { data, error } = await supabase
+        .from('ai_configs')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 = not found
+        throw error;
+      }
+
+      if (data) {
+        setAIConfig({
+          id: data.id || 'main',
+          provider: data.provider || 'GLM',
+          model: data.model || 'glm-4.5-flash',
+          api_key: data.api_key || '',
+          api_endpoint: data.api_endpoint || 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+          temperature: data.temperature || 0.3,
+          max_tokens: data.max_tokens || 1000,
+          enabled: data.enabled || false,
+        });
+      } else {
+        // Migrate from localStorage if exists
+        try {
+          const savedConfig = localStorage.getItem('ai_config');
+          if (savedConfig) {
+            const oldConfig = JSON.parse(savedConfig);
+            if (oldConfig.api_key || oldConfig.enabled) {
+              // Save to database and remove from localStorage
+              if (user?.id) {
+                const { error: saveError } = await supabase
+                  .from('ai_configs')
+                  .upsert({
+                    user_id: user.id,
+                    provider: oldConfig.provider || 'GLM',
+                    model: oldConfig.model || 'glm-4.5-flash',
+                    api_key: oldConfig.api_key || '',
+                    api_endpoint: oldConfig.api_endpoint || 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+                    temperature: oldConfig.temperature || 0.3,
+                    max_tokens: oldConfig.max_tokens || 1000,
+                    enabled: oldConfig.enabled || false,
+                    updated_at: new Date().toISOString(),
+                  }, {
+                    onConflict: 'user_id'
+                  });
+                if (!saveError) {
+                  localStorage.removeItem('ai_config');
+                }
+              }
+            }
+          }
+        } catch (migrateError) {
+          console.error('Failed to migrate from localStorage:', migrateError);
+        }
       }
     } catch (error) {
-      console.error('Failed to load AI config from localStorage:', error);
+      console.error('Failed to load AI config from database:', error);
+      // Fallback to localStorage
+      try {
+        const savedConfig = localStorage.getItem('ai_config');
+        if (savedConfig) {
+          const config = JSON.parse(savedConfig);
+          setAIConfig(config);
+        }
+      } catch (fallbackError) {
+        console.error('Failed to load AI config from localStorage:', fallbackError);
+      }
     }
-  }, []);
+  }, [user?.id]);
 
-  // Save AI config to localStorage
-  const saveAIConfig = useCallback((config: AIConfig) => {
-    try {
-      localStorage.setItem('ai_config', JSON.stringify(config));
-    } catch (error) {
-      console.error('Failed to save AI config to localStorage:', error);
+  // Save AI config to database (per user) - must be defined before loadAIConfig
+  const saveAIConfigToDB = useCallback(async (config: AIConfig) => {
+    if (!user?.id) {
+      // Fallback to localStorage if not logged in
+      try {
+        localStorage.setItem('ai_config', JSON.stringify(config));
+      } catch (error) {
+        console.error('Failed to save AI config to localStorage:', error);
+      }
+      return;
     }
+
+    try {
+      const { error } = await supabase
+        .from('ai_configs')
+        .upsert({
+          user_id: user.id,
+          provider: config.provider,
+          model: config.model,
+          api_key: config.api_key,
+          api_endpoint: config.api_endpoint,
+          temperature: config.temperature,
+          max_tokens: config.max_tokens,
+          enabled: config.enabled,
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'user_id'
+        });
+
+      if (error) throw error;
+
+      // Also keep in localStorage as cache
+      try {
+        localStorage.setItem('ai_config', JSON.stringify(config));
+      } catch (localError) {
+        console.warn('Failed to cache in localStorage:', localError);
+      }
+    } catch (error) {
+      console.error('Failed to save AI config to database:', error);
+      throw error;
+    }
+  }, [user?.id]);
+
+  // Save AI config (wrapper for backward compatibility)
+  const saveAIConfig = useCallback((config: AIConfig) => {
+    // Will be saved when user clicks "Lưu" button
+    setAIConfig(config);
   }, []);
 
   const loadSettings = useCallback(async () => {
@@ -183,8 +300,8 @@ const AdminSettings: React.FC = () => {
         planned_due_date: row.planned_due_date,
       })));
       
-      // Load AI config from localStorage
-      loadAIConfig();
+      // Load AI config from database
+      await loadAIConfig();
     } catch (error) {
       console.error("Failed to load admin settings", error);
       toast({
@@ -411,17 +528,17 @@ const AdminSettings: React.FC = () => {
   const handleSaveAIConfig = async () => {
     setSavingAIConfigId('main');
     try {
-      saveAIConfig(aiConfig);
+      await saveAIConfigToDB(aiConfig);
 
       toast({
         title: "Đã lưu cấu hình AI",
-        description: `${aiConfig.provider} - ${aiConfig.model} được cập nhật thành công`,
+        description: `${aiConfig.provider} - ${aiConfig.model} được cập nhật thành công. Cấu hình đã được lưu theo tài khoản của bạn.`,
       });
     } catch (error) {
       console.error("Failed to update AI config", error);
       toast({
         title: "Không thể cập nhật",
-        description: error.message || "Vui lòng thử lại",
+        description: error instanceof Error ? error.message : "Vui lòng thử lại",
         variant: "destructive",
       });
     } finally {
@@ -541,228 +658,15 @@ const AdminSettings: React.FC = () => {
 
       <Tabs defaultValue="unified-config" className="w-full">
         <TabsList>
-          <TabsTrigger value="unified-config" className="hidden md:inline-flex">
+          <TabsTrigger value="unified-config">
             <AlertCircle className="h-4 w-4 mr-2" />
-            Cấu Hình Yêu Cầu (Mới)
+            Cấu Hình Yêu Cầu
           </TabsTrigger>
-          <TabsTrigger value="doc-types" className="text-xs md:text-sm">Loại tài liệu (Cũ)</TabsTrigger>
-          <TabsTrigger value="requirements" className="text-xs md:text-sm">Yêu cầu NCC (Cũ)</TabsTrigger>
           <TabsTrigger value="ai-config">Cấu hình AI</TabsTrigger>
         </TabsList>
 
         <TabsContent value="unified-config" className="space-y-6">
           <UnifiedRequirementConfig />
-        </TabsContent>
-
-        <TabsContent value="doc-types" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Danh sách loại tài liệu</CardTitle>
-              <CardDescription>
-                Chỉnh sửa tên, nhóm và đánh dấu critical cho từng loại tài liệu
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Tên tài liệu</TableHead>
-                      <TableHead>Mã</TableHead>
-                      <TableHead>Nhóm</TableHead>
-                      <TableHead>Critical</TableHead>
-                      <TableHead className="text-right">Lưu</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {docTypes.map((docType) => (
-                      <TableRow key={docType.id}>
-                        <TableCell>
-                          <Input
-                            value={docType.name}
-                            onChange={(event) => handleDocTypeFieldChange(docType.id, "name", event.target.value)}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            value={docType.code ?? ""}
-                            onChange={(event) => handleDocTypeFieldChange(docType.id, "code", event.target.value)}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            value={docType.category}
-                            onChange={(event) => handleDocTypeFieldChange(docType.id, "category", event.target.value)}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Switch
-                              checked={docType.is_critical}
-                              onCheckedChange={(checked) => handleToggleCritical(docType.id, checked)}
-                            />
-                            {docType.is_critical ? (
-                              <Badge variant="destructive">Must-have</Badge>
-                            ) : (
-                              <Badge variant="outline">Tùy chọn</Badge>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            size="sm"
-                            onClick={() => handleSaveDocType(docType.id)}
-                            disabled={savingDocTypeId === docType.id}
-                          >
-                            <Save className="h-4 w-4 mr-2" />
-                            {savingDocTypeId === docType.id ? "Đang lưu..." : "Lưu"}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-
-              <div className="border-t pt-4 space-y-4">
-                <h3 className="font-semibold flex items-center gap-2">
-                  <PlusCircle className="h-5 w-5" /> Thêm loại tài liệu mới
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div>
-                    <Label htmlFor="new-name">Tên*</Label>
-                    <Input
-                      id="new-name"
-                      placeholder="VD: Permit to Work"
-                      value={newDocType.name}
-                      onChange={(event) => setNewDocType((prev) => ({ ...prev, name: event.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="new-code">Mã</Label>
-                    <Input
-                      id="new-code"
-                      placeholder="VD: PTW"
-                      value={newDocType.code}
-                      onChange={(event) => setNewDocType((prev) => ({ ...prev, code: event.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="new-category">Nhóm*</Label>
-                    <Input
-                      id="new-category"
-                      placeholder="VD: An toàn vận hành"
-                      value={newDocType.category}
-                      onChange={(event) => setNewDocType((prev) => ({ ...prev, category: event.target.value }))}
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        checked={newDocType.is_critical}
-                        onCheckedChange={(checked) => setNewDocType((prev) => ({ ...prev, is_critical: checked }))}
-                      />
-                      <span>Critical</span>
-                    </div>
-                  </div>
-                </div>
-                <Button onClick={handleCreateDocType} disabled={creatingDocType}>
-                  <PlusCircle className="h-4 w-4 mr-2" />
-                  {creatingDocType ? "Đang tạo..." : "Tạo loại tài liệu"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="requirements" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Yêu cầu nộp hồ sơ theo nhà thầu</CardTitle>
-              <CardDescription>
-                Thiết lập số lượng tài liệu cần nộp và hạn chót cho từng nhà thầu
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {docTypes.map((docType) => (
-                <div key={docType.id} className="space-y-4 border rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-semibold flex items-center gap-2">
-                        {docType.name}
-                        {docType.is_critical && <Badge variant="destructive">Critical</Badge>}
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        Nhóm: {docType.category} {docType.code ? `• Mã: ${docType.code}` : ""}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {contractors.map((contractor) => {
-                      const key = requirementKey(docType.id, contractor.id);
-                      const requirement = requirementMap.get(key);
-                      return (
-                        <div key={key} className="border rounded-md p-4 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <div className="font-medium">{contractor.name}</div>
-                            {requirement?.planned_due_date && new Date(requirement.planned_due_date) < new Date() && (
-                              <Badge variant="destructive" className="text-xs flex items-center gap-1">
-                                <ShieldAlert className="h-3 w-3" /> Quá hạn
-                              </Badge>
-                            )}
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label>Số lượng yêu cầu</Label>
-                            <Input
-                              type="number"
-                              min={0}
-                              value={requirement?.required_count ?? 0}
-                              onChange={(event) =>
-                                handleRequirementFieldChange(
-                                  docType.id,
-                                  contractor.id,
-                                  "required_count",
-                                  Number(event.target.value)
-                                )
-                              }
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label>Hạn hoàn thành</Label>
-                            <Input
-                              type="date"
-                              value={requirement?.planned_due_date ?? ""}
-                              onChange={(event) =>
-                                handleRequirementFieldChange(
-                                  docType.id,
-                                  contractor.id,
-                                  "planned_due_date",
-                                  event.target.value || null
-                                )
-                              }
-                            />
-                          </div>
-
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full"
-                            onClick={() => handleSaveRequirement(docType.id, contractor.id)}
-                            disabled={savingRequirementKey === key}
-                          >
-                            {savingRequirementKey === key ? "Đang lưu..." : "Lưu yêu cầu"}
-                          </Button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
         </TabsContent>
 
         <TabsContent value="ai-config" className="space-y-6">

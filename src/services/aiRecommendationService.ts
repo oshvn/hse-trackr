@@ -94,15 +94,39 @@ class AIRecommendationService {
     }
   };
   
-  private getActiveConfig(): AIConfig | null {
+  private async getActiveConfig(): Promise<AIConfig | null> {
     try {
+      // First try to load from database (per user)
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user?.id) {
+        const { data, error } = await supabase
+          .from('ai_configs')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .maybeSingle();
+
+        if (!error && data && data.enabled) {
+          return {
+            id: data.id || 'main',
+            provider: data.provider || 'GLM',
+            model: data.model || 'glm-4.5-flash',
+            api_key: data.api_key || '',
+            api_endpoint: data.api_endpoint || 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+            temperature: data.temperature || 0.3,
+            max_tokens: data.max_tokens || 1000,
+            enabled: data.enabled || false,
+          };
+        }
+      }
+
+      // Fallback to localStorage
       const savedConfig = localStorage.getItem('ai_config');
       if (savedConfig) {
         const config: AIConfig = JSON.parse(savedConfig);
-        if (config.enabled) return config;
+        if (config.enabled && config.api_key) return config;
       }
     } catch (error) {
-      console.error('Failed to load AI config from localStorage:', error);
+      console.error('Failed to load AI config:', error);
     }
     
     // Fallback to environment variables
@@ -114,10 +138,10 @@ class AIRecommendationService {
       api_endpoint: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
       temperature: 0.3,
       max_tokens: 1000,
-      enabled: true,
+      enabled: !!import.meta.env.VITE_GLM_API_KEY,
     };
     
-    return fallbackConfig;
+    return fallbackConfig.enabled ? fallbackConfig : null;
   }
   
   private generateRequestHash(request: AIRecommendationRequest): string {
@@ -170,7 +194,7 @@ class AIRecommendationService {
   }
 
   async getRecommendations(request: AIRecommendationRequest): Promise<AIRecommendation[]> {
-    const config = this.getActiveConfig();
+    const config = await this.getActiveConfig();
     if (!config || !config.api_key) {
       console.warn('No active AI configuration found, using fallback recommendations');
       return this.generateFallbackRecommendations(request.criticalIssues, request.redCards);
@@ -568,7 +592,7 @@ TRẢ LỜI THEO ĐỊNH DẠNG JSON NHƯ SAU:
         return { success: false, message: 'Failed to load AI configurations' };
       }
     } else {
-      config = this.getActiveConfig();
+      config = await this.getActiveConfig();
       if (!config) {
         return { success: false, message: 'No active AI configuration' };
       }
@@ -624,7 +648,7 @@ TRẢ LỜI THEO ĐỊNH DẠNG JSON NHƯ SAU:
    * Phân tích nguyên nhân gốc rễ của các vấn đề
    */
   async analyzeRootCauses(issues: CriticalAlertItem[], redCards?: RedCardItem[]): Promise<RootCauseAnalysis> {
-    const config = this.getActiveConfig();
+    const config = await this.getActiveConfig();
     if (!config || !config.api_key) {
       return this.generateFallbackRootCauseAnalysis(issues, redCards);
     }
@@ -654,7 +678,7 @@ TRẢ LỜI THEO ĐỊNH DẠNG JSON NHƯ SAU:
    * Nhận diện patterns trong dữ liệu
    */
   async recognizePatterns(historicalData: any[]): Promise<PatternRecognition[]> {
-    const config = this.getActiveConfig();
+    const config = await this.getActiveConfig();
     if (!config || !config.api_key) {
       return this.generateFallbackPatterns(historicalData);
     }
@@ -684,7 +708,7 @@ TRẢ LỜI THEO ĐỊNH DẠNG JSON NHƯ SAU:
    * Đánh giá tác động của các vấn đề
    */
   async assessImpact(issues: CriticalAlertItem[], context: ProjectContext): Promise<ImpactAssessment> {
-    const config = this.getActiveConfig();
+    const config = await this.getActiveConfig();
     if (!config || !config.api_key) {
       return this.generateFallbackImpactAssessment(issues, context);
     }
@@ -714,7 +738,7 @@ TRẢ LỜI THEO ĐỊNH DẠNG JSON NHƯ SAU:
    * Tối ưu hóa nguồn lực
    */
   async optimizeResources(issues: CriticalAlertItem[], availableResources: string[]): Promise<ResourceOptimization> {
-    const config = this.getActiveConfig();
+    const config = await this.getActiveConfig();
     if (!config || !config.api_key) {
       return this.generateFallbackResourceOptimization(issues, availableResources);
     }

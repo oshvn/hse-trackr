@@ -68,6 +68,8 @@ export const UnifiedRequirementConfig: React.FC = () => {
     category: '',
     is_critical: false,
   });
+  // State cho contractor requirements form (key: `${docTypeId}-${contractorId}`)
+  const [contractorFormValues, setContractorFormValues] = useState<Record<string, { requiredCount: number; plannedDueDate: string }>>({});
 
   // Load all data
   const loadAllData = useCallback(async () => {
@@ -88,7 +90,19 @@ export const UnifiedRequirementConfig: React.FC = () => {
       setDocTypes((docTypesRes.data || []) as any);
       setContractors((contractorsRes.data || []) as any);
       setChecklistRequirements((checklistRes.data || []) as any);
-      setContractorRequirements((contractorReqRes.data || []) as any);
+      const contractorReqData = (contractorReqRes.data || []) as any;
+      setContractorRequirements(contractorReqData);
+      
+      // Initialize form values from database
+      const initialFormValues: Record<string, { requiredCount: number; plannedDueDate: string }> = {};
+      contractorReqData.forEach((req: ContractorRequirementRow) => {
+        const key = `${req.doc_type_id}-${req.contractor_id}`;
+        initialFormValues[key] = {
+          requiredCount: req.required_count ?? 0,
+          plannedDueDate: req.planned_due_date ?? ''
+        };
+      });
+      setContractorFormValues(prev => ({ ...prev, ...initialFormValues }));
     } catch (error) {
       console.error('Error loading data:', error);
       toast({
@@ -452,8 +466,11 @@ export const UnifiedRequirementConfig: React.FC = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-48 overflow-y-auto">
                         {contractors.map(contractor => {
                           const req = contractorReqs.get(contractor.id);
-                          const [requiredCount, setRequiredCount] = useState(req?.required_count ?? 0);
-                          const [plannedDueDate, setPlannedDueDate] = useState(req?.planned_due_date ?? '');
+                          const formKey = `${docType.id}-${contractor.id}`;
+                          const formValue = contractorFormValues[formKey] || {
+                            requiredCount: req?.required_count ?? 0,
+                            plannedDueDate: req?.planned_due_date ?? ''
+                          };
 
                           return (
                             <div key={contractor.id} className="border rounded-md p-3 space-y-2 bg-background">
@@ -464,8 +481,14 @@ export const UnifiedRequirementConfig: React.FC = () => {
                                 <Input
                                   type="number"
                                   min="0"
-                                  value={requiredCount}
-                                  onChange={(e) => setRequiredCount(Number(e.target.value))}
+                                  value={formValue.requiredCount}
+                                  onChange={(e) => setContractorFormValues(prev => ({
+                                    ...prev,
+                                    [formKey]: {
+                                      ...prev[formKey],
+                                      requiredCount: Number(e.target.value)
+                                    }
+                                  }))}
                                   className="h-8 text-sm"
                                 />
                               </div>
@@ -474,8 +497,14 @@ export const UnifiedRequirementConfig: React.FC = () => {
                                 <Label className="text-xs">Hạn hoàn thành</Label>
                                 <Input
                                   type="date"
-                                  value={plannedDueDate}
-                                  onChange={(e) => setPlannedDueDate(e.target.value)}
+                                  value={formValue.plannedDueDate}
+                                  onChange={(e) => setContractorFormValues(prev => ({
+                                    ...prev,
+                                    [formKey]: {
+                                      ...prev[formKey],
+                                      plannedDueDate: e.target.value
+                                    }
+                                  }))}
                                   className="h-8 text-sm"
                                 />
                               </div>
@@ -487,8 +516,8 @@ export const UnifiedRequirementConfig: React.FC = () => {
                                 onClick={() => handleSaveContractorRequirement(
                                   docType.id,
                                   contractor.id,
-                                  requiredCount,
-                                  plannedDueDate || null
+                                  formValue.requiredCount,
+                                  formValue.plannedDueDate || null
                                 )}
                               >
                                 <Save className="h-3 w-3 mr-1" />
